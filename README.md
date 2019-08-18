@@ -27,7 +27,7 @@ Our simulator is currently in alpha status as we are validating the cycle accura
 - JSON configuration file
 - Easy to install, use and modify
 
-For internal micro-architectural details, see [MARSS-RISCV Micro-architecture Documentation](https://marss-riscv-docs.readthedocs.io/en/latest/)
+For internal micro-architectural details, see [MARSS-RISCV Micro-architecture Documentation](https://marss-riscv-docs.readthedocs.io/en/latest/).
 
 ## Getting started with the simulator running a Linux guest
 
@@ -69,16 +69,16 @@ $ make
 
 ### Preparing the bootloader, kernel and userland image
 
-Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built images are located in the [riscv-images](https://github.com/bucaps/riscv-images) repository. To clone it, make sure you have [Git LFS](https://git-lfs.github.com/) installed on your system, and type:
+Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built images are located in the [marss-riscv-images](https://github.com/bucaps/marss-riscv-images) repository. To clone it, make sure you have [Git LFS](https://git-lfs.github.com/) installed on your system, and type:
 
 ```console
-$ git clone https://github.com/bucaps/riscv-images
+$ git clone https://github.com/bucaps/marss-riscv-images
 ```
 
-The userland image is compressed and needs to be decompressed before running the simulator:
+The userland image needs to be decompressed before running the simulator:
 
 ```console
-$ cd riscv-images/riscv32-unknown-linux-gnu/
+$ cd marss-riscv-images/riscv32-unknown-linux-gnu/
 $ xz -d -k -T 0 riscv32.img.xz
 ```
 
@@ -90,7 +90,7 @@ $ ../../marss-riscv riscvemu.cfg
 
 Simulation parameters can be configured using `riscvemu.cfg`, RISCVEMU JSON configuration file. 
 
-By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. In that case, it may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found [here](https://github.com/bucaps/riscv-images/tree/master#how-to-use).
+By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. In that case, it may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found [here](https://github.com/bucaps/marss-riscv-images#how-to-use).
 
 By default, guest boots in emulation mode. To start in simulation mode run with `-simstart` command line option.
 
@@ -101,7 +101,7 @@ Once the guest boots, we need to initialize the environment. Normally, this shou
 # env-update
 ```
 
-The system is ready for use. It has a working GCC compiler, ssh, git, and [more](https://github.com/bucaps/riscv-images/blob/d6d6aba87f153a2f6545186f0e400945c37c0f02/riscv32-unknown-linux-gnu/PACKAGES). It has a virtual network interface. However, there's no host-to-guest routing, so it's not possible to ssh into the guest.
+The system is ready for use. It has a working GCC compiler, ssh, git, and [more](https://github.com/bucaps/marss-riscv-images/blob/master/riscv32-unknown-linux-gnu/PACKAGES). It has a virtual network interface. However, there's no host-to-guest routing, so it's not possible to ssh into the guest.
 
 By default, `Ctrl-C` will not kill the simulator. The command `halt` will cleanly shutdown the guest. Alternatively, you can pass the `-ctrlc` command line argument to the simulator, which will allow it to be killed using `Ctrl-C`.
 
@@ -129,7 +129,7 @@ int main()
 ```
 
 ### Using simulate script
-Alternatively, you can use the provided simulation script (`simulate.c`) provided [here](/link/to/scripts/folder) which forks a child process. Child enters the simulation mode and execs the command. Parent process waits for the child to complete and then switches MARSS-RISCV back to emulation mode. Using this script it is possible to simulate any program without need to modify and re-compile the source code. Since child switches to simulation mode before calling `exec()`, `exec()` also runs in the simulation mode. Hence, performance statistics generated at the end of the simulation will also include stats for `exec()`.
+Alternatively, you can use the provided simulation script (`simulate.c`) provided [here](https://github.com/bucaps/marss-riscv/tree/master/scripts) which forks a child process. Child enters the simulation mode and execs the command. Parent process waits for the child to complete and then switches MARSS-RISCV back to emulation mode. Using this script it is possible to simulate any program without need to modify and re-compile the source code. Since child switches to simulation mode before calling `exec()`, `exec()` also runs in the simulation mode. Hence, performance statistics generated at the end of the simulation will also include stats for `exec()`.
 
 ## Viewing live simulation stats
 You can view live simulation stats using the provided `stats-display` tool. First, open a new terminal before executing the simulator and launch `stats-display`:
