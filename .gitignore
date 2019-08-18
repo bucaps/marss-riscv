@@ -1,0 +1,19 @@
+# exclude all object files
+src/*.o
+src/riscvsim/*.o
+src/slirp/*.o
+
+# exclude all dependency files
+src/*.d
+src/riscvsim/*.d
+src/slirp/*.d
+
+# exclude stats file
+src/*.csv
+
+# exclude executables
+src/marss-riscv
+src/stats-display
+src/build_filelist
+src/splitimg
+
