@@ -27,7 +27,7 @@ Our simulator is currently in alpha status as we are validating the cycle accura
 - JSON configuration file
 - Easy to install, use and modify
 
-For internal micro-architectural details, see [MARSS-RISCV Micro-architecture Documentation](/link/to/docs)
+For internal micro-architectural details, see [MARSS-RISCV Micro-architecture Documentation](https://marss-riscv-docs.readthedocs.io/en/latest/)
 
 ## Getting started with the simulator running a Linux guest
 
