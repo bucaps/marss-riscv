@@ -168,7 +168,7 @@ uses the new SoftFP library.
 ### HTIF console
 
 The standard HTIF console uses registers at variable addresses which
-are deduced by loading specific ELF symbols. RISCVEMU does not rely on
+are deduced by loading specific ELF symbols. TinyEMU does not rely on
 an ELF loader, so it is much simpler to use registers at fixed
 addresses (0x40008000). A small modification was made in the
 "riscv-pk" boot loader to support it. The HTIF console is only used to
@@ -222,7 +222,7 @@ the JSON blk.txt file must be provided as disk image filename.
 * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
 
 ## Acknowledgment
-This work was supported in part by DARPA through an award from the SSITH program. We would like to thank Gokturk Yuksek, Ravi Theja Gollapudi and Kanad Ghose for assistance with the internal details of RISCVEMU and the development of the MARSS-RISCV.
+This work was supported in part by DARPA through an award from the SSITH program. We would like to thank Gokturk Yuksek, Ravi Theja Gollapudi and Kanad Ghose for assistance with the internal details of TinyEMU and the development of the MARSS-RISCV.
 
 ## License
 This project is licensed under the MIT License - see the
