@@ -1,4 +1,7 @@
 ## MARSS-RISCV: Micro-Architectural System Simulator for RISC-V
+
+[![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/bucaps/marss-riscv/blob/master/src/MIT-LICENSE.txt) [![GitHub issues](https://img.shields.io/github/issues/Naereen/StrapDown.js.svg)](https://github.com/bucaps/marss-riscv/issues/)
+
 MARSS-RISCV (Micro-ARchitectural System Simulator - RISCV) is a open source, **cycle-accurate single core full-system (Linux) micro-architectural simulator** for the [RISC-V](https://riscv.org/specifications/) ISA built upon [TinyEMU emulator (https://bellard.org/tinyemu)](https://bellard.org/tinyemu) by Fabrice Bellard and uses its code for all the device emulation and configuration. It consists of detailed cycle accurate models of a modern RISC-V In-order and Out-of-order processor with branch prediction unit and a complete memory hierarchy. It is currently being developed and maintained by [CAPS](https://github.com/bucaps/) (Computer Architecture and Power Aware Systems Research Group) at the State University of New York at Binghamton. Being a true full system simulator, MARSS-RISCV can simulate all of the system in a cycle accurate fashion including OS code, libraries, interrupt handlers etc.
 
 Currently, our simulator is in alpha status as we are validating the cycle accuracy using various development boards. The simulated in-order core is tested and operational, however, the simulated out-of-order core is in microarchitectural testing phase.
