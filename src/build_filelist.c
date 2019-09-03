@@ -94,6 +94,7 @@ static void copy_file(const char *src_filename, const char *dst_filename)
     }
     fclose(fo);
     fclose(fi);
+    free(buf);
 }
 
 typedef struct {
