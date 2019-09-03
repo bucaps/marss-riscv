@@ -37,12 +37,12 @@
 
 #define MAX_STR 32
 
-static char cache_evict_policy_str[][MAX_STR] = {"Random", "LRU"};
-static char cache_write_policy_str[][MAX_STR] = {"WriteBack", "WriteThrough"};
-static char cache_read_alloc_policy_str[][MAX_STR]
-    = {"ReadAllocate", "ReadNoAllocate"};
-static char cache_write_alloc_policy_str[][MAX_STR]
-    = {"WriteAllocate", "WriteNoAllocate"};
+// static char cache_evict_policy_str[][MAX_STR] = {"Random", "LRU"};
+// static char cache_write_policy_str[][MAX_STR] = {"WriteBack", "WriteThrough"};
+// static char cache_read_alloc_policy_str[][MAX_STR]
+//     = {"ReadAllocate", "ReadNoAllocate"};
+// static char cache_write_alloc_policy_str[][MAX_STR]
+//     = {"WriteAllocate", "WriteNoAllocate"};
 
 static void
 update_tag_address(const Cache *c, uint32_t *pset, CacheBlk **pblk,
@@ -563,6 +563,7 @@ create_cache(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
     c->stats = (CacheStats *)calloc(NUM_MAX_PRV_LEVELS, sizeof(CacheStats));
     assert(c->stats);
 
+    c->cache_evict_policy = evict_policy;
     c->cache_write_policy = write_policy;
     c->cache_read_alloc_policy = read_alloc_policy;
     c->cache_write_alloc_policy = write_alloc_policy;
@@ -673,14 +674,14 @@ print_cache_config(const Cache *const c)
     fprintf(stderr, "Set bits: %u\n", c->set_bits);
     fprintf(stderr, "Tag bits: %u\n", c->tag_bits);
     fprintf(stderr, "Eviction Policy: [%d] %s\n", c->cache_evict_policy,
-            cache_evict_policy_str[c->cache_evict_policy]);
+            cache_evict_str[c->cache_evict_policy]);
     fprintf(stderr, "Write Policy: [%d] %s\n", c->cache_write_policy,
-            cache_write_policy_str[c->cache_write_policy]);
+            cache_wp_str[c->cache_write_policy]);
     fprintf(stderr, "Read Alloc Policy: [%d] %s\n", c->cache_read_alloc_policy,
-            cache_read_alloc_policy_str[c->cache_read_alloc_policy]);
+            cache_ra_str[c->cache_read_alloc_policy]);
     fprintf(stderr, "Write Alloc Policy: [%d] %s\n",
             c->cache_write_alloc_policy,
-            cache_write_alloc_policy_str[c->cache_write_alloc_policy]);
+            cache_wa_str[c->cache_write_alloc_policy]);
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 }

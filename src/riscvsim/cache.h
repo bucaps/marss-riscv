@@ -32,6 +32,7 @@
 
 #include "memory_controller.h"
 #include "riscv_sim_macros.h"
+#include "../sim_params_stats.h"
 
 /* Word size in the target architecture */
 #define WORD_SIZE (sizeof(target_ulong))
