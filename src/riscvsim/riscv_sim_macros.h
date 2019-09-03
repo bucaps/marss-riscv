@@ -147,7 +147,7 @@ typedef uint64_t target_ulong;
 #define INS_CLASS_FP 0x1
 
 
-#define GET_NUM_BITS(x) ceil(log((x)))
+#define GET_NUM_BITS(x) ceil(log2((x)))
 #define PRINT_INIT_MSG(str) fprintf(stderr, " \x1B[32m*\x1B[0m " str "...\n")
 #define PRINT_PROG_TITLE_MSG(str) fprintf(stderr, "\x1B[32m\x1B[0m " str "\n\n")
 
