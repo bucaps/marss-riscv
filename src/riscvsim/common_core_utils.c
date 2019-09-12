@@ -31,7 +31,7 @@
 #include "../cutils.h"
 #include "../riscv_cpu_shared.h"
 
-static char cpu_mode_str[][128] = { "PRV_U", "PRV_S", "PRV_H", "PRV_M" };
+static char cpu_mode_str[][128] = { "U-mode", "S-mode", "H-mode", "M-mode" };
 
 /*  TODO: also free up imap entry associated with this stage
 */
@@ -692,18 +692,45 @@ copy_cache_stats_to_global_stats(struct RISCVCPUState *s)
 
 void
 print_ins_trace(struct RISCVCPUState *s, uint64_t cycle, target_ulong pc,
-                uint32_t insn, const char *insn_str, int mode,
-                const char *exception)
+                uint32_t insn, const char *insn_str, int rd, uint64_t rdvalue,
+		uint64_t ea, int mode, const char *exception)
 {
-    fprintf(s->sim_trace, "cycle = %-10" PRIu64 " pc = 0x%-12" TARGET_ULONG_HEX
-                          " insn = 0x%-12" PRIx32,
-            cycle, pc, insn);
+    fprintf(s->sim_trace, "cycle=%-8" PRIu64 " %16" TARGET_ULONG_HEX
+                          ": ", cycle, pc);
+    if (3 == (insn & 3))
+	fprintf(s->sim_trace, "%08" PRIx32, insn);
+    else
+	fprintf(s->sim_trace, "%04" PRIx32 "    ", (insn & 0xFFFF));
 
     if (s->sim_params->create_ins_str)
     {
-        fprintf(s->sim_trace, " %-24s", insn_str);
+	char buf[10], *op = strchrnul(insn_str, ' ');
+	if (op - insn_str < 7 && *op == ' ')
+	{
+	    strncpy(buf, insn_str, op - insn_str);
+	    buf[op - insn_str] = 0;
+	    fprintf(s->sim_trace, "  %-8s%-16s", buf, op+1);
+	}
+	else
+	    fprintf(s->sim_trace, "  %-24s", insn_str);
     }
+    if (rd)
+    {
+	char x[5];
+	sprintf(x, "x%d", rd);
+        fprintf(s->sim_trace, " %3s=%-16" PRIx64, x, rdvalue);
+    }
+    else
+        fprintf(s->sim_trace, "     %-16s", "");
 
-    fprintf(s->sim_trace, " mode = %-6s status = %s\n", cpu_mode_str[mode],
-            exception);
+    fprintf(s->sim_trace, " %-6s (%s)", cpu_mode_str[mode], exception);
+
+    if (ea)
+        fprintf(s->sim_trace, " ea=%-16" PRIx64, ea);
+    else
+        fprintf(s->sim_trace, "    %-16s", "");
+    fprintf(s->sim_trace, "\n");
+
+    fflush(s->sim_trace);
 }
+

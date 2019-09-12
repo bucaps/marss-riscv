@@ -105,6 +105,6 @@ int handle_branch_with_bpu(struct RISCVCPUState *s, IMapEntry *e);
 int handle_branch_no_bpu(struct RISCVCPUState *s, IMapEntry *e);
 
 void copy_cache_stats_to_global_stats(struct RISCVCPUState *s);
-void print_ins_trace(struct RISCVCPUState *s, uint64_t cycle, target_ulong pc, uint32_t insn, const char *insn_str, int mode, const char *exception);
+void print_ins_trace(struct RISCVCPUState *s, uint64_t cycle, target_ulong pc, uint32_t insn, const char *insn_str, int rd, uint64_t rdvalue, uint64_t ea, int mode, const char *exception);
 
 #endif
