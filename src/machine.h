@@ -161,3 +161,8 @@ BlockDevice *block_device_init_http(const char *url,
                                     int max_cache_size_kb,
                                     void (*start_cb)(void *opaque),
                                     void *start_opaque);
+
+/* riscv_machine.c */
+void uart_rx_data(VirtMachine *v, uint8_t *buf, int size);
+int  uart_can_rx(VirtMachine *v);
+
