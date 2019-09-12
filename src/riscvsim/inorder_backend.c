@@ -499,7 +499,8 @@ in_core_commit(INCore *core)
 
 #if defined(CONFIG_SIM_TRACE)
         print_ins_trace(s, core->simcpu->clock, e->ins.pc, e->ins.binary, e->ins.str,
-                        s->priv, "simulated");
+                        (e->ins.has_dest ? e->ins.rd : 0), e->ins.buffer, e->ins.mem_addr,
+			s->priv, "sim");
 #endif
 
         if (s->sim_params->enable_stats_display)

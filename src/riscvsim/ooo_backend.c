@@ -603,8 +603,10 @@ oo_core_rob_commit(OOCore *core)
 
 #if defined(CONFIG_SIM_TRACE)
                     print_ins_trace(s, s->simcpu->clock, e->ins.pc,
-                                    e->ins.binary, e->ins.str, s->priv,
-                                    "simulated");
+                                    e->ins.binary, e->ins.str,
+				    (e->ins.has_dest ? e->ins.rd : 0),
+				    core->prf_int[e->ins.pdest].val,
+				    e->ins.mem_addr, s->priv, "sim-ooo");
 #endif
 
                     if (s->sim_params->enable_stats_display)

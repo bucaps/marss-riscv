@@ -305,7 +305,7 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
             /* Includes MMU exception, illegal opcode etc. */
 #if defined(CONFIG_SIM_TRACE)
             print_ins_trace(s, s->simcpu->clock, s->sim_epc,
-                            s->sim_exception_ins, s->sim_epc_str, s->priv,
+                            s->sim_exception_ins, s->sim_epc_str, 0, 0, 0, s->priv,
                             "exception");
 #endif
             break;
@@ -324,8 +324,8 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
             // sleep(1);
 #if defined(CONFIG_SIM_TRACE)
             print_ins_trace(s, s->simcpu->clock, s->sim_epc,
-                            s->sim_exception_ins, s->sim_epc_str, s->priv,
-                            "emulating complex opcode");
+                            s->sim_exception_ins, s->sim_epc_str, 0, 0, 0, s->priv,
+                            "emul");
 #endif
             break;
 
@@ -334,7 +334,7 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                we must exit to virt_machine_run() to receive interrupts */
 #if defined(CONFIG_SIM_TRACE)
             print_ins_trace(s, s->simcpu->clock, s->sim_epc, 0, "",
-                            s->priv, "timeout");
+                            0, 0, 0, s->priv, "timeout");
 #endif
             break;
 
