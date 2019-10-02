@@ -215,11 +215,13 @@ static inline void console_write_char(RISCVMachine *s, uint8_t c)
     s->common.console->write_data(s->common.console->opaque, &c, 1);
 }
 
+#if defined(UART_OUT_DEBUG)
 static void console_write_string(RISCVMachine *s, char *str)
 {
     while (*str)
         console_write_char(s, (uint8_t)*str++);
 }
+#endif
 
 static void uart_write(void *opaque, uint32_t offset, uint32_t val,
                        int size_log2)
