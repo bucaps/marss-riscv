@@ -93,6 +93,9 @@ typedef struct RISCVMachine {
 #define PLIC_SIZE      0x00400000
 #define FRAMEBUFFER_BASE_ADDR 0x41000000
 
+
+/***************************   RTC   ***************************/
+
 #define RTC_FREQ 10000000
 #define RTC_FREQ_DIV 16 /* arbitrary, relative to CPU freq to have a
                            10 MHz frequency */
@@ -298,6 +301,9 @@ void uart_rx_data(VirtMachine *v, uint8_t *buf, int size)
     }
 }
 
+
+/***************************   HTIF   ***************************/
+
 static uint32_t htif_read(void *opaque, uint32_t offset,
                           int size_log2)
 {
@@ -389,6 +395,9 @@ static void htif_poll(RISCVMachine *s)
 }
 #endif
 
+
+/***************************   CLINT   ***************************/
+
 static uint32_t clint_read(void *opaque, uint32_t offset, int size_log2)
 {
     RISCVMachine *m = (RISCVMachine *)opaque;
@@ -434,6 +443,9 @@ static void clint_write(void *opaque, uint32_t offset, uint32_t val,
         break;
     }
 }
+
+
+/***************************   PLIC   ***************************/
 
 static void plic_update_mip(RISCVMachine *s)
 {
@@ -509,6 +521,9 @@ static void plic_set_irq(void *opaque, int irq_num, int state)
     plic_update_mip(s);
 }
 
+
+/***************************   MISC   ***************************/
+
 static uint8_t *get_ram_ptr(RISCVMachine *s, uint64_t paddr)
 {
     PhysMemoryRange *pr = get_phys_mem_range(s->mem_map, paddr);
@@ -516,6 +531,9 @@ static uint8_t *get_ram_ptr(RISCVMachine *s, uint64_t paddr)
         return NULL;
     return pr->phys_mem + (uintptr_t)(paddr - pr->addr);
 }
+
+
+/***************************   FDT   ***************************/
 
 /* FDT machine description */
 
@@ -942,6 +960,9 @@ static int riscv_build_fdt(RISCVMachine *m, uint8_t *dst, const char *cmd_line)
     fdt_end(s);
     return size;
 }
+
+
+/***************************   MISC   ***************************/
 
 static void copy_kernel(RISCVMachine *s, const uint8_t *buf, int buf_len,
                         const char *cmd_line)
