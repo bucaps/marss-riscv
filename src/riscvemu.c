@@ -584,15 +584,15 @@ void virt_machine_run(VirtMachine *m)
         if (m->console_dev && FD_ISSET(stdin_fd, &rfds)) {
             uint8_t buf[128];
             int ret, len = sizeof(buf), ulen = uart_can_rx(m);
-	    if (virtio_console_can_write_data(m->console_dev))
-		len = min_int(len, virtio_console_get_write_len(m->console_dev));
-	    if (ulen)
-		len = min_int(len, ulen);
+            if (virtio_console_can_write_data(m->console_dev))
+                len = min_int(len, virtio_console_get_write_len(m->console_dev));
+            if (ulen)
+                len = min_int(len, ulen);
             ret = m->console->read_data(m->console->opaque, buf, len);
             if (ret > 0) {
-		uart_rx_data(m, buf, ret);
-		if (virtio_console_can_write_data(m->console_dev))
-		    virtio_console_write_data(m->console_dev, buf, ret);
+                uart_rx_data(m, buf, ret);
+                if (virtio_console_can_write_data(m->console_dev))
+                    virtio_console_write_data(m->console_dev, buf, ret);
             }
         }
 #endif
