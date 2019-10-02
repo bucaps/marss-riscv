@@ -210,12 +210,9 @@ static uint32_t uart_read(void *opaque, uint32_t offset, int size_log2)
     return val;
 }
 
-static void console_write_char(RISCVMachine *s, uint8_t c)
+static inline void console_write_char(RISCVMachine *s, uint8_t c)
 {
-    uint8_t buf[1];
-
-    buf[0] = c;
-    s->common.console->write_data(s->common.console->opaque, buf, 1);
+    s->common.console->write_data(s->common.console->opaque, &c, 1);
 }
 
 static void console_write_string(RISCVMachine *s, char *str)
