@@ -149,9 +149,10 @@ enum BPU_ALIAS_FUNC
 #define DEF_TLB_SIZE 32
 #define DEF_DRAM_BURST_SIZE 32
 #define DEF_MEM_BUS_ACCESS_RTT_LATENCY 2
-#define DEF_ROW_READ_LATENCY 4
-#define DEF_ROW_WRITE_LATENCY 4
-#define DEF_ROW_BUFFER_READ_LATENCY 1
+#define DEF_tCL 7
+#define DEF_tRCD 7
+#define DEF_tRP 7
+#define DEF_ROW_BUFFER_WRITE_LATENCY 7
 
 #define DEF_PRF_INT_SIZE 64
 #define DEF_PRF_FP_SIZE 64
@@ -294,9 +295,10 @@ typedef struct SimParams
     int tlb_size;
     uint32_t dram_burst_size;
     int mem_bus_access_rtt_latency;
-    int row_read_latency;
-    int row_write_latency;
-    int row_buffer_read_latency;
+    int tCL;
+    int tRCD;
+    int tRP;
+    int row_buffer_write_latency;
 } SimParams;
 
 typedef struct SimStats

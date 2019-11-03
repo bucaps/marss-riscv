@@ -74,19 +74,16 @@ dram_init(const SimParams *p, uint64_t size, int num_dimms, int num_banks,
     d->num_col_low_bits
         = remaining_bits - (d->num_row_bits + d->num_col_high_bits);
 
-    d->row_buffer_read_hit_latency
-        = p->mem_bus_access_rtt_latency + p->row_buffer_read_latency;
+    d->row_buffer_read_hit_latency = p->mem_bus_access_rtt_latency + p->tCL;
 
-    d->row_buffer_write_hit_latency = p->mem_bus_access_rtt_latency
-                                      + p->row_buffer_read_latency
-                                      + p->row_write_latency;
+    d->row_buffer_write_hit_latency
+        = p->mem_bus_access_rtt_latency + p->row_buffer_write_latency;
 
     d->row_buffer_read_miss_latency
-        = p->mem_bus_access_rtt_latency + p->row_read_latency;
+        = p->mem_bus_access_rtt_latency + p->tRP + p->tRCD + p->tCL;
 
-    d->row_buffer_write_miss_latency = p->mem_bus_access_rtt_latency
-                                       + p->row_read_latency
-                                       + p->row_write_latency;
+    d->row_buffer_write_miss_latency = p->mem_bus_access_rtt_latency + p->tRP
+                                       + p->tRCD + p->row_buffer_write_latency;
 
     row_buffer_hit_latency[0] = d->row_buffer_read_hit_latency;
     row_buffer_hit_latency[1] = d->row_buffer_write_hit_latency;

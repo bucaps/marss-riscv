@@ -911,22 +911,28 @@ static int virt_machine_parse_config(VirtMachineParams *p,
               p->sim_params.mem_bus_access_rtt_latency);
     }
 
-    tag_name = "row_read_latency";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.row_read_latency) < 0) {
+    tag_name = "tCL";
+    if (vm_get_int(cfg, tag_name, &p->sim_params.tCL) < 0) {
       fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-              p->sim_params.row_read_latency);
+              p->sim_params.tCL);
     }
 
-    tag_name = "row_write_latency";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.row_write_latency) < 0) {
+    tag_name = "tRCD";
+    if (vm_get_int(cfg, tag_name, &p->sim_params.tRCD) < 0) {
       fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-              p->sim_params.row_write_latency);
+              p->sim_params.tRCD);
     }
 
-    tag_name = "row_buffer_read_latency";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.row_buffer_read_latency) < 0) {
+    tag_name = "tRP";
+    if (vm_get_int(cfg, tag_name, &p->sim_params.tRP) < 0) {
       fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-              p->sim_params.row_buffer_read_latency);
+              p->sim_params.tRP);
+    }
+
+    tag_name = "row_buffer_write_latency";
+    if (vm_get_int(cfg, tag_name, &p->sim_params.row_buffer_write_latency) < 0) {
+      fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+              p->sim_params.row_buffer_write_latency);
     }
 
     /**
