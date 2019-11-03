@@ -150,9 +150,10 @@ sim_params_set_defaults(SimParams *p)
     /* DRAM params */
     p->dram_burst_size = DEF_DRAM_BURST_SIZE;
     p->mem_bus_access_rtt_latency = DEF_MEM_BUS_ACCESS_RTT_LATENCY;
-    p->row_read_latency = DEF_ROW_READ_LATENCY;
-    p->row_write_latency = DEF_ROW_WRITE_LATENCY;
-    p->row_buffer_read_latency = DEF_ROW_BUFFER_READ_LATENCY;
+    p->tCL = DEF_tCL;
+    p->tRCD = DEF_tRCD;
+    p->tRP = DEF_tRP;
+    p->row_buffer_write_latency = DEF_ROW_BUFFER_WRITE_LATENCY;
 
     p->prf_int_size = DEF_PRF_INT_SIZE;
     p->prf_fp_size = DEF_PRF_FP_SIZE;
@@ -349,12 +350,14 @@ sim_params_print(const SimParams *p)
             p->guest_ram_size / (1024 * 1024));
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "mem_bus_access_rtt_latency",
             p->mem_bus_access_rtt_latency);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "row_read_latency",
-            p->row_read_latency);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "row_write_latency",
-            p->row_write_latency);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "row_buffer_read_latency",
-            p->row_buffer_read_latency);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tCL",
+            p->tCL);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRCD",
+            p->tRCD);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRP",
+            p->tRP);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "row_buffer_write_latency",
+            p->row_buffer_write_latency);
     fprintf(stderr, "\n");
 }
 
@@ -562,10 +565,11 @@ sim_params_validate(const SimParams *p)
     validate_param("dram_burst_size", 0, 1, 2048, (int)p->dram_burst_size);
     validate_param("mem_bus_access_rtt_latency", 0, 1, 2048,
                    p->mem_bus_access_rtt_latency);
-    validate_param("row_read_latency", 0, 1, 2048, p->row_read_latency);
-    validate_param("row_write_latency", 0, 1, 2048, p->row_write_latency);
-    validate_param("row_buffer_read_latency", 0, 1, 2048,
-                   p->row_buffer_read_latency);
+    validate_param("tCL", 0, 1, 2048, p->tCL);
+    validate_param("tRCD", 0, 1, 2048, p->tRCD);
+    validate_param("tRP", 0, 1, 2048, p->tRP);
+    validate_param("row_buffer_write_latency", 0, 1, 2048,
+                   p->row_buffer_write_latency);
 }
 
 void
