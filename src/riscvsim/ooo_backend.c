@@ -602,11 +602,11 @@ oo_core_rob_commit(OOCore *core)
                     current_commit_count++;
 
 #if defined(CONFIG_SIM_TRACE)
-                    print_ins_trace(s, s->simcpu->clock, e->ins.pc,
+                    print_ins_trace(s, core->simcpu->clock, e->ins.pc,
                                     e->ins.binary, e->ins.str,
-				    (e->ins.has_dest ? e->ins.rd : 0),
-				    core->prf_int[e->ins.pdest].val,
-				    e->ins.mem_addr, s->priv, "sim-ooo");
+                                    (e->ins.has_dest | e->ins.has_fp_dest),
+                                    e->ins.has_dest, e->ins.rd, core->prf_int[e->ins.pdest].val,
+                                    e->ins.mem_addr, s->priv, "sim-ooo");
 #endif
 
                     if (s->sim_params->enable_stats_display)
