@@ -105,7 +105,12 @@ static const char fp_reg[][6] = {
     "ft11"  // fp31
 };
 
-typedef struct CsrName { int i; const char *name; int n; } CsrName;
+typedef struct CsrName {
+  int i;
+  const char *name;
+  int n;
+} CsrName;
+
 static const CsrName csr_names[] = {
     {0x300,"mstatus"},   {0x100,"sstatus"}, {0x000,"ustatus"}, {0x200,"vsstatus"}, {0x600,"hstatus"},
     {0x301,"misa"},
@@ -143,7 +148,6 @@ static const CsrName csr_names[] = {
     {0x7B0,"dcsr"},     {0x7B1,"dpc"},       {0x7B2,"dscratch%d",1},
     {0,0,0}
 };
-
 
 static const char size_suffix[8][3] = {"b", "h", "w", "d", "q", "5", "6", "7"};
 static const char* const aqrl_suffix[4] = {"", ".rl", ".aq", ".aqrl"};
@@ -465,14 +469,16 @@ static void
 set_branch_str(RVInstruction *i)
 {
     const char* const branches[8] = {"beq", "bne", 0, 0, "blt", "bge", "bltu", "bgeu"};
+    const char *s;
+
     if (i->funct3 < 8)
     {
-	const char* s = branches[i->funct3];
-	if (s != 0)
-	{
+        s = branches[i->funct3];
+        if (s != 0)
+        {
             snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%s,%d",
                      s, reg[i->rs1], reg[i->rs2], i->imm);
-	}
+        }
     }
 }
 
@@ -831,32 +837,71 @@ static void
 set_load_str(RVInstruction *i)
 {
     const char *name;
+
     switch (i->bytes_to_rw)
     {
-        case 1:	name = "lb";	break;
-        case 2:	name = "lh";	break;
-        case 4:	name = "lw";	break;
-        case 8:	name = "ld";	break;
-	default: return;
+        case 1:
+        {
+            name = "lb";
+            break;
+        }
+        case 2:
+        {
+            name = "lh";
+            break;
+        }
+        case 4:
+        {
+            name = "lw";
+            break;
+        }
+        case 8:
+        {
+            name = "ld";
+            break;
+        }
+        default:
+        {
+                return;
+        }
     }
-    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s%s %s,%d(%s)",
-	     name, (i->is_unsigned ? "u" : ""), reg[i->rd], i->imm, reg[i->rs1]);
+
+    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s%s %s,%d(%s)", name,
+    (i->is_unsigned ? "u" : ""), reg[i->rd], i->imm, reg[i->rs1]);
 }
 
 static void
 set_store_str(RVInstruction *i)
 {
     const char *name;
+
     switch (i->bytes_to_rw)
     {
-        case 1:	name = "sb";	break;
-        case 2:	name = "sh";	break;
-        case 4:	name = "sw";	break;
-        case 8:	name = "sd";	break;
-	default: return;
+        case 1:
+        {
+            name = "sb";
+            break;
+        }
+        case 2:
+        {
+            name = "sh";
+            break;
+        }
+        case 4:
+        {
+            name = "sw";
+            break;
+        }
+        case 8:
+        {
+            name = "sd";
+            break;
+        }
+        default: { return; }
     }
+
     snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%d(%s)",
-	     name, reg[i->rs2], i->imm, reg[i->rs1]);
+    name, reg[i->rs2], i->imm, reg[i->rs1]);
 }
 
 static void
@@ -876,69 +921,81 @@ set_csr_str(RVInstruction *i)
 
     switch (funct3)
     {
-        case 1:	name = "csrrw";	break;
-        case 2:	name = "csrrs";	break;
-        case 3:	name = "csrrc";	break;
-        case 0:
+      case 1:
+      {
+        name = "csrrw";
+        break;
+      }
+      case 2:
+      {
+        name = "csrrs";
+        break;
+      }
+      case 3:
+      {
+        name = "csrrc";
+        break;
+      }
+      case 0:
+      {
+        switch (imm)
         {
-            switch (imm)
+          case 0x000: /* ecall */
+          {
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "ecall");
+            break;
+          }
+          case 0x001: /* ebreak */
+          {
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "ebreak");
+            break;
+          }
+          case 0x102: /* sret */
+          {
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "sret");
+            break;
+          }
+          case 0x302: /* mret */
+          {
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "mret");
+            break;
+          }
+          case 0x105: /* wfi */
+          {
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "wfi");
+            break;
+          }
+          default: {
+            if ((imm >> 5) == 0x09)
             {
-                case 0x000: /* ecall */
-                {
-                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "ecall");
-                    break;
-                }
-                case 0x001: /* ebreak */
-                {
-                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "ebreak");
-                    break;
-                }
-                case 0x102: /* sret */
-                {
-                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "sret");
-                    break;
-                }
-                case 0x302: /* mret */
-                {
-                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "mret");
-                    break;
-                }
-                case 0x105: /* wfi */
-                {
-                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "wfi");
-                    break;
-                }
-                default:
-                {
-                    if ((imm >> 5) == 0x09)
-                    {
-                        /* sfence.vma */
-                        snprintf(i->str, RISCV_INS_STR_MAX_LENGTH,
-                                 "sfence.vma");
-                    }
-                    break;
-                }
+              /* sfence.vma */
+              snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "sfence.vma");
             }
-            return;
+            break;
+          }
+        }
+        return;
         }
     }
 
     for (csr = csr_names; csr->i != 0 || csr->name != 0; csr++)
-	if ((imm & ~csr->n) == csr->i)
-	    break;
+    {
+      if ((imm & ~csr->n) == csr->i) break;
+    }
+
     if (csr->name != 0)
     {
-	snprintf(cname, sizeof(cname), csr->name, (imm & csr->n));
-	if (has_imm)
-	{
-	    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%si %s,%s,%d",
-		     name, reg[i->rd], cname, i->rs1);
-	}
-	else
-	{
-	    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%s,%s",
-		     name, reg[i->rd], cname, reg[i->rs1]);
-	}
+        snprintf(cname, sizeof(cname), csr->name, (imm & csr->n));
+        if (has_imm)
+        {
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%si %s,%s,%d",
+                name, reg[i->rd], cname, i->rs1);
+        }
+        else
+        {
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%s,%s",
+                name, reg[i->rd], cname, reg[i->rs1]);
+        }
     }
 }
 
