@@ -563,7 +563,7 @@ sim_params_validate(const SimParams *p)
 
     // TODO: Data bus transaction size must be power of 2
     validate_param("dram_burst_size", 0, 1, 2048, (int)p->dram_burst_size);
-    validate_param("mem_bus_access_rtt_latency", 0, 1, 2048,
+    validate_param("mem_bus_access_rtt_latency", 0, 0, 2048,
                    p->mem_bus_access_rtt_latency);
     validate_param("tCL", 0, 1, 2048, p->tCL);
     validate_param("tRCD", 0, 1, 2048, p->tRCD);
