@@ -305,6 +305,9 @@ typedef struct RISCVCPUState
   int hw_pg_tb_wlk_latency_accounted;
   int hw_pg_tb_wlk_latency;   /* latency for reading/writing page table entries during page walk */
   int hw_pg_tb_wlk_stage_id;  /* id of the stage (FETCH, MEMORY) which initiated page table walk */
+  int ins_page_faults_accounted;
+  int load_page_faults_accounted;
+  int store_page_faults_accounted;
 
   /* simulated RISC-V core*/
   RISCVSIMCPUState *simcpu;

@@ -278,10 +278,8 @@ flush_speculated_cpu_state(INCore *core, IMapEntry *e)
     /* Flush FWD latches */
     memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
 
-    /* Flush the memory transactions added by fetch stage along the speculated
-     * path */
-    mem_controller_flush_stage_mem_access_queue(
-        &simcpu->mmu->mem_controller->frontend_mem_access_queue);
+    /* Flush memory controller queues on flush */
+    mem_controller_reset(core->simcpu->mmu->mem_controller);
 
     /* To start fetching */
     core->pcgen.has_data = TRUE;

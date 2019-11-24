@@ -543,8 +543,9 @@ static no_inline int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
             s->pending_tval = addr;
             s->pending_exception = CAUSE_LOAD_PAGE_FAULT;
 
-            if (s->simulation) {
+            if (s->simulation && !s->load_page_faults_accounted) {
                 ++s->simcpu->stats[s->priv].load_page_faults;
+                s->load_page_faults_accounted = 1;
             }
 
             return -1;
@@ -640,8 +641,9 @@ static no_inline int target_write_slow(RISCVCPUState *s, target_ulong addr,
             s->pending_tval = addr;
             s->pending_exception = CAUSE_STORE_PAGE_FAULT;
 
-            if (s->simulation) {
+            if (s->simulation && !s->store_page_faults_accounted) {
                 ++s->simcpu->stats[s->priv].store_page_faults;
+                s->store_page_faults_accounted = 1;
             }
 
             return -1;
@@ -740,8 +742,9 @@ __exception int target_read_insn_slow(RISCVCPUState *s,
         s->pending_tval = addr;
         s->pending_exception = CAUSE_FETCH_PAGE_FAULT;
 
-        if (s->simulation) {
+        if (s->simulation && !s->ins_page_faults_accounted) {
             ++s->simcpu->stats[s->priv].ins_page_faults;
+            s->ins_page_faults_accounted = 1;
         }
 
         return -1;
