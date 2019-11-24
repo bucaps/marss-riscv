@@ -88,8 +88,6 @@ mem_controller_reset(MemoryController *m)
     mem_controller_flush_stage_mem_access_queue(&m->backend_mem_access_queue);
 
     cq_reset(&m->dram_dispatch_queue.cq);
-    memset((void *)m->dram_dispatch_queue.entry, 0,
-           sizeof(PendingMemAccessEntry) * DRAM_DISPATCH_QUEUE_SIZE);
 }
 
 void
@@ -281,7 +279,6 @@ mem_controller_flush_stage_mem_access_queue(StageMemAccessQueue *q)
 {
     q->cur_idx = 0;
     q->cur_size = 0;
-    memset((void *)q->entry, 0, sizeof(PendingMemAccessEntry) * q->max_size);
 }
 
 void
