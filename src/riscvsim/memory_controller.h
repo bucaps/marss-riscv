@@ -39,7 +39,7 @@
 
 #define FRONTEND_MEM_ACCESS_QUEUE_SIZE 64
 #define BACKEND_MEM_ACCESS_QUEUE_SIZE 64
-#define DRAM_DISPATCH_QUEUE_SIZE 32
+#define DRAM_DISPATCH_QUEUE_SIZE 64
 
 /* By default, RISCVEMU reserves 2GB of physical memory for the guest machine.
  * Guest ram specified in the configuration files is added on top of the reserved 2GB
