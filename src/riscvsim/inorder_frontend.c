@@ -112,6 +112,7 @@ in_core_fetch(INCore *core)
              * up in L1 data cache. */
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = FETCH;
+            s->hw_pg_tb_wlk_latency_accounted = 0;
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in fetch stage so far */

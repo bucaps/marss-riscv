@@ -315,6 +315,7 @@ in_core_memory(INCore *core)
         {
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = MEMORY;
+            s->hw_pg_tb_wlk_latency_accounted = 0;
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in memory stage so far */

@@ -302,6 +302,7 @@ typedef struct RISCVCPUState
   int is_device_io;              /* keep track whether the current data memory access was a device IO or RAM IO */
 
 
+  int hw_pg_tb_wlk_latency_accounted;
   int hw_pg_tb_wlk_latency;   /* latency for reading/writing page table entries during page walk */
   int hw_pg_tb_wlk_stage_id;  /* id of the stage (FETCH, MEMORY) which initiated page table walk */
 
