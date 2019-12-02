@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 const char *core_type_str[] = {"in-order", "out-of-order"};
 const char *sim_param_status[] = {"false", "true"};
@@ -53,8 +54,8 @@ sim_params_set_defaults(SimParams *p)
 
     p->core_type = DEF_CORE_TYPE;
 
-    p->sim_stats_file = strdup(DEF_SIM_STATS_FILE);
-    assert(p->sim_stats_file);
+    p->sim_stats_path = strdup(DEF_SIM_STATS_PATH);
+    assert(p->sim_stats_path);
 
     p->sim_trace_file = strdup(DEF_SIM_TRACE_FILE);
     assert(p->sim_trace_file);
@@ -206,8 +207,8 @@ sim_params_print(const SimParams *p)
             core_type_str[p->core_type]);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "sim_trace_file",
             p->sim_trace_file);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "sim_stats_file",
-            p->sim_stats_file);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "sim_stats_path",
+            p->sim_stats_path);
     fprintf(stderr, "\n");
 
     if (p->core_type == CORE_TYPE_INCORE)
@@ -378,8 +379,8 @@ sim_params_free(SimParams *p)
     free(p->sim_trace_file);
     p->sim_trace_file = NULL;
 
-    free(p->sim_stats_file);
-    p->sim_stats_file = NULL;
+    free(p->sim_stats_path);
+    p->sim_stats_path = NULL;
 
     free(p->core_name);
     p->core_name = NULL;
@@ -573,9 +574,34 @@ sim_params_validate(const SimParams *p)
 }
 
 void
-sim_stats_print(SimStats *s, const char *filename)
+sim_stats_print(SimStats *s, const char *pathname)
 {
-    FILE *fp = fopen(filename, "w");
+    FILE *fp;
+    char *filename, *p;
+    time_t rawtime;
+    char buffer[256];
+
+    time(&rawtime);
+    sprintf(buffer, "simstats_%s.txt", ctime(&rawtime));
+
+    p = buffer;
+    for (; *p; ++p)
+    {
+        if (*p == ' ')
+            *p = '_';
+
+        if (*p == '\n')
+            *p = '_';
+    }
+
+    filename = (char *)malloc(strlen(pathname) + strlen(buffer) + 2);
+    assert(filename);
+
+    strcpy(filename, pathname);
+    strcat(filename, "/");
+    strcat(filename, buffer);
+
+    fp = fopen(filename, "w");
     assert(fp);
 
     PRINT_SIM_STAT_HEADER(fp);
@@ -643,6 +669,7 @@ sim_stats_print(SimStats *s, const char *filename)
 
     fclose(fp);
     fprintf(stderr, "(marss-riscv): Saved stats in %s\n", filename);
+    free(filename);
 }
 
 void

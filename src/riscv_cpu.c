@@ -279,7 +279,7 @@ dump_simulation_stats(RISCVCPUState *s)
     /* Update cache stats */
     copy_cache_stats_to_global_stats(s);
 
-    sim_stats_print(s->simcpu->stats, params->sim_stats_file);
+    sim_stats_print(s->simcpu->stats, params->sim_stats_path);
 
 #if defined(CONFIG_SIM_TRACE)
         fprintf(stderr, "(marss-riscv): Saved simulation trace in %s\n",

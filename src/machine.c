@@ -471,13 +471,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         }
     }
 
-    tag_name = "sim_stats_file";
+    tag_name = "sim_stats_path";
     if (vm_get_str(cfg, tag_name, &str) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %s\n",
-                tag_name, p->sim_params.sim_stats_file);
+                tag_name, p->sim_params.sim_stats_path);
     } else {
-        free(p->sim_params.sim_stats_file);
-        p->sim_params.sim_stats_file = strdup(str);
+        free(p->sim_params.sim_stats_path);
+        p->sim_params.sim_stats_path = strdup(str);
     }
 
     tag_name = "num_alu_stages";

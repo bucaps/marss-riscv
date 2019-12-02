@@ -106,7 +106,7 @@ enum BPU_ALIAS_FUNC
 #define DEF_STATS_DISPLAY 0
 #define DEF_CREATE_INS_STR 0
 #define DEF_SIM_TRACE_FILE "simtrace.txt"
-#define DEF_SIM_STATS_FILE "simstats.txt"
+#define DEF_SIM_STATS_PATH "."
 #define DEF_NUM_ALU_STAGES 1
 #define DEF_NUM_MUL_STAGES 1
 #define DEF_NUM_DIV_STAGES 1
@@ -218,7 +218,7 @@ typedef struct SimParams
     int enable_stats_display;
     int create_ins_str;
     char *sim_trace_file;
-    char *sim_stats_file;
+    char *sim_stats_path;
 
     /* For in-order core */
     int num_cpu_stages;
