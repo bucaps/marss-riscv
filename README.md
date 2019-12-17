@@ -111,6 +111,7 @@ By default, `Ctrl-C` will not kill the simulator. The command `halt` will cleanl
 Once you have access to the guest machine terminal, see next section for running simulations.
 
 ## Running full system simulations
+
 ### Using checkpoints
 We have provided two special checkpoint instructions, `SIM_START()` and `SIM_STOP()`, which inform MARSS-RISCV to enable and disable simulation mode respectively, when they are encountered during instruction processing. When the simulation is disabled, MARSS-RISCV runs in the emulation mode. For this purpose, we have used two special unused registers from user mode CSR address space, `0x800` and `0x801`. Using these two special markers, it is possible to simulate any section in the source code. However, after inserting these markers, the source code must be recompiled inside the guest OS using the installed gcc toolchain. Below code shows a simple hello world program with checkpoints. On encountering `SIM_STOP()` checkpoint during the simulation, all the performance stats are saved in the file `sim_stats_file` as configured in the simulator configuration file.
 
@@ -133,6 +134,9 @@ int main()
 
 ### Using simulate script
 Alternatively, you can use the provided simulation script (`simulate.c`) provided [here](https://github.com/bucaps/marss-riscv/tree/master/scripts) which forks a child process. Child enters the simulation mode and execs the command. Parent process waits for the child to complete and then switches MARSS-RISCV back to emulation mode. Using this script it is possible to simulate any program without need to modify and re-compile the source code. Since child switches to simulation mode before calling `exec()`, `exec()` also runs in the simulation mode. Hence, performance statistics generated at the end of the simulation will also include stats for `exec()`.
+
+### Running benchmarks
+We have provided a detailed step-by-step comprehensive tutorial [here](https://marss-riscv-docs.readthedocs.io/en/latest/sections/running-full-system.html) which configures MARSS-RISCV to simulate a simple 5-stage 32-bit in-order RISC-V processor and run [CoreMark](https://github.com/eembc/coremark), an industry-standard benchmark that measures the performance of central processing units (CPU) and embedded microcrontrollers (MCU).
 
 ## Viewing live simulation stats
 You can view live simulation stats using the provided `stats-display` tool. First, open a new terminal before executing the simulator and launch `stats-display`:
