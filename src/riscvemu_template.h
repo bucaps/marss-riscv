@@ -1451,20 +1451,8 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                             goto illegal_insn;
                         if (rs1 == 0) {
                             tlb_flush_all(s);
-
-                            /* Branch prediction unit must be flushed on tlb
-                             * flush */
-                            if (s->simulation && s->sim_params->enable_bpu) {
-                                bpu_flush(s->simcpu->bpu);
-                            }
                         } else {
                             tlb_flush_vaddr(s, s->reg[rs1]);
-
-                            /* Branch prediction unit must be flushed on tlb
-                             * flush */
-                            if (s->simulation && s->sim_params->enable_bpu) {
-                                bpu_flush(s->simcpu->bpu);
-                            }
                         }
                         /* the current code TLB may have been flushed */
                         s->pc = GET_PC() + 4;

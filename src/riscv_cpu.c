@@ -805,6 +805,12 @@ static void tlb_init(RISCVCPUState *s)
         s->tlb_write[i].guest_paddr = -1;
         s->tlb_code[i].guest_paddr = -1;
     }
+
+    /* Branch prediction unit must be flushed on tlb flush */
+    if (s->simulation && s->sim_params->enable_bpu)
+    {
+        bpu_flush(s->simcpu->bpu);
+    }
 }
 
 static void tlb_flush_all(RISCVCPUState *s)
@@ -891,11 +897,6 @@ static void set_mstatus(RISCVCPUState *s, target_ulong val)
     if ((mod & (MSTATUS_MPRV | MSTATUS_SUM | MSTATUS_MXR)) != 0 ||
         ((s->mstatus & MSTATUS_MPRV) && (mod & MSTATUS_MPP) != 0)) {
         tlb_flush_all(s);
-
-        /* Branch prediction unit must be flushed on tlb flush */
-        if (s->simulation && s->sim_params->enable_bpu) {
-            bpu_flush(s->simcpu->bpu);
-        }
     }
     s->fs = (val >> MSTATUS_FS_SHIFT) & 3;
 
@@ -1184,12 +1185,6 @@ static int csr_write(RISCVCPUState *s, uint32_t csr, target_ulong val)
         }
 #endif
         tlb_flush_all(s);
-
-        /* Branch prediction unit must be flushed on tlb flush */
-        if (s->simulation && s->sim_params->enable_bpu) {
-            bpu_flush(s->simcpu->bpu);
-        }
-
         return 2;
         
     case 0x300:
@@ -1259,11 +1254,6 @@ static void set_priv(RISCVCPUState *s, int priv)
 {
     if (s->priv != priv) {
         tlb_flush_all(s);
-
-        /* Branch prediction unit must be flushed on tlb flush */
-        if (s->simulation && s->sim_params->enable_bpu) {
-            bpu_flush(s->simcpu->bpu);
-        }
 
 #if MAX_XLEN >= 64
         /* change the current xlen */
