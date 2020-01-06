@@ -43,6 +43,7 @@ const char *cache_wp_str[] = {"writeback", "writethrough"};
 const char *bpu_type_str[] = {"bimodal", "adaptive"};
 const char *btb_evict_str[] = {"random", "lru"};
 const char *bpu_aliasing_func_type_str[] = {"xor", "and", "none"};
+const char *mem_model_type_str[] = {"base", "dramsim2"};
 
 void
 sim_params_set_defaults(SimParams *p)
@@ -169,6 +170,14 @@ sim_params_set_defaults(SimParams *p)
     p->rob_size = DEF_ROB_SIZE;
     p->lsq_size = DEF_LSQ_SIZE;
     p->bis_size = DEF_BIS_SIZE;
+
+    p->mem_model_type = DEF_MEM_MODEL;
+    p->dramsim_ini_file = strdup(DEF_DRAMSIM_INI_FILE);
+    assert(p->dramsim_ini_file);
+    p->dramsim_system_ini_file = strdup(DEF_DRAMSIM_SYSTEM_INI_FILE);
+    assert(p->dramsim_system_ini_file);
+    p->dramsim_stats_dir = strdup(DEF_DRAMSIM_STATS_DIR);
+    assert(p->dramsim_stats_dir);
 }
 
 static void
@@ -349,16 +358,28 @@ sim_params_print(const SimParams *p)
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "tlb_size", p->tlb_size);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %lu MB\n", "guest_ram_size",
             p->guest_ram_size / (1024 * 1024));
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "mem_bus_access_rtt_latency",
-            p->mem_bus_access_rtt_latency);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tCL",
-            p->tCL);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRCD",
-            p->tRCD);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRP",
-            p->tRP);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "row_buffer_write_latency",
-            p->row_buffer_write_latency);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "mem_model_type",
+            mem_model_type_str[p->mem_model_type]);
+
+    if (p->mem_model_type == MEM_MODEL_BASE)
+    {
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n",
+                "mem_bus_access_rtt_latency", p->mem_bus_access_rtt_latency);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tCL", p->tCL);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRCD", p->tRCD);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRP", p->tRP);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n",
+                "row_buffer_write_latency", p->row_buffer_write_latency);
+    }
+    else
+    {
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "dramsim_ini_file",
+                p->dramsim_ini_file);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n",
+                "dramsim_system_ini_file", p->dramsim_system_ini_file);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "dramsim_stats_dir",
+                p->dramsim_stats_dir);
+    }
     fprintf(stderr, "\n");
 }
 
@@ -384,6 +405,13 @@ sim_params_free(SimParams *p)
 
     free(p->core_name);
     p->core_name = NULL;
+
+    free(p->dramsim_ini_file);
+    p->dramsim_ini_file = NULL;
+    free(p->dramsim_system_ini_file);
+    p->dramsim_system_ini_file = NULL;
+    free(p->dramsim_stats_dir);
+    p->dramsim_stats_dir = NULL;
 }
 
 static void
