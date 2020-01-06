@@ -11,12 +11,15 @@ static dramsim_wrapper *dramsim_wrapper_obj = NULL;
 
 void
 dramsim_wrapper_init(const char *dram_ini_file, const char *system_ini_file,
-                     const char *stats_dir, const char *app_name, int size_mb)
+                     const char *stats_dir, const char *app_name, int size_mb,
+                     StageMemAccessQueue *frontend_mem_access_queue,
+                     StageMemAccessQueue *backend_mem_access_queue)
 {
     if (dramsim_wrapper_obj == NULL)
     {
         dramsim_wrapper_obj = new dramsim_wrapper(
-            dram_ini_file, system_ini_file, stats_dir, app_name, size_mb);
+            dram_ini_file, system_ini_file, stats_dir, app_name, size_mb,
+            frontend_mem_access_queue, backend_mem_access_queue);
     }
 }
 

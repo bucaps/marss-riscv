@@ -36,6 +36,7 @@
 #include "riscv_sim_macros.h"
 #include "circular_queue.h"
 #include "../sim_params_stats.h"
+#include "memory_controller_utils.h"
 
 #define FRONTEND_MEM_ACCESS_QUEUE_SIZE 64
 #define BACKEND_MEM_ACCESS_QUEUE_SIZE 64
@@ -49,30 +50,15 @@
 #define BASE_DRAM_SIZE_BYTES 0x80000000 /* 2 GB in bytes */
 #define GET_TOTAL_DRAM_SIZE(x) ((uint64_t)1 << (int)(ceil(log2((x) + BASE_DRAM_SIZE_BYTES))))
 
-typedef struct PendingMemAccessEntry
-{
-    int valid;
-    int bytes_to_access;
-    target_ulong addr;
-    MemAccessType type;
-} PendingMemAccessEntry;
-
 typedef struct DRAMDispatchQueue
 {
     CQ cq;
     PendingMemAccessEntry entry[DRAM_DISPATCH_QUEUE_SIZE];
 } DRAMDispatchQueue;
 
-typedef struct StageMemAccessQueue
-{
-    int cur_idx;
-    int max_size;
-    int cur_size;
-    PendingMemAccessEntry *entry;
-} StageMemAccessQueue;
-
 typedef struct MemoryController
 {
+    int mem_model_type;
     int current_latency;
     int max_latency;
     int mem_access_active;

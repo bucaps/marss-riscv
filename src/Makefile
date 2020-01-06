@@ -123,10 +123,10 @@ EMU_LIBS+=-lrt -lpthread -lm
 RISCVEMU_OBJS:=$(EMU_OBJS) riscvemu.o riscv_machine.o softfp.o
 
 libdramsim_wrapper_c_connector.so:
-	$(CXX) -g -fpic -shared -o libdramsim_wrapper_c_connector.so riscvsim/dramsim_wrapper_c_connector.cpp -I./DRAMSim2 -L. -ldramsim_wrapper_cpp_lib -Wl,-rpath=. -std=c++11
+	$(CXX) -g -DRV$(CONFIG_XLEN) -DSIM_FLEN=$(CONFIG_FLEN) -fpic -shared -o libdramsim_wrapper_c_connector.so riscvsim/dramsim_wrapper_c_connector.cpp -I./DRAMSim2 -L. -ldramsim_wrapper_cpp_lib -Wl,-rpath=. -std=c++11
 
 libdramsim_wrapper_cpp_lib.so:
-	$(CXX) -g -fpic -shared -o libdramsim_wrapper_cpp_lib.so riscvsim/dramsim_wrapper.cpp -I./DRAMSim2 -L./DRAMSim2 -ldramsim -Wl,-rpath=./DRAMSim2 -std=c++11
+	$(CXX) -g -DRV$(CONFIG_XLEN) -DSIM_FLEN=$(CONFIG_FLEN) -fpic -shared -o libdramsim_wrapper_cpp_lib.so riscvsim/dramsim_wrapper.cpp -I./DRAMSim2 -L./DRAMSim2 -ldramsim -Wl,-rpath=./DRAMSim2 -std=c++11
 
 libdramsim.so:
 	@echo "Building DRAMSim2 shared library:"

@@ -34,6 +34,7 @@
 
 #include "circular_queue.h"
 #include "memory_controller.h"
+#include "dramsim_wrapper_c_connector.h"
 
 MemoryController *
 mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_burst_size)
@@ -43,6 +44,7 @@ mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_b
     m = (MemoryController *)calloc(1, sizeof(MemoryController));
     assert(m);
     m->dram_burst_size = dram_burst_size;
+    m->mem_model_type = p->mem_model_type;
 
     m->frontend_mem_access_queue.max_size = FRONTEND_MEM_ACCESS_QUEUE_SIZE;
     m->frontend_mem_access_queue.entry = (PendingMemAccessEntry *)calloc(
@@ -59,16 +61,46 @@ mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_b
            sizeof(PendingMemAccessEntry) * DRAM_DISPATCH_QUEUE_SIZE);
 
     PRINT_INIT_MSG("Setting up dram");
-    m->dram = dram_init(p, (uint64_t)GET_TOTAL_DRAM_SIZE(guest_ram_size),
-                        DRAM_NUM_DIMMS, DRAM_NUM_BANKS, DRAM_MEM_BUS_WIDTH,
-                        DRAM_BANK_COL_SIZE);
+
+    switch (m->mem_model_type)
+    {
+        case MEM_MODEL_BASE:
+        {
+            m->dram
+                = dram_init(p, (uint64_t)GET_TOTAL_DRAM_SIZE(guest_ram_size),
+                            DRAM_NUM_DIMMS, DRAM_NUM_BANKS, DRAM_MEM_BUS_WIDTH,
+                            DRAM_BANK_COL_SIZE);
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            dramsim_wrapper_init(
+                p->dramsim_ini_file, p->dramsim_system_ini_file,
+                p->dramsim_stats_dir, p->core_name, guest_ram_size >> 20,
+                &m->frontend_mem_access_queue, &m->backend_mem_access_queue);
+            break;
+        }
+    }
+
     return m;
 }
 
 void
 mem_controller_free(MemoryController **m)
 {
-    dram_free(&(*m)->dram);
+    switch ((*m)->mem_model_type)
+    {
+        case MEM_MODEL_BASE:
+        {
+            dram_free(&(*m)->dram);
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            dramsim_wrapper_destroy();
+            break;
+        }
+    }
     free((*m)->backend_mem_access_queue.entry);
     (*m)->backend_mem_access_queue.entry = NULL;
     free((*m)->frontend_mem_access_queue.entry);

@@ -34,6 +34,8 @@
 
 #include "riscv_sim_macros.h"
 #include "../sim_params_stats.h"
+#include "memory_controller_utils.h"
+
 
 /* DRAM organization */
 #define DRAM_NUM_DIMMS 1
@@ -43,13 +45,6 @@
 #define DRAM_MEM_BUS_WIDTH 64 /* In bits */
 #define DRAM_BANK_COL_SIZE 8 /* In bits */
 #define SIZE_OF_BYTE 8 /* In bits */
-
-/* Memory operation type */
-typedef enum MemAccessType
-{
-    Read = 0x0,
-    Write = 0x1,
-} MemAccessType;
 
 /* Dram bank is logically a 2-D array of rows and columns.
  * For simplicity, keep track of only the last row accessed (row buffer). */
