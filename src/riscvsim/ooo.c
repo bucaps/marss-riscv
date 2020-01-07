@@ -291,7 +291,8 @@ oo_core_run(void *core_type)
     while (1)
     {
         /* Advance DRAM clock */
-        mem_controller_update(core->simcpu->mmu->mem_controller);
+        core->simcpu->mmu->mem_controller->mem_controller_update_internal(
+            core->simcpu->mmu->mem_controller);
 
         if (oo_core_rob_commit(core))
         {

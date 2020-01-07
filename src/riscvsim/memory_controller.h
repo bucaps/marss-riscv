@@ -63,6 +63,7 @@ typedef struct MemoryController
     int max_latency;
     int mem_access_active;
     uint32_t dram_burst_size;
+    void (*mem_controller_update_internal)(struct MemoryController *);
     StageMemAccessQueue frontend_mem_access_queue;
     StageMemAccessQueue backend_mem_access_queue;
     DRAMDispatchQueue dram_dispatch_queue;
@@ -73,6 +74,8 @@ MemoryController *mem_controller_init(const SimParams *p, uint64_t guest_ram_siz
                                       uint32_t dram_burst_size);
 void mem_controller_free(MemoryController **m);
 void mem_controller_reset(MemoryController *m);
+void mem_controller_update_base(MemoryController *m);
+void mem_controller_update_dramsim(MemoryController *m);
 void mem_controller_update(MemoryController *m);
 void mem_controller_set_dram_burst_size(MemoryController *m,
                                         int dram_burst_size);

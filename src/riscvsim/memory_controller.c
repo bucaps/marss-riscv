@@ -66,18 +66,22 @@ mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_b
     {
         case MEM_MODEL_BASE:
         {
+            PRINT_INIT_MSG("Setting up base dram model");
             m->dram
                 = dram_init(p, (uint64_t)GET_TOTAL_DRAM_SIZE(guest_ram_size),
                             DRAM_NUM_DIMMS, DRAM_NUM_BANKS, DRAM_MEM_BUS_WIDTH,
                             DRAM_BANK_COL_SIZE);
+            m->mem_controller_update_internal = &mem_controller_update_base;
             break;
         }
         case MEM_MODEL_DRAMSIM:
         {
+            PRINT_INIT_MSG("Setting up DRAMSim2");
             dramsim_wrapper_init(
                 p->dramsim_ini_file, p->dramsim_system_ini_file,
                 p->dramsim_stats_dir, p->core_name, guest_ram_size >> 20,
                 &m->frontend_mem_access_queue, &m->backend_mem_access_queue);
+            m->mem_controller_update_internal = &mem_controller_update_dramsim;
             break;
         }
     }
@@ -190,6 +194,7 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
     return 0;
 }
 
+/* Read callback used by base DRAM model */
 static void
 read_complete(MemoryController *m, target_ulong addr)
 {
@@ -220,6 +225,7 @@ read_complete(MemoryController *m, target_ulong addr)
     }
 }
 
+/* Write callback used by base DRAM model */
 static void
 write_complete(MemoryController *m, target_ulong addr)
 {
@@ -251,7 +257,7 @@ write_complete(MemoryController *m, target_ulong addr)
 }
 
 void
-mem_controller_update(MemoryController *m)
+mem_controller_update_base(MemoryController *m)
 {
     PendingMemAccessEntry *e;
     int bytes_accessed;
@@ -304,6 +310,28 @@ mem_controller_update(MemoryController *m)
             m->current_latency++;
         }
     }
+}
+
+void
+mem_controller_update_dramsim(MemoryController *m)
+{
+    PendingMemAccessEntry *e;
+
+    while (!cq_empty(&m->dram_dispatch_queue.cq))
+    {
+        e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
+        if (dramsim_wrapper_can_add_transaction(e->addr))
+        {
+            dramsim_wrapper_add_transaction(e->addr, e->type);
+            cq_dequeue(&m->dram_dispatch_queue.cq);
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    dramsim_wrapper_update();
 }
 
 void
