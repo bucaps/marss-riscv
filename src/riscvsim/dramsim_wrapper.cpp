@@ -1,7 +1,33 @@
-#include "dramsim_wrapper.h"
-
+/**
+ * DRAMSim2 CPP wrapper
+ *
+ * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
+ *
+ * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * State University of New York at Binghamton
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #include <cstdio>
 #include <string>
+
+#include "dramsim_wrapper.h"
 
 dramsim_wrapper::dramsim_wrapper(const char *dram_ini_file,
                                  const char *system_ini_file,
@@ -35,8 +61,7 @@ dramsim_wrapper::~dramsim_wrapper()
 }
 
 void
-dramsim_wrapper::read_complete(unsigned id, uint64_t addr,
-                               uint64_t clock_cycle)
+dramsim_wrapper::read_complete(unsigned id, uint64_t addr, uint64_t clock_cycle)
 {
     int i;
 
@@ -118,4 +143,20 @@ void
 dramsim_wrapper::print_stats()
 {
     dramsim->printStats(true);
+}
+
+int
+dramsim_wrapper::get_burst_size()
+{
+    unsigned int BL, jdec_bus_bits;
+
+    if (dramsim->getIniUint("BL", &BL)
+        || dramsim->getIniUint("JEDEC_DATA_BUS_BITS", &jdec_bus_bits))
+    {
+        fprintf(stderr, "%s\n", "unable to read BL and JEDEC_DATA_BUS_BITS "
+                                "from DRAMSim2 configuration files");
+        exit(1);
+    }
+
+    return (jdec_bus_bits * BL) / 8;
 }

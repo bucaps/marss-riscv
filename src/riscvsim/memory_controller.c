@@ -67,11 +67,10 @@ mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_b
         case MEM_MODEL_BASE:
         {
             PRINT_INIT_MSG("Setting up base dram model");
-            m->dram
-                = dram_init(p, (uint64_t)GET_TOTAL_DRAM_SIZE(guest_ram_size),
-                            DRAM_NUM_DIMMS, DRAM_NUM_BANKS, DRAM_MEM_BUS_WIDTH,
-                            DRAM_BANK_COL_SIZE);
+            m->dram = dram_init(p, 4096, DRAM_NUM_DIMMS, DRAM_NUM_BANKS,
+                                DRAM_MEM_BUS_WIDTH, DRAM_BANK_COL_SIZE);
             m->mem_controller_update_internal = &mem_controller_update_base;
+            mem_controller_set_dram_burst_size(m, p->dram_burst_size);
             break;
         }
         case MEM_MODEL_DRAMSIM:
@@ -79,9 +78,20 @@ mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_b
             PRINT_INIT_MSG("Setting up DRAMSim2");
             dramsim_wrapper_init(
                 p->dramsim_ini_file, p->dramsim_system_ini_file,
-                p->dramsim_stats_dir, p->core_name, guest_ram_size >> 20,
+                p->dramsim_stats_dir, p->core_name, 4096,
                 &m->frontend_mem_access_queue, &m->backend_mem_access_queue);
+
             m->mem_controller_update_internal = &mem_controller_update_dramsim;
+            mem_controller_set_dram_burst_size(m, dramsim_get_burst_size());
+
+            /* Check if the cache line size equals DRAMSim burst size */
+            if ((p->words_per_cache_line * sizeof(target_ulong))
+                != dramsim_get_burst_size())
+            {
+                fprintf(stderr, "error: cache line size and dramsim burst size "
+                                "not equal\n");
+                exit(1);
+            }
             break;
         }
     }

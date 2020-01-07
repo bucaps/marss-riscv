@@ -36,7 +36,6 @@
 #include "../sim_params_stats.h"
 #include "memory_controller_utils.h"
 
-
 /* DRAM organization */
 #define DRAM_NUM_DIMMS 1
 #define DRAM_NUM_RANKS 2 /* Must always be 2, each side of DIMM represents one rank */
