@@ -95,7 +95,7 @@ Simulation parameters can be configured using `riscvemu.cfg`, RISCVEMU JSON conf
 
 By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. MARSS-RISCV comes with 2 DRAM memory models: Basic and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `riscvemu.cfg` file.
 
-In that case, it may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found [here](https://github.com/bucaps/marss-riscv-images#how-to-use).
+It may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found [here](https://github.com/bucaps/marss-riscv-images#how-to-use).
 
 By default, guest boots in emulation mode. To start in simulation mode run with `-simstart` command line option.
 
