@@ -96,5 +96,6 @@ Dram *dram_init(const SimParams *p, uint64_t size, int num_dimms, int num_banks,
                 int mem_bus_width, int col_size);
 void dram_free(Dram **d);
 void dram_print_config(Dram *d);
+void dram_flush(Dram* d);
 int dram_get_latency(Dram *d, target_ulong paddr, MemAccessType type);
 #endif

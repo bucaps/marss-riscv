@@ -188,3 +188,20 @@ dram_free(Dram **d)
     free(*d);
     *d = NULL;
 }
+
+void
+dram_flush(Dram *d)
+{
+    int i, j, k;
+
+    for (i = 0; i < d->num_dimms; ++i)
+    {
+        for (j = 0; j < DRAM_NUM_RANKS; ++j)
+        {
+            for (k = 0; k < d->num_banks; ++k)
+            {
+                d->dimm[i].rank[j].chip.bank[k].last_accessed_row_id = -1;
+            }
+        }
+    }
+}

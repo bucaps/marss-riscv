@@ -245,6 +245,7 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
         s->simulation = TRUE;
         s->start_simulation = FALSE;
         s->simcpu->clock = 0;
+
         /* Reset simulation stats */
         sim_stats_reset(s->simcpu->stats);
 
@@ -256,13 +257,40 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
             bpu_flush(s->simcpu->bpu);
         }
 
+        /* Reset Caches at every new simulation run */
         if (s->sim_params->enable_l1_caches)
         {
             reset_cache_stats(s->simcpu->mmu->icache);
             reset_cache_stats(s->simcpu->mmu->dcache);
+            cache_flush(s->simcpu->mmu->icache);
+            cache_flush(s->simcpu->mmu->dcache);
+
             if (s->sim_params->enable_l2_cache)
             {
                 reset_cache_stats(s->simcpu->mmu->l2_cache);
+                cache_flush(s->simcpu->mmu->l2_cache);
+            }
+        }
+
+        /* Reset DRAMs at every new simulation run */
+        switch (s->simcpu->mmu->mem_controller->mem_model_type)
+        {
+            case MEM_MODEL_BASE:
+            {
+                dram_flush(s->simcpu->mmu->mem_controller->dram);
+                break;
+            }
+            case MEM_MODEL_DRAMSIM:
+            {
+                dramsim_wrapper_destroy();
+                dramsim_wrapper_init(
+                    s->sim_params->dramsim_ini_file,
+                    s->sim_params->dramsim_system_ini_file,
+                    s->sim_params->dramsim_stats_dir, s->sim_params->core_name,
+                    4096,
+                    &s->simcpu->mmu->mem_controller->frontend_mem_access_queue,
+                    &s->simcpu->mmu->mem_controller->backend_mem_access_queue);
+                break;
             }
         }
 

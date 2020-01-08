@@ -197,7 +197,7 @@ void delete_cache(Cache **c);
 
 const CacheStats *const get_cache_stats(Cache *c);
 void reset_cache_stats(Cache *c);
-void flush_cache(const Cache *c);
+void cache_flush(const Cache *c);
 void print_cache_config(const Cache *const c);
 
 #endif
