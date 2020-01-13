@@ -279,7 +279,6 @@ oo_core_free(void *core_type)
     free(core->fpu_fma);
     core->fpu_fma = NULL;
     free(core);
-    core = NULL;
 }
 
 int

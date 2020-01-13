@@ -148,7 +148,6 @@ in_core_free(void *core_type)
     free(core->ialu);
     core->ialu = NULL;
     free(core);
-    core = NULL;
 }
 
 static int
