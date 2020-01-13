@@ -361,24 +361,35 @@ sim_params_print(const SimParams *p)
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "mem_model_type",
             mem_model_type_str[p->mem_model_type]);
 
-    if (p->mem_model_type == MEM_MODEL_BASE)
+    switch (p->mem_model_type)
     {
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n",
-                "mem_bus_access_rtt_latency", p->mem_bus_access_rtt_latency);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tCL", p->tCL);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRCD", p->tRCD);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRP", p->tRP);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n",
-                "row_buffer_write_latency", p->row_buffer_write_latency);
-    }
-    else
-    {
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "dramsim_ini_file",
-                p->dramsim_ini_file);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n",
-                "dramsim_system_ini_file", p->dramsim_system_ini_file);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "dramsim_stats_dir",
-                p->dramsim_stats_dir);
+        case MEM_MODEL_BASE:
+        {
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n",
+                    "mem_bus_access_rtt_latency",
+                    p->mem_bus_access_rtt_latency);
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tCL", p->tCL);
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRCD", p->tRCD);
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRP", p->tRP);
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n",
+                    "row_buffer_write_latency", p->row_buffer_write_latency);
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n",
+                    "dramsim_ini_file", p->dramsim_ini_file);
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n",
+                    "dramsim_system_ini_file", p->dramsim_system_ini_file);
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n",
+                    "dramsim_stats_dir", p->dramsim_stats_dir);
+            break;
+        }
+        default:
+        {
+            fprintf(stderr, "error: invalid memory model\n");
+            exit(1);
+        }
     }
     fprintf(stderr, "\n");
 }

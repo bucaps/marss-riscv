@@ -94,6 +94,11 @@ mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_b
             }
             break;
         }
+        default:
+        {
+            fprintf(stderr, "error: invalid memory model\n");
+            exit(1);
+        }
     }
 
     return m;
@@ -113,6 +118,11 @@ mem_controller_free(MemoryController **m)
         {
             dramsim_wrapper_destroy();
             break;
+        }
+        default:
+        {
+            fprintf(stderr, "error: invalid memory model\n");
+            exit(1);
         }
     }
     free((*m)->backend_mem_access_queue.entry);

@@ -899,72 +899,81 @@ static int virt_machine_parse_config(VirtMachineParams *p,
        }
     }
 
-    tag_name = "dram_burst_size";
-    if (vm_get_int(cfg, tag_name, (int *)&p->sim_params.dram_burst_size) < 0) {
-      fprintf(stderr, "%s not found, selecting default value: %u\n", tag_name,
-              p->sim_params.dram_burst_size);
-    }
 
-    if (p->sim_params.mem_model_type == MEM_MODEL_BASE)
+    switch (p->sim_params.mem_model_type)
     {
-        tag_name = "mem_bus_access_rtt_latency";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.mem_bus_access_rtt_latency) < 0) {
-          fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                  p->sim_params.mem_bus_access_rtt_latency);
-        }
+        case MEM_MODEL_BASE:
+        {
+            tag_name = "mem_bus_access_rtt_latency";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.mem_bus_access_rtt_latency) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.mem_bus_access_rtt_latency);
+            }
 
-        tag_name = "tCL";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.tCL) < 0) {
-          fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                  p->sim_params.tCL);
-        }
+            tag_name = "tCL";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.tCL) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.tCL);
+            }
 
-        tag_name = "tRCD";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.tRCD) < 0) {
-          fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                  p->sim_params.tRCD);
-        }
+            tag_name = "tRCD";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.tRCD) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.tRCD);
+            }
 
-        tag_name = "tRP";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.tRP) < 0) {
-          fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                  p->sim_params.tRP);
-        }
+            tag_name = "tRP";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.tRP) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.tRP);
+            }
 
-        tag_name = "row_buffer_write_latency";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.row_buffer_write_latency) < 0) {
-          fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                  p->sim_params.row_buffer_write_latency);
+            tag_name = "row_buffer_write_latency";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.row_buffer_write_latency) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.row_buffer_write_latency);
+            }
+            tag_name = "dram_burst_size";
+            if (vm_get_int(cfg, tag_name, (int *)&p->sim_params.dram_burst_size) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %u\n", tag_name,
+                      p->sim_params.dram_burst_size);
+            }
+            break;
         }
-    }
-    else if (p->sim_params.mem_model_type == MEM_MODEL_DRAMSIM)
-    {
-        fprintf(stderr, "%s\n", "HERE");
-        tag_name = "dramsim_ini_file";
-        if (vm_get_str(cfg, tag_name, &str) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-                p->sim_params.dramsim_ini_file);
-        } else {
-            free(p->sim_params.dramsim_ini_file);
-            p->sim_params.dramsim_ini_file = strdup(str);
-        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            tag_name = "dramsim_ini_file";
+            if (vm_get_str(cfg, tag_name, &str) < 0) {
+                fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
+                    p->sim_params.dramsim_ini_file);
+            } else {
+                free(p->sim_params.dramsim_ini_file);
+                p->sim_params.dramsim_ini_file = strdup(str);
+            }
 
-        tag_name = "dramsim_system_ini_file";
-        if (vm_get_str(cfg, tag_name, &str) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-                p->sim_params.dramsim_system_ini_file);
-        } else {
-            free(p->sim_params.dramsim_system_ini_file);
-            p->sim_params.dramsim_system_ini_file = strdup(str);
-        }
+            tag_name = "dramsim_system_ini_file";
+            if (vm_get_str(cfg, tag_name, &str) < 0) {
+                fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
+                    p->sim_params.dramsim_system_ini_file);
+            } else {
+                free(p->sim_params.dramsim_system_ini_file);
+                p->sim_params.dramsim_system_ini_file = strdup(str);
+            }
 
-        tag_name = "dramsim_stats_dir";
-        if (vm_get_str(cfg, tag_name, &str) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-                p->sim_params.dramsim_stats_dir);
-        } else {
-            free(p->sim_params.dramsim_stats_dir);
-            p->sim_params.dramsim_stats_dir = strdup(str);
+            tag_name = "dramsim_stats_dir";
+            if (vm_get_str(cfg, tag_name, &str) < 0) {
+                fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
+                    p->sim_params.dramsim_stats_dir);
+            } else {
+                free(p->sim_params.dramsim_stats_dir);
+                p->sim_params.dramsim_stats_dir = strdup(str);
+            }
+            break;
+        }
+        default:
+        {
+            fprintf(stderr, "error: invalid memory model\n");
+            exit(1);
         }
     }
 
