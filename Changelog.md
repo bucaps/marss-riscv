@@ -1,3 +1,8 @@
+# Version 2.0a
+- Added [DRAMSim2](https://github.com/umd-memsys/DRAMSim2) support
+- Flush all the CPU caches and DRAM models for every new simulation run
+- Fixed Issue #8: useless cleaning of local variables
+
 # Version 1.1a
 - Added 16550A UART support (thanks to Marc Gauthier)
 - Reworked the dram latency parameters to match the Sifive HiFive U540 Board
