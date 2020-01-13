@@ -45,6 +45,20 @@ const char *btb_evict_str[] = {"random", "lru"};
 const char *bpu_aliasing_func_type_str[] = {"xor", "and", "none"};
 const char *mem_model_type_str[] = {"base", "dramsim2"};
 
+static unsigned
+next_high_power_of_2(unsigned n)
+{
+    n--;
+
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+
+    return ++n;
+}
+
 void
 sim_params_set_defaults(SimParams *p)
 {
@@ -356,8 +370,7 @@ sim_params_print(const SimParams *p)
 
     fprintf(stderr, "\n");
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "tlb_size", p->tlb_size);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %lu MB\n", "guest_ram_size",
-            p->guest_ram_size / (1024 * 1024));
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %lu MB\n", "guest_ram_size", p->guest_ram_size);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "mem_model_type",
             mem_model_type_str[p->mem_model_type]);
 

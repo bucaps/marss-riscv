@@ -287,7 +287,7 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                     s->sim_params->dramsim_ini_file,
                     s->sim_params->dramsim_system_ini_file,
                     s->sim_params->dramsim_stats_dir, s->sim_params->core_name,
-                    4096,
+                    s->sim_params->guest_ram_size,
                     &s->simcpu->mmu->mem_controller->frontend_mem_access_queue,
                     &s->simcpu->mmu->mem_controller->backend_mem_access_queue);
                 break;

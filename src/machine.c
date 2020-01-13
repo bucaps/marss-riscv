@@ -193,6 +193,19 @@ static void parse_stage_latency_str(int **dest, int max_stage_count, char *str)
     }
 }
 
+static unsigned next_high_power_of_2(unsigned n)
+{
+    n--;
+
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+
+    return ++n;
+}
+
 static int virt_machine_parse_config(VirtMachineParams *p,
                                      char *config_file_str, int len)
 {
@@ -987,8 +1000,18 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         p->sim_params.enable_bpu = FALSE;
     }
 
-    /* Setup remaining params */
-    p->sim_params.guest_ram_size = p->ram_size;
+    /* Set RAM size to be used by simulated memory model */
+    /**
+     *
+     * NOTE: TinyEMU reserves 2GB of physical address space for its devices and
+     * internal implementation. Guest RAM size taken as user input is mapped
+     * starting at 2GB. Hence for simulated memory model, the total guest ram
+     * size becomes (2GB + guest RAM size) rounded to next highest power of 2.
+     * This guest_ram_size is passed to either the base memory model or
+     * DRAMSim2, depending on which is being used.
+     */
+    p->sim_params.guest_ram_size
+        = next_high_power_of_2(2048 + (p->ram_size >> 20));
 
     json_free(cfg);
     return 0;

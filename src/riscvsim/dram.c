@@ -65,7 +65,7 @@ dram_init(const SimParams *p, uint64_t size, int num_dimms, int num_banks,
     d->mem_bus_width_bytes = d->mem_bus_width / SIZE_OF_BYTE;
     d->bus_offset_bits = GET_NUM_BITS(d->mem_bus_width / SIZE_OF_BYTE);
     d->col_size = col_size;
-    d->num_paddr_bits = GET_NUM_BITS(d->dram_size);
+    d->num_paddr_bits = GET_NUM_BITS(d->dram_size << 20);
     remaining_bits
         = d->num_paddr_bits - (d->bus_offset_bits + d->num_dimm_bits
                                + d->num_bank_bits + DRAM_NUM_RANK_BITS);

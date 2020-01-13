@@ -63,7 +63,6 @@ typedef struct MemoryController
 } MemoryController;
 
 MemoryController *mem_controller_init(const SimParams *p,
-                                      uint64_t guest_ram_size,
                                       uint32_t dram_burst_size);
 void mem_controller_free(MemoryController **m);
 void mem_controller_reset(MemoryController *m);

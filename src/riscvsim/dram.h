@@ -72,7 +72,7 @@ typedef struct DualInLineMemoryModule
 
 typedef struct Dram
 {
-    uint64_t dram_size;         /* DRAM size in bytes */
+    uint64_t dram_size;         /* DRAM size in MB */
     int num_paddr_bits;         /* Number of bits in physical address */
     int num_dimms;              /* Number of DIMMs */
     int num_dimm_bits;          /* Number of bits to access required DIMM */

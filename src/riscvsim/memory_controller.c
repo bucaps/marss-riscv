@@ -37,7 +37,7 @@
 #include "dramsim_wrapper_c_connector.h"
 
 MemoryController *
-mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_burst_size)
+mem_controller_init(const SimParams *p, uint32_t dram_burst_size)
 {
     MemoryController *m;
 
@@ -67,7 +67,7 @@ mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_b
         case MEM_MODEL_BASE:
         {
             PRINT_INIT_MSG("Setting up base dram model");
-            m->dram = dram_init(p, 4096, DRAM_NUM_DIMMS, DRAM_NUM_BANKS,
+            m->dram = dram_init(p, p->guest_ram_size, DRAM_NUM_DIMMS, DRAM_NUM_BANKS,
                                 DRAM_MEM_BUS_WIDTH, DRAM_BANK_COL_SIZE);
             m->mem_controller_update_internal = &mem_controller_update_base;
             mem_controller_set_dram_burst_size(m, p->dram_burst_size);
@@ -78,7 +78,7 @@ mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_b
             PRINT_INIT_MSG("Setting up DRAMSim2");
             dramsim_wrapper_init(
                 p->dramsim_ini_file, p->dramsim_system_ini_file,
-                p->dramsim_stats_dir, p->core_name, 4096,
+                p->dramsim_stats_dir, p->core_name, p->guest_ram_size,
                 &m->frontend_mem_access_queue, &m->backend_mem_access_queue);
 
             m->mem_controller_update_internal = &mem_controller_update_dramsim;
