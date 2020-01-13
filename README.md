@@ -230,10 +230,13 @@ the JSON blk.txt file must be provided as disk image filename.
 * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
 
 ## Acknowledgment
-This work was supported in part by DARPA through an award from the SSITH program. We would like to thank Gokturk Yuksek, Ravi Theja Gollapudi and Kanad Ghose for assistance with the internal details of TinyEMU and the development of the MARSS-RISCV. For DRAMSim2, see [here](https://github.com/umd-memsys/DRAMSim2).
+This work was supported in part by DARPA through an award from the SSITH program. We would like to thank Gokturk Yuksek, Ravi Theja Gollapudi and Kanad Ghose for assistance with the internal details of TinyEMU and the development of the MARSS-RISCV.
+
+For DRAMSim2, see [here](https://github.com/umd-memsys/DRAMSim2).
 
 ## License
 This project is licensed under the MIT License - see the
 src/MIT-LICENSE.txt file for details.
 
 The SLIRP library has its own license (two clause BSD license).
+DRAMSim2 has its own license (two clause BSD license).
