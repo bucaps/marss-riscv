@@ -37,13 +37,13 @@
 #include "dramsim_wrapper_c_connector.h"
 
 MemoryController *
-mem_controller_init(const SimParams *p, uint32_t dram_burst_size)
+mem_controller_init(const SimParams *p)
 {
     MemoryController *m;
 
     m = (MemoryController *)calloc(1, sizeof(MemoryController));
     assert(m);
-    m->dram_burst_size = dram_burst_size;
+    m->dram_burst_size = p->dram_burst_size;
     m->mem_model_type = p->mem_model_type;
 
     m->frontend_mem_access_queue.max_size = FRONTEND_MEM_ACCESS_QUEUE_SIZE;

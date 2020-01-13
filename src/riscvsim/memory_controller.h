@@ -62,8 +62,7 @@ typedef struct MemoryController
     Dram *dram;
 } MemoryController;
 
-MemoryController *mem_controller_init(const SimParams *p,
-                                      uint32_t dram_burst_size);
+MemoryController *mem_controller_init(const SimParams *p);
 void mem_controller_free(MemoryController **m);
 void mem_controller_reset(MemoryController *m);
 void mem_controller_update_base(MemoryController *m);

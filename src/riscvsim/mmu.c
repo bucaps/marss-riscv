@@ -54,8 +54,7 @@ mmu_init(const SimParams *p)
 
     /* Setup memory controller */
     PRINT_INIT_MSG("Setting up memory controller");
-    mmu->mem_controller
-        = mem_controller_init(p, p->dram_burst_size);
+    mmu->mem_controller = mem_controller_init(p);
 
     mmu->caches_enabled = p->enable_l1_caches;
 
