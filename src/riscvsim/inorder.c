@@ -148,7 +148,6 @@ in_core_free(void *core_type)
     free(core->ialu);
     core->ialu = NULL;
     free(core);
-    core = NULL;
 }
 
 static int
@@ -215,7 +214,8 @@ in_core_run(void *core_type)
     while (1)
     {
         /* Advance DRAM clock */
-        mem_controller_update(core->simcpu->mmu->mem_controller);
+        core->simcpu->mmu->mem_controller->mem_controller_update_internal(
+            core->simcpu->mmu->mem_controller);
 
         /* For 5-stage pipeline calls in_core_run_5_stage(), For 6-stage
          * pipeline calls in_core_run_6_stage() */

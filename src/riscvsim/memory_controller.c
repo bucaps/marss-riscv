@@ -34,15 +34,17 @@
 
 #include "circular_queue.h"
 #include "memory_controller.h"
+#include "dramsim_wrapper_c_connector.h"
 
 MemoryController *
-mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_burst_size)
+mem_controller_init(const SimParams *p)
 {
     MemoryController *m;
 
     m = (MemoryController *)calloc(1, sizeof(MemoryController));
     assert(m);
-    m->dram_burst_size = dram_burst_size;
+    m->dram_burst_size = p->dram_burst_size;
+    m->mem_model_type = p->mem_model_type;
 
     m->frontend_mem_access_queue.max_size = FRONTEND_MEM_ACCESS_QUEUE_SIZE;
     m->frontend_mem_access_queue.entry = (PendingMemAccessEntry *)calloc(
@@ -59,16 +61,70 @@ mem_controller_init(const SimParams *p, uint64_t guest_ram_size, uint32_t dram_b
            sizeof(PendingMemAccessEntry) * DRAM_DISPATCH_QUEUE_SIZE);
 
     PRINT_INIT_MSG("Setting up dram");
-    m->dram = dram_init(p, (uint64_t)GET_TOTAL_DRAM_SIZE(guest_ram_size),
-                        DRAM_NUM_DIMMS, DRAM_NUM_BANKS, DRAM_MEM_BUS_WIDTH,
-                        DRAM_BANK_COL_SIZE);
+
+    switch (m->mem_model_type)
+    {
+        case MEM_MODEL_BASE:
+        {
+            PRINT_INIT_MSG("Setting up base dram model");
+            m->dram = dram_init(p, p->guest_ram_size, DRAM_NUM_DIMMS, DRAM_NUM_BANKS,
+                                DRAM_MEM_BUS_WIDTH, DRAM_BANK_COL_SIZE);
+            m->mem_controller_update_internal = &mem_controller_update_base;
+            mem_controller_set_dram_burst_size(m, p->dram_burst_size);
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            PRINT_INIT_MSG("Setting up DRAMSim2");
+            dramsim_wrapper_init(
+                p->dramsim_ini_file, p->dramsim_system_ini_file,
+                p->dramsim_stats_dir, p->core_name, p->guest_ram_size,
+                &m->frontend_mem_access_queue, &m->backend_mem_access_queue);
+
+            m->mem_controller_update_internal = &mem_controller_update_dramsim;
+            mem_controller_set_dram_burst_size(m, dramsim_get_burst_size());
+
+            /* Check if the cache line size equals DRAMSim burst size */
+            if ((p->words_per_cache_line * sizeof(target_ulong))
+                != dramsim_get_burst_size())
+            {
+                fprintf(stderr, "error: cache line size and dramsim burst size "
+                                "not equal\n");
+                exit(1);
+            }
+            break;
+        }
+        default:
+        {
+            fprintf(stderr, "error: invalid memory model\n");
+            exit(1);
+        }
+    }
+
     return m;
 }
 
 void
 mem_controller_free(MemoryController **m)
 {
-    dram_free(&(*m)->dram);
+    switch ((*m)->mem_model_type)
+    {
+        case MEM_MODEL_BASE:
+        {
+            dram_free(&(*m)->dram);
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            dramsim_wrapper_destroy();
+            break;
+        }
+        default:
+        {
+            fprintf(stderr, "error: invalid memory model\n");
+            exit(1);
+        }
+    }
     free((*m)->backend_mem_access_queue.entry);
     (*m)->backend_mem_access_queue.entry = NULL;
     free((*m)->frontend_mem_access_queue.entry);
@@ -158,6 +214,7 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
     return 0;
 }
 
+/* Read callback used by base DRAM model */
 static void
 read_complete(MemoryController *m, target_ulong addr)
 {
@@ -188,6 +245,7 @@ read_complete(MemoryController *m, target_ulong addr)
     }
 }
 
+/* Write callback used by base DRAM model */
 static void
 write_complete(MemoryController *m, target_ulong addr)
 {
@@ -219,7 +277,7 @@ write_complete(MemoryController *m, target_ulong addr)
 }
 
 void
-mem_controller_update(MemoryController *m)
+mem_controller_update_base(MemoryController *m)
 {
     PendingMemAccessEntry *e;
     int bytes_accessed;
@@ -272,6 +330,28 @@ mem_controller_update(MemoryController *m)
             m->current_latency++;
         }
     }
+}
+
+void
+mem_controller_update_dramsim(MemoryController *m)
+{
+    PendingMemAccessEntry *e;
+
+    while (!cq_empty(&m->dram_dispatch_queue.cq))
+    {
+        e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
+        if (dramsim_wrapper_can_add_transaction(e->addr))
+        {
+            dramsim_wrapper_add_transaction(e->addr, e->type);
+            cq_dequeue(&m->dram_dispatch_queue.cq);
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    dramsim_wrapper_update();
 }
 
 void

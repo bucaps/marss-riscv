@@ -45,6 +45,7 @@
 #include "iomem.h"
 #include "riscv_cpu.h"
 #include "sim_params_stats.h"
+#include "riscvsim/dramsim_wrapper_c_connector.h"
 
 static no_inline int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
                                       target_ulong addr, int size_log2);
@@ -320,7 +321,12 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
         fprintf(stderr, "(marss-riscv): Time elapsed on host-machine %lu ms\n",
                 sim_time);
 
-        dump_simulation_stats(s);
+	if (s->simcpu->mmu->mem_controller->mem_model_type == MEM_MODEL_DRAMSIM)
+	{
+		dramsim_wrapper_print_stats();
+	}
+
+	dump_simulation_stats(s);
 
 #if defined(CONFIG_SIM_TRACE)
         fclose(s->sim_trace);

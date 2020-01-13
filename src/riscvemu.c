@@ -616,6 +616,7 @@ static struct option options[] = {
     { "no-accel", no_argument },
     { "simstart", no_argument },
     { "stats-display", no_argument },
+    { "mem-model", required_argument },
     { NULL },
 };
 
@@ -629,13 +630,14 @@ void help(void)
 #ifdef CONFIG_CPU_RISCV
            "-b [32|64]    set the integer register width in bits\n"
 #endif
-           "-m ram_size       set the RAM size in MB\n"
-           "-rw               allow write access to the disk image (default=snapshot)\n"
-           "-ctrlc            the C-c key stops the emulator instead of being sent to the\n"
-           "                  emulated software\n"
-           "-append cmdline   append cmdline to the kernel command line\n"
-           "-simstart         start (boot kernel) in simulation mode\n"
-           "-stats-display    dump simulation performance stats to a shared memory location, read by sim-display tool\n"
+           "-m ram_size                 set the RAM size in MB\n"
+           "-rw                         allow write access to the disk image (default=snapshot)\n"
+           "-ctrlc                      the C-c key stops the emulator instead of being sent to the\n"
+           "                            emulated software\n"
+           "-append cmdline             append cmdline to the kernel command line\n"
+           "-simstart                   start (boot kernel) in simulation mode\n"
+           "-stats-display              dump simulation performance stats to a shared memory location, read by sim-display tool\n"
+           "-mem-model [base|dramsim2]  type of simulated memory model\n"
            "\n"
            "Console keys:\n"
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
@@ -699,6 +701,7 @@ int main(int argc, char **argv)
     VirtMachineParams p_s, *p = &p_s;
     int marss_start_in_sim = 0;
     int marss_stats_display = 0;
+    int marss_mem_model = MEM_MODEL_BASE;
 
     ram_size = -1;
     allow_ctrlc = FALSE;
@@ -733,6 +736,21 @@ int main(int argc, char **argv)
                 break;
             case 7: /* stats-display */
                 marss_stats_display = 1;
+                break;
+            case 8: /* mem-model */
+                if (strcmp(optarg, "base") == 0)
+                {
+                    marss_mem_model = MEM_MODEL_BASE;
+                }
+                else if (strcmp(optarg, "dramsim2") == 0)
+                {
+                    marss_mem_model = MEM_MODEL_DRAMSIM;
+                }
+                else
+                {
+                    fprintf(stderr, "unknown mem-model type, see help\n");
+                    exit(1);
+                }
                 break;
             default:
                 fprintf(stderr, "unknown option index: %d\n", option_index);
@@ -772,6 +790,7 @@ int main(int argc, char **argv)
     path = argv[optind++];
 
     virt_machine_set_defaults(p);
+    p->sim_params.mem_model_type = marss_mem_model;
 #ifdef CONFIG_FS_NET
     fs_wget_init();
 #endif

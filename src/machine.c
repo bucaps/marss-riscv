@@ -193,6 +193,19 @@ static void parse_stage_latency_str(int **dest, int max_stage_count, char *str)
     }
 }
 
+static unsigned next_high_power_of_2(unsigned n)
+{
+    n--;
+
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+
+    return ++n;
+}
+
 static int virt_machine_parse_config(VirtMachineParams *p,
                                      char *config_file_str, int len)
 {
@@ -899,40 +912,82 @@ static int virt_machine_parse_config(VirtMachineParams *p,
        }
     }
 
-    tag_name = "dram_burst_size";
-    if (vm_get_int(cfg, tag_name, (int *)&p->sim_params.dram_burst_size) < 0) {
-      fprintf(stderr, "%s not found, selecting default value: %u\n", tag_name,
-              p->sim_params.dram_burst_size);
-    }
 
-    tag_name = "mem_bus_access_rtt_latency";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.mem_bus_access_rtt_latency) < 0) {
-      fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-              p->sim_params.mem_bus_access_rtt_latency);
-    }
+    switch (p->sim_params.mem_model_type)
+    {
+        case MEM_MODEL_BASE:
+        {
+            tag_name = "mem_bus_access_rtt_latency";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.mem_bus_access_rtt_latency) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.mem_bus_access_rtt_latency);
+            }
 
-    tag_name = "tCL";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.tCL) < 0) {
-      fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-              p->sim_params.tCL);
-    }
+            tag_name = "tCL";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.tCL) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.tCL);
+            }
 
-    tag_name = "tRCD";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.tRCD) < 0) {
-      fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-              p->sim_params.tRCD);
-    }
+            tag_name = "tRCD";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.tRCD) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.tRCD);
+            }
 
-    tag_name = "tRP";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.tRP) < 0) {
-      fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-              p->sim_params.tRP);
-    }
+            tag_name = "tRP";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.tRP) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.tRP);
+            }
 
-    tag_name = "row_buffer_write_latency";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.row_buffer_write_latency) < 0) {
-      fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-              p->sim_params.row_buffer_write_latency);
+            tag_name = "row_buffer_write_latency";
+            if (vm_get_int(cfg, tag_name, &p->sim_params.row_buffer_write_latency) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                      p->sim_params.row_buffer_write_latency);
+            }
+            tag_name = "dram_burst_size";
+            if (vm_get_int(cfg, tag_name, (int *)&p->sim_params.dram_burst_size) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %u\n", tag_name,
+                      p->sim_params.dram_burst_size);
+            }
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            tag_name = "dramsim_ini_file";
+            if (vm_get_str(cfg, tag_name, &str) < 0) {
+                fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
+                    p->sim_params.dramsim_ini_file);
+            } else {
+                free(p->sim_params.dramsim_ini_file);
+                p->sim_params.dramsim_ini_file = strdup(str);
+            }
+
+            tag_name = "dramsim_system_ini_file";
+            if (vm_get_str(cfg, tag_name, &str) < 0) {
+                fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
+                    p->sim_params.dramsim_system_ini_file);
+            } else {
+                free(p->sim_params.dramsim_system_ini_file);
+                p->sim_params.dramsim_system_ini_file = strdup(str);
+            }
+
+            tag_name = "dramsim_stats_dir";
+            if (vm_get_str(cfg, tag_name, &str) < 0) {
+                fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
+                    p->sim_params.dramsim_stats_dir);
+            } else {
+                free(p->sim_params.dramsim_stats_dir);
+                p->sim_params.dramsim_stats_dir = strdup(str);
+            }
+            break;
+        }
+        default:
+        {
+            fprintf(stderr, "error: invalid memory model\n");
+            exit(1);
+        }
     }
 
     /**
@@ -945,8 +1000,18 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         p->sim_params.enable_bpu = FALSE;
     }
 
-    /* Setup remaining params */
-    p->sim_params.guest_ram_size = p->ram_size;
+    /* Set RAM size to be used by simulated memory model */
+    /**
+     *
+     * NOTE: TinyEMU reserves 2GB of physical address space for its devices and
+     * internal implementation. Guest RAM size taken as user input is mapped
+     * starting at 2GB. Hence for simulated memory model, the total guest ram
+     * size becomes (2GB + guest RAM size) rounded to next highest power of 2.
+     * This guest_ram_size is passed to either the base memory model or
+     * DRAMSim2, depending on which is being used.
+     */
+    p->sim_params.guest_ram_size
+        = next_high_power_of_2(2048 + (p->ram_size >> 20));
 
     json_free(cfg);
     return 0;

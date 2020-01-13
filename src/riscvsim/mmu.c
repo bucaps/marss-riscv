@@ -54,15 +54,15 @@ mmu_init(const SimParams *p)
 
     /* Setup memory controller */
     PRINT_INIT_MSG("Setting up memory controller");
-    mmu->mem_controller
-        = mem_controller_init(p, p->guest_ram_size, p->dram_burst_size);
+    mmu->mem_controller = mem_controller_init(p);
 
     mmu->caches_enabled = p->enable_l1_caches;
 
     /* Setup caches */
     if (p->enable_l1_caches)
     {
-        /* If caches are enabled, set dram burst size to cache line size */
+        /* If caches are enabled, set dram burst size to cache line size. If
+         * DRAMSim2 is used, its burst size must be equal to cache line size */
         mem_controller_set_dram_burst_size(mmu->mem_controller,
                                            p->words_per_cache_line
                                                * sizeof(target_ulong));

@@ -56,10 +56,10 @@ EXE=
 endif
 CC=$(CROSS_PREFIX)gcc
 STRIP=$(CROSS_PREFIX)strip
-CFLAGS=-O3 -g -Wall -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -MMD
+CFLAGS=-O3 -g -Wall -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -MMD -I./DRAMSim2
 CFLAGS+=-D_GNU_SOURCE -DCONFIG_VERSION=\"$(shell cat VERSION)\"
 LDFLAGS=
-
+EXT_LIB+= libdramsim.so libdramsim_wrapper_cpp_lib.so libdramsim_wrapper_c_connector.so
 bindir=/usr/local/bin
 INSTALL=install
 
@@ -80,7 +80,7 @@ endif
 
 PROGS+=
 
-all: clean $(PROGS) 
+all: clean $(EXT_LIB) $(PROGS)
 
 stats-display:
 	$(CC) stats_display.c -o stats-display -lrt
@@ -122,11 +122,23 @@ EMU_LIBS+=-lrt -lpthread -lm
 
 RISCVEMU_OBJS:=$(EMU_OBJS) riscvemu.o riscv_machine.o softfp.o
 
+libdramsim_wrapper_c_connector.so:
+	$(CXX) -g -DRV$(CONFIG_XLEN) -DSIM_FLEN=$(CONFIG_FLEN) -fpic -shared -o libdramsim_wrapper_c_connector.so riscvsim/dramsim_wrapper_c_connector.cpp -I./DRAMSim2 -L. -ldramsim_wrapper_cpp_lib -Wl,-rpath=. -std=c++11
+
+libdramsim_wrapper_cpp_lib.so:
+	$(CXX) -g -DRV$(CONFIG_XLEN) -DSIM_FLEN=$(CONFIG_FLEN) -fpic -shared -o libdramsim_wrapper_cpp_lib.so riscvsim/dramsim_wrapper.cpp -I./DRAMSim2 -L./DRAMSim2 -ldramsim -Wl,-rpath=./DRAMSim2 -std=c++11
+
+libdramsim.so:
+	@echo "Building DRAMSim2 shared library:"
+	@cd DRAMSim2/ && $(MAKE) libdramsim.so
+	@cd ..
+	@echo "Building MARSS-RISCV Simulator:"
+
 riscvsim.o: $(RISCV_SIM_OBJS)
 	$(LD) -r -o $@ $^ $(SIM_LIBS)
 
 marss-riscv$(EXE): $(RISCVSIM_OBJ_FILE) riscv_cpu.o $(RISCVEMU_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS)  -L. -ldramsim_wrapper_c_connector -Wl,-rpath=.
 
 riscvemu.o: riscvemu.c
 	$(COMPILE_DEBUG)$(CC) $(CFLAGS) -DCONFIG_XLEN=\"$(CONFIG_XLEN)\" -DCONFIG_FLEN=\"$(CONFIG_FLEN)\" -c -o $@ $<
@@ -150,7 +162,9 @@ install: $(PROGS)
 	$(COMPILE_DEBUG)echo "CC $<"
 
 clean:
-	rm -f *.o *.d *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/*.o riscvsim/*.d riscvsim/*~ 
+	rm -f *.o *.d *.so *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/*.o riscvsim/*.d riscvsim/*~
+	cd DRAMSim2 && $(MAKE) clean
+	cd ..
 
 -include $(wildcard *.d)
 -include $(wildcard slirp/*.d)

@@ -477,7 +477,7 @@ cache_write(const Cache *c, target_ulong paddr, int bytes_to_write,
 }
 
 void
-flush_cache(const Cache *c)
+cache_flush(const Cache *c)
 {
     int i;
 

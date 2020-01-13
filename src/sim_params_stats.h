@@ -98,6 +98,12 @@ enum BPU_ALIAS_FUNC
     BPU_ALIAS_FUNC_NONE
 };
 
+enum MEM_MODEL_TYPE
+{
+    MEM_MODEL_BASE,
+    MEM_MODEL_DRAMSIM,
+};
+
 /* Default values for simulation parameters */
 #define DEF_CORE_NAME "default-riscv-core"
 #define DEF_CORE_TYPE CORE_TYPE_INCORE
@@ -169,6 +175,11 @@ enum BPU_ALIAS_FUNC
 #define DEF_LSQ_SIZE 16
 #define DEF_BIS_SIZE 8
 
+#define DEF_MEM_MODEL MEM_MODEL_BASE
+#define DEF_DRAMSIM_INI_FILE "DRAMSim2/ini/DDR2_micron_16M_8b_x8_sg3E.ini"
+#define DEF_DRAMSIM_SYSTEM_INI_FILE "DRAMSim2/system.ini.example"
+#define DEF_DRAMSIM_STATS_DIR "."
+
 /* Max length for comma separated latency string for FU stages specified
    in RISCVEMU config file */
 #define LATENCY_STRING_MAX_LENGTH 256
@@ -208,6 +219,7 @@ extern const char *cache_wp_str[];
 extern const char *bpu_type_str[];
 extern const char *btb_evict_str[];
 extern const char *bpu_aliasing_func_type_str[];
+extern const char *mem_model_type_str[];
 
 typedef struct SimParams
 {
@@ -299,6 +311,12 @@ typedef struct SimParams
     int tRCD;
     int tRP;
     int row_buffer_write_latency;
+
+    /* DRAMSim2 params */
+    int mem_model_type;
+    char *dramsim_ini_file;
+    char *dramsim_system_ini_file;
+    char *dramsim_stats_dir;
 } SimParams;
 
 typedef struct SimStats

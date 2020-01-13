@@ -32,30 +32,15 @@
 
 #include <math.h>
 
-#include "dram.h"
-#include "riscv_sim_macros.h"
-#include "circular_queue.h"
 #include "../sim_params_stats.h"
+#include "circular_queue.h"
+#include "dram.h"
+#include "memory_controller_utils.h"
+#include "riscv_sim_macros.h"
 
 #define FRONTEND_MEM_ACCESS_QUEUE_SIZE 64
 #define BACKEND_MEM_ACCESS_QUEUE_SIZE 64
 #define DRAM_DISPATCH_QUEUE_SIZE 64
-
-/* By default, RISCVEMU reserves 2GB of physical memory for the guest machine.
- * Guest ram specified in the configuration files is added on top of the reserved 2GB
- * memory. Hence total physical memory allocated for the guest machine is
- * BASE_DRAM_SIZE_BYTES + guest-ram-size. We round this size to the nearest
- * power of 2 in GB*/
-#define BASE_DRAM_SIZE_BYTES 0x80000000 /* 2 GB in bytes */
-#define GET_TOTAL_DRAM_SIZE(x) ((uint64_t)1 << (int)(ceil(log2((x) + BASE_DRAM_SIZE_BYTES))))
-
-typedef struct PendingMemAccessEntry
-{
-    int valid;
-    int bytes_to_access;
-    target_ulong addr;
-    MemAccessType type;
-} PendingMemAccessEntry;
 
 typedef struct DRAMDispatchQueue
 {
@@ -63,30 +48,25 @@ typedef struct DRAMDispatchQueue
     PendingMemAccessEntry entry[DRAM_DISPATCH_QUEUE_SIZE];
 } DRAMDispatchQueue;
 
-typedef struct StageMemAccessQueue
-{
-    int cur_idx;
-    int max_size;
-    int cur_size;
-    PendingMemAccessEntry *entry;
-} StageMemAccessQueue;
-
 typedef struct MemoryController
 {
+    int mem_model_type;
     int current_latency;
     int max_latency;
     int mem_access_active;
     uint32_t dram_burst_size;
+    void (*mem_controller_update_internal)(struct MemoryController *);
     StageMemAccessQueue frontend_mem_access_queue;
     StageMemAccessQueue backend_mem_access_queue;
     DRAMDispatchQueue dram_dispatch_queue;
     Dram *dram;
 } MemoryController;
 
-MemoryController *mem_controller_init(const SimParams *p, uint64_t guest_ram_size,
-                                      uint32_t dram_burst_size);
+MemoryController *mem_controller_init(const SimParams *p);
 void mem_controller_free(MemoryController **m);
 void mem_controller_reset(MemoryController *m);
+void mem_controller_update_base(MemoryController *m);
+void mem_controller_update_dramsim(MemoryController *m);
 void mem_controller_update(MemoryController *m);
 void mem_controller_set_dram_burst_size(MemoryController *m,
                                         int dram_burst_size);

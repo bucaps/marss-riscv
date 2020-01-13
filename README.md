@@ -2,9 +2,9 @@
 
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/bucaps/marss-riscv/blob/master/src/MIT-LICENSE.txt) [![GitHub issues](https://img.shields.io/github/issues/Naereen/StrapDown.js.svg)](https://github.com/bucaps/marss-riscv/issues/)
 
-MARSS-RISCV (Micro-ARchitectural System Simulator - RISCV) is a open source, **cycle-accurate single core full-system (Linux) micro-architectural simulator** for the [RISC-V](https://riscv.org/specifications/) ISA built upon [TinyEMU emulator (https://bellard.org/tinyemu)](https://bellard.org/tinyemu) by Fabrice Bellard and uses its code for all the device emulation and configuration. It consists of detailed cycle accurate models of a modern RISC-V In-order and Out-of-order processor with branch prediction unit and a complete memory hierarchy. It is currently being developed and maintained by [CAPS](https://github.com/bucaps/) (Computer Architecture and Power Aware Systems Research Group) at the State University of New York at Binghamton. Being a true full system simulator, MARSS-RISCV can simulate all of the system in a cycle accurate fashion including OS code, libraries, interrupt handlers etc.
+MARSS-RISCV (Micro-ARchitectural System Simulator - RISCV) is a open source, **cycle-accurate single core full-system (Linux) micro-architectural simulator** for the [RISC-V](https://riscv.org/specifications/) ISA built upon [TinyEMU emulator (https://bellard.org/tinyemu)](https://bellard.org/tinyemu) by Fabrice Bellard and uses its code for all the device emulation and configuration. It consists of detailed cycle accurate models of a modern RISC-V In-order and Out-of-order processor with branch prediction unit and a complete memory hierarchy including TLBs, caches and DRAM. It comes integrated with [DRAMSim2](https://github.com/umd-memsys/DRAMSim2), a cycle accurate memory system simulator. It is currently being developed and maintained by [CAPS](https://github.com/bucaps/) (Computer Architecture and Power Aware Systems Research Group) at the State University of New York at Binghamton. Being a true full system simulator, MARSS-RISCV can simulate all of the system in a cycle accurate fashion including OS code, libraries, interrupt handlers etc.
 
-Currently, our simulator is in alpha status as we are validating the cycle accuracy using various development boards. The simulated in-order core is tested and operational, however, the simulated out-of-order core is in microarchitectural testing phase.
+Currently, our simulator is in alpha status as we are validating the cycle accuracy using various development boards. The simulated in-order core is tested and operational, however, the simulated out-of-order core is in micro-architectural testing phase.
 
 ## Table of contents
 - [Features](#features)
@@ -23,7 +23,7 @@ Currently, our simulator is in alpha status as we are validating the cycle accur
 - Fully configurable, cycle-accurate, in-order and out-of-order single-core RISC-V CPU
 - Multiple execution units with configurable latencies (execution units can be configured to be pipelined)
 - 2-level cache hierarchy with various allocation and miss handling policies
-- A simple DIMM based DRAM model that simulates row-buffer (open-page) hits
+- 2 DRAM memory models: Simple DIMM based basic DRAM model that simulates row-buffer (open-page) hits and [DRAMSim2](https://github.com/umd-memsys/DRAMSim2)
 - Bi-modal and 2-level adaptive (Gshare, Gselect, GAg, GAp, PAg, PAp) branch prediction support
 - Supports `RV32GC` and `RV64GC` (user level ISA version `2.2`, privileged architecture version `1.10`)
 - VirtIO console, network, block device, input and 9P filesystem
@@ -55,12 +55,12 @@ First, clone the simulator repository:
 
 ```console
 $ git clone https://github.com/bucaps/marss-riscv
-
 ```
 Then, `cd` into the simulator source directory:
 
 ```console
 $ cd marss-riscv/src/
+$ git submodule update --init --recursive
 ```
 Modify `CONFIG_XLEN` and `CONFIG_FLEN` options in the Makefile as required. Supported `XLEN` values are `32` and `64`. Supported `FLEN` values are `0`, `32` and `64`. 
 
@@ -88,12 +88,14 @@ $ xz -d -k -T 0 riscv32.img.xz
 When decompression finishes, launch the simulator with:
 
 ```console
-$ ../../marss-riscv riscvemu.cfg
+$ ../../marss-riscv -mem-model base riscvemu.cfg
 ```
 
 Simulation parameters can be configured using `riscvemu.cfg`, RISCVEMU JSON configuration file. 
 
-By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. In that case, it may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found [here](https://github.com/bucaps/marss-riscv-images#how-to-use).
+By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. MARSS-RISCV comes with 2 DRAM memory models: Basic and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `riscvemu.cfg` file.
+
+It may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found [here](https://github.com/bucaps/marss-riscv-images#how-to-use).
 
 By default, guest boots in emulation mode. To start in simulation mode run with `-simstart` command line option.
 
@@ -162,7 +164,6 @@ cycle = 115  pc = 0x6aaaadfc  insn = 0xfa842503  lw a0,s0,-88  mode = PRV_U  sta
 * Support for return address stack
 * Support for branch prediction unit, speculative execution and age-ordered instruction issue logic in the out-of-order core
 * Cycle accuracy validation using various RISC-V development boards
-* Integrating DRAM simulator (like DRAMSim2) with MARSS-RISCV, to get accurate memory stats
 
 ## Technical notes
 
@@ -231,8 +232,11 @@ the JSON blk.txt file must be provided as disk image filename.
 ## Acknowledgment
 This work was supported in part by DARPA through an award from the SSITH program. We would like to thank Gokturk Yuksek, Ravi Theja Gollapudi and Kanad Ghose for assistance with the internal details of TinyEMU and the development of the MARSS-RISCV.
 
+For DRAMSim2, see [here](https://github.com/umd-memsys/DRAMSim2).
+
 ## License
 This project is licensed under the MIT License - see the
 src/MIT-LICENSE.txt file for details.
 
 The SLIRP library has its own license (two clause BSD license).
+DRAMSim2 has its own license (two clause BSD license).
