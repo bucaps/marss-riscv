@@ -1432,7 +1432,6 @@ static int fs_net_reset_base_url(FSDevice *fs1,
     return 0;
 }
 
-#if 0
 static void fs_net_set_fs_max_size(FSDevice *fs1, uint64_t fs_max_size)
 {
     FSDeviceMem *fs = (FSDeviceMem *)fs1;
@@ -1440,7 +1439,6 @@ static void fs_net_set_fs_max_size(FSDevice *fs1, uint64_t fs_max_size)
     assert(fs_is_net(fs1));
     fs->fs_max_blocks = to_blocks(fs, fs_max_size);
 }
-#endif
 
 static int fs_net_set_url(FSDevice *fs1, FSINode *n,
                           const char *base_url_id, FSFileID file_id, uint64_t size)
@@ -1725,6 +1723,7 @@ static void head_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
     FSFileID root_id;
     FSFile *new_filelist_fd;
     FSQID qid;
+    uint64_t fs_max_size;
     
     if (size < 0)
         fatal_error("could not load 'head' file (HTTP error=%d)", -(int)size);
@@ -1740,7 +1739,12 @@ static void head_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
 
     if (parse_tag_file_id(&root_id, buf, "RootID") < 0)
         fatal_error("expected RootID tag");
-        
+
+    if (parse_tag_uint64(&fs_max_size, buf, "FSMaxSize") == 0 &&
+        fs_max_size >= ((uint64_t)1 << 20)) {
+        fs_net_set_fs_max_size(fs, fs_max_size);
+    }
+
     /* set the Root URL in the filesystem */
     root_url = compose_url(s->url, ROOT_FILENAME);
     fs_net_set_base_url(fs, "/", root_url, NULL, NULL, NULL);

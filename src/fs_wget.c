@@ -295,7 +295,7 @@ void fs_net_event_loop(FSNetEventLoopCompletionFunc *cb, void *opaque)
         }
         tv.tv_sec = timeout / 1000;
         tv.tv_usec = (timeout % 1000) * 1000;
-        select(fd_max + 1, &rfds, &wfds, &rfds, &tv);
+        select(fd_max + 1, &rfds, &wfds, &efds, &tv);
     }
 }
 

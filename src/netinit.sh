@@ -24,7 +24,7 @@
 #
 
 # host network interface connected to Internet (change it)
-internet_ifname="enp0s20f0u1"
+internet_ifname="enp3s0"
 
 # setup bridge interface
 ip link add br0 type bridge
@@ -39,5 +39,6 @@ ifconfig br0 192.168.3.1
 # setup NAT to access to Internet
 echo 1 > /proc/sys/net/ipv4/ip_forward
 # delete forwarding reject rule if present
-#iptables -D FORWARD 1
+# iptables -L -n -v --line-numbers
+#iptables -D FORWARD x
 iptables -t nat -A POSTROUTING -o $internet_ifname -j MASQUERADE 
