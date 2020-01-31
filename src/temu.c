@@ -53,7 +53,7 @@
 #include "slirp/libslirp.h"
 #endif
 
-#include "sim_params_stats.h"
+#include "riscvsim/sim_params_stats.h"
 
 #ifndef _WIN32
 typedef struct {
@@ -632,7 +632,7 @@ void help(void)
            "                            emulated software\n"
            "-append cmdline             append cmdline to the kernel command line\n"
            "-simstart                   start (boot kernel) in simulation mode\n"
-           "-stats-display              dump simulation performance stats to a shared memory location, read by sim-display tool\n"
+           "-stats-display              dump simulation performance stats to a shared memory location, read by stats-display tool\n"
            "-mem-model [base|dramsim2]  type of simulated memory model\n"
            "\n"
            "Console keys:\n"

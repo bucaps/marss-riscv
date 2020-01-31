@@ -27,7 +27,7 @@
 #ifndef _OOO_H_
 #define _OOO_H_
 
-#include "../sim_params_stats.h"
+#include "sim_params_stats.h"
 #include "common_core_utils.h"
 #include "circular_queue.h"
 

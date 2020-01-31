@@ -30,7 +30,7 @@
 #ifndef _MMU_H_
 #define _MMU_H_
 
-#include "../sim_params_stats.h"
+#include "sim_params_stats.h"
 #include "cache.h"
 #include "memory_controller.h"
 #include "riscv_sim_typedefs.h"

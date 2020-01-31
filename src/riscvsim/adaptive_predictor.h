@@ -30,7 +30,7 @@
 #ifndef _ADAPTIVE_PREDICTOR_H_
 #define _ADAPTIVE_PREDICTOR_H_
 
-#include "../sim_params_stats.h"
+#include "sim_params_stats.h"
 #include "riscv_sim_typedefs.h"
 
 /* Adaptive Predictor Level 1: Global History Table (GHT) Entry */

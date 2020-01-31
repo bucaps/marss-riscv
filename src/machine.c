@@ -49,7 +49,7 @@
 #include "fs_wget.h"
 #endif
 
-#include "sim_params_stats.h"
+#include "riscvsim/sim_params_stats.h"
 
 void __attribute__((format(printf, 1, 2))) vm_error(const char *fmt, ...)
 {

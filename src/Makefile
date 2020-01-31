@@ -35,7 +35,6 @@
 
 # Set the XLEN value
 CONFIG_SIM_XLEN=64
-
 # if set, network filesystem is enabled. libcurl and libcrypto
 # (openssl) must be installed.
 CONFIG_FS_NET=y
@@ -55,22 +54,23 @@ LDFLAGS=
 bindir=/usr/local/bin
 INSTALL=install
 
-PROGS+= temu$(EXE)
+PROGS+= temu$(EXE) stats-display
 ifdef CONFIG_FS_NET
 PROGS+=build_filelist splitimg
 endif
 
-## Top-level objects needed by the simulator
+# ===============================================================================================
+# Top-level object variables needed by the simulator
 
 # DRAMSim2 library for simulator
-DRAMSIM_OBJS+= libdramsim.so libdramsim_wrapper_cpp_lib.so libdramsim_wrapper_c_connector.so
+DRAMSIM2_OBJS+= libdramsim.so libdramsim_wrapper_cpp_lib.so libdramsim_wrapper_c_connector.so
 
 # Top-level simulator object file
 SIM_OBJ_FILE=riscvsim.o
 CFLAGS+=-DMAX_XLEN=$(CONFIG_SIM_XLEN)
 
 # Simulator Object Files
-SIM_UTILS:=$(addprefix riscvsim/, circular_queue.o common_core_utils.o) sim_params_stats.o
+SIM_UTILS:=$(addprefix riscvsim/, circular_queue.o common_core_utils.o sim_params_stats.o)
 SIM_DECODER_OBJS:=$(addprefix riscvsim/, riscv_ins_str_creator.o riscv_isa_decoder.o riscv_ins_execute.o)
 SIM_BPU_OBJS:=$(addprefix riscvsim/, btb.o adaptive_predictor.o bpu.o)
 SIM_CACHE_OBJS:=$(addprefix riscvsim/, mmu.o dram.o memory_controller.o cache.o )
@@ -79,9 +79,9 @@ SIM_CORE_OBJS:=$(addprefix riscvsim/, riscv_sim_cpu.o)
 SIM_OO_CORE_OBJS:=$(addprefix riscvsim/, ooo_frontend.o ooo_branch.o ooo_lsu.o ooo_backend.o ooo.o)
 SIM_OBJS:=$(SIM_UTILS) $(SIM_DECODER_OBJS) $(SIM_BPU_OBJS) $(SIM_CACHE_OBJS) $(SIM_CORE_OBJS) $(SIM_IN_CORE_OBJS) $(SIM_OO_CORE_OBJS)
 
-##
+# ===============================================================================================
 
-all: $(DRAMSIM_OBJS) $(PROGS) stats-display
+all: $(DRAMSIM2_OBJS) $(PROGS)
 
 EMU_OBJS:=virtio.o pci.o fs.o cutils.o iomem.o simplefb.o \
     json.o machine.o temu.o
@@ -109,7 +109,8 @@ endif
 EMU_OBJS+=riscv_machine.o softfp.o riscv_cpu.o
 CFLAGS+=-DCONFIG_RISCV_MAX_XLEN=64
 
-## Objects needed by the simulator
+# ===============================================================================================
+# Objects needed by the simulator
 
 # For DRAMSim2
 libdramsim_wrapper_c_connector.so:
@@ -129,9 +130,9 @@ riscvsim.o: $(SIM_OBJS)
 	$(LD) -r -o $@ $^ $(SIM_LIBS)
 
 # Simulation statistics display utility
-stats-display:
+stats-display: stats_display.c
 	$(CC) stats_display.c -o stats-display -lrt
-##
+# ===============================================================================================
 
 temu$(EXE): $(SIM_OBJ_FILE) $(EMU_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS) -L. -ldramsim_wrapper_c_connector -Wl,-rpath=.
@@ -153,7 +154,7 @@ install: $(PROGS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *.o *.d *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/*.o riscvsim/*.d riscvsim/*~ $(DRAMSIM_OBJS)
+	rm -f *.o *.d *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/*.o riscvsim/*.d riscvsim/*~ $(DRAMSIM2_OBJS)
 
 -include $(wildcard *.d)
 -include $(wildcard slirp/*.d)

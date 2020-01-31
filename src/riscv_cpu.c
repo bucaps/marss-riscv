@@ -44,7 +44,7 @@
 #include "cutils.h"
 #include "iomem.h"
 #include "riscv_cpu.h"
-#include "sim_params_stats.h"
+#include "riscvsim/sim_params_stats.h"
 #include "riscvsim/dramsim_wrapper_c_connector.h"
 
 #ifndef MAX_XLEN

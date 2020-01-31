@@ -30,7 +30,7 @@
 #ifndef _INORDER_H_
 #define _INORDER_H_
 
-#include "../sim_params_stats.h"
+#include "sim_params_stats.h"
 #include "bpu.h"
 #include "circular_queue.h"
 #include "common_core_utils.h"

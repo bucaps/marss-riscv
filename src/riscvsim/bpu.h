@@ -37,7 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../sim_params_stats.h"
+#include "sim_params_stats.h"
 #include "adaptive_predictor.h"
 #include "btb.h"
 #include "riscv_sim_typedefs.h"

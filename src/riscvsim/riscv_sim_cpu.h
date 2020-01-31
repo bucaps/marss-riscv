@@ -30,7 +30,7 @@
 #ifndef _RISCV_SIM_CPU_H_
 #define _RISCV_SIM_CPU_H_
 
-#include "../sim_params_stats.h"
+#include "sim_params_stats.h"
 #include "bpu.h"
 #include "mmu.h"
 #include "riscv_sim_typedefs.h"

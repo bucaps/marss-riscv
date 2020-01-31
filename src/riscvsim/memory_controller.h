@@ -32,7 +32,7 @@
 
 #include <math.h>
 
-#include "../sim_params_stats.h"
+#include "sim_params_stats.h"
 #include "circular_queue.h"
 #include "dram.h"
 #include "memory_controller_utils.h"

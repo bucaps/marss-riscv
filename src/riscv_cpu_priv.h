@@ -38,7 +38,7 @@
 #include <time.h>
 #include "riscv_cpu.h"
 #include "cutils.h"
-#include "sim_params_stats.h"
+#include "riscvsim/sim_params_stats.h"
 #include "riscvsim/riscv_sim_cpu.h"
 
 #define __exception __attribute__((warn_unused_result))

@@ -46,20 +46,6 @@ const char *btb_evict_str[] = {"random", "lru"};
 const char *bpu_aliasing_func_type_str[] = {"xor", "and", "none"};
 const char *mem_model_type_str[] = {"base", "dramsim2"};
 
-static unsigned
-next_high_power_of_2(unsigned n)
-{
-    n--;
-
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-
-    return ++n;
-}
-
 SimParams *
 sim_params_init()
 {

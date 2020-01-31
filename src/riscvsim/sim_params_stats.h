@@ -36,7 +36,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "riscvsim/riscv_sim_macros.h"
+#include "riscv_sim_macros.h"
 
 /* Used for creating shared memory for writing stats */
 #define POSIX_IPC_NAME_PREFIX "/user-"

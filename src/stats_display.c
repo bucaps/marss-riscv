@@ -41,7 +41,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "sim_params_stats.h"
+#include "riscvsim/sim_params_stats.h"
 
 #define GET_TOTAL_STAT(attr) (s[0].attr + s[1].attr + s[2].attr + s[3].attr)
 
