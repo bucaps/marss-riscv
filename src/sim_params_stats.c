@@ -28,6 +28,7 @@
  * THE SOFTWARE.
  */
 #include "sim_params_stats.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,9 +60,14 @@ next_high_power_of_2(unsigned n)
     return ++n;
 }
 
-void
-sim_params_set_defaults(SimParams *p)
+SimParams *
+sim_params_init()
 {
+    SimParams *p;
+
+    p = calloc(1, sizeof(SimParams));
+    assert(p);
+
     int i;
 
     p->core_name = strdup(DEF_CORE_NAME);
@@ -192,6 +198,8 @@ sim_params_set_defaults(SimParams *p)
     assert(p->dramsim_system_ini_file);
     p->dramsim_stats_dir = strdup(DEF_DRAMSIM_STATS_DIR);
     assert(p->dramsim_stats_dir);
+
+    return p;
 }
 
 static void
@@ -436,6 +444,8 @@ sim_params_free(SimParams *p)
     p->dramsim_system_ini_file = NULL;
     free(p->dramsim_stats_dir);
     p->dramsim_stats_dir = NULL;
+
+    free(p);
 }
 
 static void

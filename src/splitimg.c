@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 
     blocksize *= 1024;
     
-    buf = (uint8_t *)malloc(blocksize);
+    buf = malloc(blocksize);
 
     f = fopen(infilename, "rb");
     if (!f) {

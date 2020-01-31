@@ -205,7 +205,7 @@ static inline uintx_t glue(mulhsu, XLEN)(intx_t a, uintx_t b)
         goto jump_insn;            \
     } while (0)
 
-static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
+static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                                                    int n_cycles)
 {
     uint32_t opcode, insn, rd, rs1, rs2, funct3;
@@ -302,7 +302,7 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
 #endif
 
         fprintf(stderr, "(marss-riscv): Switching to full-system simulation "
-                        "mode at pc = 0x%" TARGET_ULONG_HEX "\n",
+                        "mode at pc = 0x%" PR_target_ulong "\n",
                 s->pc);
     }
 
@@ -375,17 +375,19 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
     /* we use a single execution loop to keep a simple control flow
        for emscripten */
     for(;;) {
-        if (unlikely(!--n_cycles)) {
-            s->pc = GET_PC();
-            goto the_end;
-        }
+        --n_cycles;
         if (unlikely(code_ptr >= code_end)) {
             uint32_t tlb_idx;
             uint16_t insn_high;
-            uintptr_t mem_addend;
             target_ulong addr;
-
+            uint8_t *ptr;
+            
             s->pc = GET_PC();
+            /* we test n_cycles only between blocks so that timer
+               interrupts only happen between the blocks. It is
+               important to reduce the translated code size. */
+            if (unlikely(n_cycles <= 0))
+                goto the_end;
 
             /* check pending interrupts */
             if (unlikely((s->mip & s->mie) != 0)) {
@@ -398,14 +400,14 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
             tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);
             if (likely(s->tlb_code[tlb_idx].vaddr == (addr & ~PG_MASK))) {
                 /* TLB match */ 
-                mem_addend = s->tlb_code[tlb_idx].mem_addend;
+                ptr = (uint8_t *)(s->tlb_code[tlb_idx].mem_addend +
+                                  (uintptr_t)addr);
             } else {
-                if (unlikely(target_read_insn_slow(s, &mem_addend, addr)))
+                if (unlikely(target_read_insn_slow(s, &ptr, addr)))
                     goto mmu_exception;
             }
-            code_ptr = (uint8_t *)(mem_addend + (uintptr_t)addr);
-            code_end = (uint8_t *)(mem_addend +
-                                   (uintptr_t)((addr & ~PG_MASK) + PG_MASK - 1));
+            code_ptr = ptr;
+            code_end = ptr + (PG_MASK - 1 - (addr & PG_MASK));
             code_to_pc_addend = addr - (uintptr_t)code_ptr;
             if (unlikely(code_ptr >= code_end)) {
                 /* instruction is potentially half way between two
@@ -426,8 +428,13 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
         }
 #if 0
         if (1) {
+#ifdef CONFIG_LOGFILE
+            log_printf("pc=0x"); fprint_target_ulong(log_file, GET_PC()); log_printf(" insn=%08x\n", insn);
+            fflush(log_file);
+#else
             printf("pc=0x"); print_target_ulong(GET_PC()); printf(" insn=%08x\n", insn);
             //            dump_regs(s);
+#endif
         }
 #endif
         opcode = insn & 0x7f;
@@ -891,7 +898,7 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                     goto mmu_exception;
                 break;
 #elif FLEN >= 32
-            case 7: /* c.fswsp */
+            case 7: /* c.swsp */
                 if (s->fs == 0)
                     goto illegal_insn;
                 imm = get_field1(insn, 9, 2, 5) |
@@ -1702,18 +1709,18 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
             switch(funct3) {
             case 0:
                 s->fp_reg[rd] = fma_sf32(s->fp_reg[rs1], s->fp_reg[rs2],
-                                         s->fp_reg[rs3], (RoundingModeEnum)rm, &s->fflags) | F32_HIGH;
+                                         s->fp_reg[rs3], rm, &s->fflags) | F32_HIGH;
                 break;
 #if FLEN >= 64
             case 1:
                 s->fp_reg[rd] = fma_sf64(s->fp_reg[rs1], s->fp_reg[rs2],
-                                         s->fp_reg[rs3], (RoundingModeEnum)rm, &s->fflags) | F64_HIGH;
+                                         s->fp_reg[rs3], rm, &s->fflags) | F64_HIGH;
                 break;
 #endif
 #if FLEN >= 128
             case 3:
                 s->fp_reg[rd] = fma_sf128(s->fp_reg[rs1], s->fp_reg[rs2],
-                                          s->fp_reg[rs3], (RoundingModeEnum)rm, &s->fflags);
+                                          s->fp_reg[rs3], rm, &s->fflags);
                 break;
 #endif
             default:
@@ -1734,14 +1741,14 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                 s->fp_reg[rd] = fma_sf32(s->fp_reg[rs1],
                                          s->fp_reg[rs2],
                                          s->fp_reg[rs3] ^ FSIGN_MASK32,
-                                         (RoundingModeEnum)rm, &s->fflags) | F32_HIGH;
+                                         rm, &s->fflags) | F32_HIGH;
                 break;
 #if FLEN >= 64
             case 1:
                 s->fp_reg[rd] = fma_sf64(s->fp_reg[rs1],
                                          s->fp_reg[rs2],
                                          s->fp_reg[rs3] ^ FSIGN_MASK64,
-                                         (RoundingModeEnum)rm, &s->fflags) | F64_HIGH;
+                                         rm, &s->fflags) | F64_HIGH;
                 break;
 #endif
 #if FLEN >= 128
@@ -1749,7 +1756,7 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                 s->fp_reg[rd] = fma_sf128(s->fp_reg[rs1],
                                           s->fp_reg[rs2],
                                           s->fp_reg[rs3] ^ FSIGN_MASK128,
-                                          (RoundingModeEnum)rm, &s->fflags);
+                                          rm, &s->fflags);
                 break;
 #endif
             default:
@@ -1770,14 +1777,14 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                 s->fp_reg[rd] = fma_sf32(s->fp_reg[rs1] ^ FSIGN_MASK32,
                                          s->fp_reg[rs2],
                                          s->fp_reg[rs3],
-                                         (RoundingModeEnum)rm, &s->fflags) | F32_HIGH;
+                                         rm, &s->fflags) | F32_HIGH;
                 break;
 #if FLEN >= 64
             case 1:
                 s->fp_reg[rd] = fma_sf64(s->fp_reg[rs1] ^ FSIGN_MASK64,
                                          s->fp_reg[rs2],
                                          s->fp_reg[rs3],
-                                         (RoundingModeEnum)rm, &s->fflags) | F64_HIGH;
+                                         rm, &s->fflags) | F64_HIGH;
                 break;
 #endif
 #if FLEN >= 128
@@ -1785,7 +1792,7 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                 s->fp_reg[rd] = fma_sf128(s->fp_reg[rs1] ^ FSIGN_MASK128,
                                           s->fp_reg[rs2],
                                           s->fp_reg[rs3],
-                                          (RoundingModeEnum)rm, &s->fflags);
+                                          rm, &s->fflags);
                 break;
 #endif
             default:
@@ -1806,14 +1813,14 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                 s->fp_reg[rd] = fma_sf32(s->fp_reg[rs1] ^ FSIGN_MASK32,
                                          s->fp_reg[rs2],
                                          s->fp_reg[rs3] ^ FSIGN_MASK32,
-                                         (RoundingModeEnum)rm, &s->fflags) | F32_HIGH;
+                                         rm, &s->fflags) | F32_HIGH;
                 break;
 #if FLEN >= 64
             case 1:
                 s->fp_reg[rd] = fma_sf64(s->fp_reg[rs1] ^ FSIGN_MASK64,
                                          s->fp_reg[rs2],
                                          s->fp_reg[rs3] ^ FSIGN_MASK64,
-                                         (RoundingModeEnum)rm, &s->fflags) | F64_HIGH;
+                                         rm, &s->fflags) | F64_HIGH;
                 break;
 #endif
 #if FLEN >= 128
@@ -1821,7 +1828,7 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
                 s->fp_reg[rd] = fma_sf128(s->fp_reg[rs1] ^ FSIGN_MASK128,
                                           s->fp_reg[rs2],
                                           s->fp_reg[rs3] ^ FSIGN_MASK128,
-                                          (RoundingModeEnum)rm, &s->fflags);
+                                          rm, &s->fflags);
                 break;
 #endif
             default:
@@ -1837,14 +1844,14 @@ static void no_inline glue(riscv_cpu_interp, XLEN)(RISCVCPUState *s,
             switch(imm) {
 
 #define F_SIZE 32
-#include "riscvemu_fp_template.h"
+#include "riscv_cpu_fp_template.h"
 #if FLEN >= 64
 #define F_SIZE 64
-#include "riscvemu_fp_template.h"
+#include "riscv_cpu_fp_template.h"
 #endif
 #if FLEN >= 128
 #define F_SIZE 128
-#include "riscvemu_fp_template.h"
+#include "riscv_cpu_fp_template.h"
 #endif
 
             default:

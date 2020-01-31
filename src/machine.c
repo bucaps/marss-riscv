@@ -48,7 +48,8 @@
 #ifdef CONFIG_FS_NET
 #include "fs_wget.h"
 #endif
-#include "riscv_cpu.h"
+
+#include "sim_params_stats.h"
 
 void __attribute__((format(printf, 1, 2))) vm_error(const char *fmt, ...)
 {
@@ -69,6 +70,22 @@ int vm_get_int(JSONValue obj, const char *name, int *pval)
     if (json_is_undefined(val)) {
         vm_error("expecting '%s' property\n", name);
         return -1;
+    }
+    if (val.type != JSON_INT) {
+        vm_error("%s: integer expected\n", name);
+        return -1;
+    }
+    *pval = val.u.int32;
+    return 0;
+}
+
+int vm_get_int_opt(JSONValue obj, const char *name, int *pval, int def_val)
+{ 
+    JSONValue val;
+    val = json_object_get(obj, name);
+    if (json_is_undefined(val)) {
+        *pval = def_val;
+        return 0;
     }
     if (val.type != JSON_INT) {
         vm_error("%s: integer expected\n", name);
@@ -164,6 +181,10 @@ static char *cmdline_subst(const char *cmdline)
     return (char *)dbuf.buf;
 }
 
+/* Max length for comma separated latency string for FU stages specified
+in RISCVEMU config file */
+#define LATENCY_STRING_MAX_LENGTH 256
+
 static void parse_stage_latency_str(int **dest, int max_stage_count, char *str)
 {
     int pos;
@@ -206,11 +227,60 @@ static unsigned next_high_power_of_2(unsigned n)
     return ++n;
 }
 
+static BOOL find_name(const char *name, const char *name_list)
+{
+    size_t len;
+    const char *p, *r;
+    
+    p = name_list;
+    for(;;) {
+        r = strchr(p, ',');
+        if (!r) {
+            if (!strcmp(name, p))
+                return TRUE;
+            break;
+        } else {
+            len = r - p;
+            if (len == strlen(name) && !memcmp(name, p, len))
+                return TRUE;
+            p = r + 1;
+        }
+    }
+    return FALSE;
+}
+
+static const VirtMachineClass *virt_machine_list[] = {
+#if defined(EMSCRIPTEN)
+    /* only a single machine in the EMSCRIPTEN target */
+#ifdef CONFIG_RISCV_MACHINE
+    &riscv_machine_class,
+#else
+    &pc_machine_class,
+#endif    
+#else
+    &riscv_machine_class,
+   // &pc_machine_class,
+#endif /* !EMSCRIPTEN */
+    NULL,
+};
+
+static const VirtMachineClass *virt_machine_find_class(const char *machine_name)
+{
+    const VirtMachineClass *vmc, **pvmc;
+    
+    for(pvmc = virt_machine_list; *pvmc != NULL; pvmc++) {
+        vmc = *pvmc;
+        if (find_name(machine_name, vmc->machine_names))
+            return vmc;
+    }
+    return NULL;
+}
+
 static int virt_machine_parse_config(VirtMachineParams *p,
                                      char *config_file_str, int len)
 {
     int version, val;
-    const char *tag_name, *machine_name, *str;
+    const char *tag_name, *str;
     char buf1[256];
     JSONValue cfg, obj, el;
     char stage_latency_str[LATENCY_STRING_MAX_LENGTH];
@@ -236,12 +306,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     
     if (vm_get_str(cfg, "machine", &str) < 0)
         goto tag_fail;
-    machine_name = virt_machine_get_name();
-    if (strcmp(machine_name, str) != 0) {
-        vm_error("Unsupported machine: '%s' (running machine is '%s')\n",
-                 str, machine_name);
-        return -1;
+    p->machine_name = strdup(str);
+    p->vmc = virt_machine_find_class(p->machine_name);
+    if (!p->vmc) {
+        vm_error("Unknown machine name: %s\n", p->machine_name);
+        goto tag_fail;
     }
+    p->vmc->virt_machine_set_defaults(p);
 
     tag_name = "memory_size";
     if (vm_get_int(cfg, tag_name, &val) < 0)
@@ -267,7 +338,7 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     if (str) {
         p->cmdline = cmdline_subst(str);
     }
-
+    
     for(;;) {
         snprintf(buf1, sizeof(buf1), "drive%d", p->drive_count);
         obj = json_object_get(cfg, buf1);
@@ -379,124 +450,124 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     tag_name = "core_name";
     if (vm_get_str(cfg, tag_name, &str) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-            p->sim_params.core_name);
+            p->sim_params->core_name);
     } else {
-        free(p->sim_params.core_name);
-        p->sim_params.core_name = strdup(str);
+        free(p->sim_params->core_name);
+        p->sim_params->core_name = strdup(str);
     }
 
     tag_name = "core_type";
     if (vm_get_str(cfg, tag_name, &str) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-            core_type_str[p->sim_params.core_type]);
+            core_type_str[p->sim_params->core_type]);
     } else {
         if (strcmp(str, "incore") == 0){
-            p->sim_params.core_type = CORE_TYPE_INCORE;
+            p->sim_params->core_type = CORE_TYPE_INCORE;
         } else if (strcmp(str, "oocore") == 0){
-            p->sim_params.core_type = CORE_TYPE_OOCORE;
+            p->sim_params->core_type = CORE_TYPE_OOCORE;
         }
     }
 
-    if (p->sim_params.core_type == CORE_TYPE_INCORE) {
+    if (p->sim_params->core_type == CORE_TYPE_INCORE) {
         tag_name = "num_cpu_stages";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.num_cpu_stages) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->num_cpu_stages) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.num_cpu_stages);
+                    tag_name, p->sim_params->num_cpu_stages);
         }
-    } else if (p->sim_params.core_type == CORE_TYPE_OOCORE) {
+    } else if (p->sim_params->core_type == CORE_TYPE_OOCORE) {
         tag_name = "prf_int_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.prf_int_size) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->prf_int_size) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.prf_int_size);
+                    tag_name, p->sim_params->prf_int_size);
         }
 
         tag_name = "prf_fp_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.prf_fp_size) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->prf_fp_size) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.prf_fp_size);
+                    tag_name, p->sim_params->prf_fp_size);
         }
 
         tag_name = "iq_int_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.iq_int_size) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_int_size) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.iq_int_size);
+                    tag_name, p->sim_params->iq_int_size);
         }
 
         tag_name = "iq_int_issue_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.iq_int_issue_ports) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_int_issue_ports) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.iq_int_issue_ports);
+                    tag_name, p->sim_params->iq_int_issue_ports);
         }
 
         tag_name = "iq_fp_issue_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.iq_fp_issue_ports) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_fp_issue_ports) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.iq_fp_issue_ports);
+                    tag_name, p->sim_params->iq_fp_issue_ports);
         }
 
         tag_name = "iq_mem_issue_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.iq_mem_issue_ports) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_mem_issue_ports) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.iq_mem_issue_ports);
+                    tag_name, p->sim_params->iq_mem_issue_ports);
         }
 
         tag_name = "iq_fp_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.iq_fp_size) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_fp_size) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.iq_fp_size);
+                    tag_name, p->sim_params->iq_fp_size);
         }
 
         tag_name = "iq_mem_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.iq_mem_size) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_mem_size) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.iq_mem_size);
+                    tag_name, p->sim_params->iq_mem_size);
         }
 
         tag_name = "prf_int_write_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.prf_int_write_ports) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->prf_int_write_ports) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.prf_int_write_ports);
+                    tag_name, p->sim_params->prf_int_write_ports);
         }
 
         tag_name = "prf_fp_write_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.prf_fp_write_ports) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->prf_fp_write_ports) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.prf_fp_write_ports);
+                    tag_name, p->sim_params->prf_fp_write_ports);
         }
 
         tag_name = "rob_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.rob_size) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->rob_size) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.rob_size);
+                    tag_name, p->sim_params->rob_size);
         }
 
         tag_name = "rob_commit_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.rob_commit_ports) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->rob_commit_ports) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.rob_commit_ports);
+                    tag_name, p->sim_params->rob_commit_ports);
         }
 
 
         tag_name = "lsq_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.lsq_size) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->lsq_size) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params.lsq_size);
+                    tag_name, p->sim_params->lsq_size);
         }
     }
 
     tag_name = "sim_stats_path";
     if (vm_get_str(cfg, tag_name, &str) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %s\n",
-                tag_name, p->sim_params.sim_stats_path);
+                tag_name, p->sim_params->sim_stats_path);
     } else {
-        free(p->sim_params.sim_stats_path);
-        p->sim_params.sim_stats_path = strdup(str);
+        free(p->sim_params->sim_stats_path);
+        p->sim_params->sim_stats_path = strdup(str);
     }
 
     tag_name = "num_alu_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.num_alu_stages) < 0) {
+    if (vm_get_int(cfg, tag_name, &p->sim_params->num_alu_stages) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.num_alu_stages);
+                tag_name, p->sim_params->num_alu_stages);
     }
 
     tag_name = "alu_stage_latency";
@@ -505,14 +576,14 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     } else {
       strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
       stage_latency_str[LATENCY_STRING_MAX_LENGTH - 1] = '\0';
-      parse_stage_latency_str(&p->sim_params.alu_stage_latency,
-                              p->sim_params.num_alu_stages, stage_latency_str);
+      parse_stage_latency_str(&p->sim_params->alu_stage_latency,
+                              p->sim_params->num_alu_stages, stage_latency_str);
     }
 
     tag_name = "num_mul_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.num_mul_stages) < 0) {
+    if (vm_get_int(cfg, tag_name, &p->sim_params->num_mul_stages) < 0) {
       fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-              p->sim_params.num_mul_stages);
+              p->sim_params->num_mul_stages);
     }
 
     tag_name = "mul_stage_latency";
@@ -521,14 +592,14 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     } else {
       strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
       stage_latency_str[LATENCY_STRING_MAX_LENGTH - 1] = '\0';
-      parse_stage_latency_str(&p->sim_params.mul_stage_latency,
-                              p->sim_params.num_mul_stages, stage_latency_str);
+      parse_stage_latency_str(&p->sim_params->mul_stage_latency,
+                              p->sim_params->num_mul_stages, stage_latency_str);
     }
 
     tag_name = "num_div_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.num_div_stages) < 0) {
+    if (vm_get_int(cfg, tag_name, &p->sim_params->num_div_stages) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.num_div_stages);
+                tag_name, p->sim_params->num_div_stages);
     }
 
     tag_name = "div_stage_latency";
@@ -537,14 +608,14 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     } else {
       strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
       stage_latency_str[LATENCY_STRING_MAX_LENGTH - 1] = '\0';
-      parse_stage_latency_str(&p->sim_params.div_stage_latency,
-                              p->sim_params.num_div_stages, stage_latency_str);
+      parse_stage_latency_str(&p->sim_params->div_stage_latency,
+                              p->sim_params->num_div_stages, stage_latency_str);
     }
 
     tag_name = "num_fpu_alu_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.num_fpu_alu_stages) < 0) {
+    if (vm_get_int(cfg, tag_name, &p->sim_params->num_fpu_alu_stages) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.num_fpu_alu_stages);
+                tag_name, p->sim_params->num_fpu_alu_stages);
     }
 
     tag_name = "fpu_alu_stage_latency";
@@ -553,15 +624,15 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     } else {
       strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
       stage_latency_str[LATENCY_STRING_MAX_LENGTH - 1] = '\0';
-      parse_stage_latency_str(&p->sim_params.fpu_alu_stage_latency,
-                              p->sim_params.num_fpu_alu_stages,
+      parse_stage_latency_str(&p->sim_params->fpu_alu_stage_latency,
+                              p->sim_params->num_fpu_alu_stages,
                               stage_latency_str);
     }
 
     tag_name = "num_fpu_fma_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.num_fpu_fma_stages) < 0) {
+    if (vm_get_int(cfg, tag_name, &p->sim_params->num_fpu_fma_stages) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.num_fpu_fma_stages);
+                tag_name, p->sim_params->num_fpu_fma_stages);
     }
 
     tag_name = "fpu_fma_stage_latency";
@@ -570,66 +641,66 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     } else {
       strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
       stage_latency_str[LATENCY_STRING_MAX_LENGTH - 1] = '\0';
-      parse_stage_latency_str(&p->sim_params.fpu_fma_stage_latency,
-                              p->sim_params.num_fpu_fma_stages,
+      parse_stage_latency_str(&p->sim_params->fpu_fma_stage_latency,
+                              p->sim_params->num_fpu_fma_stages,
                               stage_latency_str);
     }
 
     tag_name = "sim_trace_file";
     if (vm_get_str(cfg, tag_name, &str) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %s\n",
-                tag_name, p->sim_params.sim_trace_file);
+                tag_name, p->sim_params->sim_trace_file);
     } else {
-        free(p->sim_params.sim_trace_file);
-        p->sim_params.sim_trace_file = strdup(str);
+        free(p->sim_params->sim_trace_file);
+        p->sim_params->sim_trace_file = strdup(str);
     }
 
     tag_name = "tlb_size";
-    if (vm_get_int(cfg, tag_name, &p->sim_params.tlb_size) < 0) {
+    if (vm_get_int(cfg, tag_name, &p->sim_params->tlb_size) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.tlb_size);
+                tag_name, p->sim_params->tlb_size);
     }
 
     /* BPU */
     tag_name = "enable_bpu";
     if (vm_get_str(cfg, tag_name, &str) < 0) {
         fprintf(stderr, "%s not found, selecting default value %s\n", tag_name,
-                sim_param_status[p->sim_params.enable_bpu]);
+                sim_param_status[p->sim_params->enable_bpu]);
     }
     else {
         if (strcmp(str, "false") == 0) {
-            p->sim_params.enable_bpu = DISABLE;
+            p->sim_params->enable_bpu = DISABLE;
         } else if (strcmp(str, "true") == 0) {
-            p->sim_params.enable_bpu = ENABLE;
+            p->sim_params->enable_bpu = ENABLE;
         } else {
             fprintf(stderr, "error: option %s has invalid value\n", tag_name);
             exit(1);
         }
     }
 
-    if (p->sim_params.enable_bpu == ENABLE) {
+    if (p->sim_params->enable_bpu == ENABLE) {
         tag_name = "btb_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.btb_size) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->btb_size) < 0) {
           fprintf(stderr, "%s not found, selecting default value: %d\n",
-                  tag_name, p->sim_params.btb_size);
+                  tag_name, p->sim_params->btb_size);
         }
 
         tag_name = "btb_ways";
-        if (vm_get_int(cfg, tag_name, &p->sim_params.btb_ways) < 0) {
+        if (vm_get_int(cfg, tag_name, &p->sim_params->btb_ways) < 0) {
           fprintf(stderr, "%s not found, selecting default value: %d\n",
-                  tag_name, p->sim_params.btb_ways);
+                  tag_name, p->sim_params->btb_ways);
         }
 
         tag_name = "bpu_type";
         if (vm_get_str(cfg, tag_name, &str) < 0) {
             fprintf(stderr, "%s not found, selecting default value %s\n", tag_name,
-                    bpu_type_str[p->sim_params.bpu_type]);
+                    bpu_type_str[p->sim_params->bpu_type]);
         }
         else {
             if (strcmp(str, "bimodal") == 0) {
-                p->sim_params.bpu_type = BPU_TYPE_BIMODAL;
+                p->sim_params->bpu_type = BPU_TYPE_BIMODAL;
             } else if (strcmp(str, "adaptive") == 0) {
-                p->sim_params.bpu_type = BPU_TYPE_ADAPTIVE;
+                p->sim_params->bpu_type = BPU_TYPE_ADAPTIVE;
             } else {
                 fprintf(stderr, "error: option %s has invalid value\n", tag_name);
                 exit(1);
@@ -639,52 +710,52 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         tag_name = "btb_eviction_policy";
         if (vm_get_str(cfg, tag_name, &str) < 0) {
             fprintf(stderr, "%s not found, selecting default value %s\n", tag_name,
-                    btb_evict_str[p->sim_params.btb_eviction_policy]);
+                    btb_evict_str[p->sim_params->btb_eviction_policy]);
         }
         else {
             if (strcmp(str, "random") == 0) {
-                p->sim_params.btb_eviction_policy  = BTB_RANDOM_EVICT;
+                p->sim_params->btb_eviction_policy  = BTB_RANDOM_EVICT;
             } else if (strcmp(str, "lru") == 0) {
-                p->sim_params.btb_eviction_policy = BTB_LRU_EVICT;
+                p->sim_params->btb_eviction_policy = BTB_LRU_EVICT;
             } else {
                 fprintf(stderr, "error: option %s has invalid value\n", tag_name);
                 exit(1);
             }
         }
 
-        if (p->sim_params.bpu_type == BPU_TYPE_ADAPTIVE) {
+        if (p->sim_params->bpu_type == BPU_TYPE_ADAPTIVE) {
             tag_name = "bpu_ght_size";
-            if (vm_get_int(cfg, tag_name, &p->sim_params.bpu_ght_size) < 0) {
+            if (vm_get_int(cfg, tag_name, &p->sim_params->bpu_ght_size) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %d\n",
-                      tag_name, p->sim_params.bpu_ght_size);
+                      tag_name, p->sim_params->bpu_ght_size);
             }
 
             tag_name = "bpu_pht_size";
-            if (vm_get_int(cfg, tag_name, &p->sim_params.bpu_pht_size) < 0) {
+            if (vm_get_int(cfg, tag_name, &p->sim_params->bpu_pht_size) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %d\n",
-                      tag_name, p->sim_params.bpu_pht_size);
+                      tag_name, p->sim_params->bpu_pht_size);
             }
 
             tag_name = "bpu_history_bits";
-            if (vm_get_int(cfg, tag_name, &p->sim_params.bpu_history_bits) < 0) {
+            if (vm_get_int(cfg, tag_name, &p->sim_params->bpu_history_bits) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %d\n",
-                      tag_name, p->sim_params.bpu_history_bits);
+                      tag_name, p->sim_params->bpu_history_bits);
             }
 
-            if ((p->sim_params.bpu_ght_size == 1) && (p->sim_params.bpu_pht_size == 1))
+            if ((p->sim_params->bpu_ght_size == 1) && (p->sim_params->bpu_pht_size == 1))
             {
                 tag_name = "bpu_aliasing_func_type";
                 if (vm_get_str(cfg, tag_name, &str) < 0) {
                     fprintf(stderr, "%s not found, selecting default value %s\n", tag_name,
-                            bpu_aliasing_func_type_str[p->sim_params.bpu_aliasing_func_type]);
+                            bpu_aliasing_func_type_str[p->sim_params->bpu_aliasing_func_type]);
                 }
                 else {
                     if (strcmp(str, "xor") == 0) {
-                        p->sim_params.bpu_aliasing_func_type  = BPU_ALIAS_FUNC_XOR;
+                        p->sim_params->bpu_aliasing_func_type  = BPU_ALIAS_FUNC_XOR;
                     } else if (strcmp(str, "and") == 0) {
-                        p->sim_params.bpu_aliasing_func_type = BPU_ALIAS_FUNC_AND;
+                        p->sim_params->bpu_aliasing_func_type = BPU_ALIAS_FUNC_AND;
                     } else if (strcmp(str, "none") == 0) {
-                        p->sim_params.bpu_aliasing_func_type = BPU_ALIAS_FUNC_NONE;
+                        p->sim_params->bpu_aliasing_func_type = BPU_ALIAS_FUNC_NONE;
                     } else {
                         fprintf(stderr, "error: option %s has invalid value\n", tag_name);
                         exit(1);
@@ -699,20 +770,20 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     tag_name = "enable_l1_caches";
     if (vm_get_str(cfg, tag_name, &str) < 0) {
         fprintf(stderr, "%s not found, selecting default value %s\n", tag_name,
-                sim_param_status[p->sim_params.enable_l1_caches]);
+                sim_param_status[p->sim_params->enable_l1_caches]);
     }
     else {
         if (strcmp(str, "false") == 0) {
-            p->sim_params.enable_l1_caches = DISABLE;
+            p->sim_params->enable_l1_caches = DISABLE;
         } else if (strcmp(str, "true") == 0) {
-            p->sim_params.enable_l1_caches = ENABLE;
+            p->sim_params->enable_l1_caches = ENABLE;
         } else {
             fprintf(stderr, "error: option %s has invalid value\n", tag_name);
             exit(1);
         }
     }
 
-    if (p->sim_params.enable_l1_caches) {
+    if (p->sim_params->enable_l1_caches) {
       snprintf(buf1, sizeof(buf1), "%s", "icache");
       obj = json_object_get(cfg, buf1);
 
@@ -722,33 +793,33 @@ static int virt_machine_parse_config(VirtMachineParams *p,
       }
 
       tag_name = "probe_latency";
-      if (vm_get_int(obj, tag_name, &p->sim_params.l1_code_cache_probe_latency) < 0) {
+      if (vm_get_int(obj, tag_name, &p->sim_params->l1_code_cache_probe_latency) < 0) {
         fprintf(stderr, "icache %s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.l1_code_cache_probe_latency);
+                tag_name, p->sim_params->l1_code_cache_probe_latency);
       }
 
       tag_name = "size";
-      if (vm_get_int(obj, tag_name, &p->sim_params.l1_code_cache_size) < 0) {
+      if (vm_get_int(obj, tag_name, &p->sim_params->l1_code_cache_size) < 0) {
         fprintf(stderr, "icache %s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.l1_code_cache_size);
+                tag_name, p->sim_params->l1_code_cache_size);
       }
 
       tag_name = "ways";
-      if (vm_get_int(obj, tag_name, &p->sim_params.l1_code_cache_ways) < 0) {
+      if (vm_get_int(obj, tag_name, &p->sim_params->l1_code_cache_ways) < 0) {
         fprintf(stderr, "icache %s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.l1_code_cache_ways);
+                tag_name, p->sim_params->l1_code_cache_ways);
       }
 
       tag_name = "eviction";
       if (vm_get_str(obj, tag_name, &str) < 0) {
           fprintf(stderr, "icache %s policy not found, selecting default value %s\n",
-                  tag_name, cache_evict_str[p->sim_params.l1_code_cache_evict]);
+                  tag_name, cache_evict_str[p->sim_params->l1_code_cache_evict]);
       }
       else {
          if (strcmp(str, "lru") == 0) {
-             p->sim_params.l1_code_cache_evict = CACHE_LRU_EVICT;
+             p->sim_params->l1_code_cache_evict = CACHE_LRU_EVICT;
          } else if (strcmp(str, "random") == 0) {
-             p->sim_params.l1_code_cache_evict = CACHE_RANDOM_EVICT;
+             p->sim_params->l1_code_cache_evict = CACHE_RANDOM_EVICT;
          } else {
              fprintf(stderr, "error: option icache %s policy has invalid value\n", tag_name);
              exit(1);
@@ -764,33 +835,33 @@ static int virt_machine_parse_config(VirtMachineParams *p,
       }
 
       tag_name = "probe_latency";
-      if (vm_get_int(obj, tag_name, &p->sim_params.l1_data_cache_probe_latency) < 0) {
+      if (vm_get_int(obj, tag_name, &p->sim_params->l1_data_cache_probe_latency) < 0) {
         fprintf(stderr, "dcache %s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.l1_data_cache_probe_latency);
+                tag_name, p->sim_params->l1_data_cache_probe_latency);
       }
 
       tag_name = "size";
-      if (vm_get_int(obj, tag_name, &p->sim_params.l1_data_cache_size) < 0) {
+      if (vm_get_int(obj, tag_name, &p->sim_params->l1_data_cache_size) < 0) {
         fprintf(stderr, "dcache %s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.l1_data_cache_size);
+                tag_name, p->sim_params->l1_data_cache_size);
       }
 
       tag_name = "ways";
-      if (vm_get_int(obj, tag_name, &p->sim_params.l1_data_cache_ways) < 0) {
+      if (vm_get_int(obj, tag_name, &p->sim_params->l1_data_cache_ways) < 0) {
         fprintf(stderr, "dcache %s not found, selecting default value: %d\n",
-                tag_name, p->sim_params.l1_data_cache_ways);
+                tag_name, p->sim_params->l1_data_cache_ways);
       }
 
       tag_name = "eviction";
       if (vm_get_str(obj, tag_name, &str) < 0) {
           fprintf(stderr, "dcache %s policy not found, selecting default value %s\n",
-                  tag_name, cache_evict_str[p->sim_params.l1_data_cache_evict]);
+                  tag_name, cache_evict_str[p->sim_params->l1_data_cache_evict]);
       }
       else {
          if (strcmp(str, "lru") == 0) {
-             p->sim_params.l1_data_cache_evict = CACHE_LRU_EVICT;
+             p->sim_params->l1_data_cache_evict = CACHE_LRU_EVICT;
          } else if (strcmp(str, "random") == 0) {
-             p->sim_params.l1_data_cache_evict = CACHE_RANDOM_EVICT;
+             p->sim_params->l1_data_cache_evict = CACHE_RANDOM_EVICT;
          } else {
              fprintf(stderr, "error: option dcache %s policy has invalid value\n", tag_name);
              exit(1);
@@ -798,21 +869,21 @@ static int virt_machine_parse_config(VirtMachineParams *p,
       }
 
       tag_name = "words_per_cache_line";
-      if (vm_get_int(cfg, tag_name, &p->sim_params.words_per_cache_line) < 0) {
+      if (vm_get_int(cfg, tag_name, &p->sim_params->words_per_cache_line) < 0) {
           fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                p->sim_params.words_per_cache_line);
+                p->sim_params->words_per_cache_line);
       }
 
       // tag_name = "cache_allocate_on_read_miss";
       // if (vm_get_str(cfg, tag_name, &str) < 0) {
       //     fprintf(stderr, "%s not found, selecting default value %s\n",
-      //     tag_name, cache_ra_str[p->sim_params.cache_read_allocate_policy]);
+      //     tag_name, cache_ra_str[p->sim_params->cache_read_allocate_policy]);
       // }
       // else {
       //     if (strcmp(str, "true") == 0) {
-      //         p->sim_params.cache_read_allocate_policy = CACHE_READ_ALLOC;
+      //         p->sim_params->cache_read_allocate_policy = CACHE_READ_ALLOC;
       //     } else if (strcmp(str, "false") == 0) {
-      //         p->sim_params.cache_read_allocate_policy = CACHE_READ_NO_ALLOC;
+      //         p->sim_params->cache_read_allocate_policy = CACHE_READ_NO_ALLOC;
       //     } else {
       //        fprintf(stderr, "error: option %s has invalid value\n", tag_name);
       //        exit(1);
@@ -822,13 +893,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
       tag_name = "cache_allocate_on_write_miss";
       if (vm_get_str(cfg, tag_name, &str) < 0) {
           fprintf(stderr, "%s not found, selecting default value %s\n",
-          tag_name, cache_wa_str[p->sim_params.cache_write_allocate_policy]);
+          tag_name, cache_wa_str[p->sim_params->cache_write_allocate_policy]);
       }
       else {
           if (strcmp(str, "true") == 0) {
-              p->sim_params.cache_write_allocate_policy = CACHE_WRITE_ALLOC;
+              p->sim_params->cache_write_allocate_policy = CACHE_WRITE_ALLOC;
           } else if (strcmp(str, "false") == 0) {
-              p->sim_params.cache_write_allocate_policy = CACHE_WRITE_NO_ALLOC;
+              p->sim_params->cache_write_allocate_policy = CACHE_WRITE_NO_ALLOC;
           } else {
              fprintf(stderr, "error: option %s has invalid value\n", tag_name);
              exit(1);
@@ -838,13 +909,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
       tag_name = "cache_write_policy";
       if (vm_get_str(cfg, tag_name, &str) < 0) {
           fprintf(stderr, "%s not found, selecting default value %s\n",
-          tag_name, cache_wp_str[p->sim_params.cache_write_policy]);
+          tag_name, cache_wp_str[p->sim_params->cache_write_policy]);
       }
       else {
           if (strcmp(str, "writeback") == 0) {
-              p->sim_params.cache_write_policy = CACHE_WRITEBACK;
+              p->sim_params->cache_write_policy = CACHE_WRITEBACK;
           } else if (strcmp(str, "writethrough") == 0) {
-              p->sim_params.cache_write_policy = CACHE_WRITETHROUGH;
+              p->sim_params->cache_write_policy = CACHE_WRITETHROUGH;
           } else {
              fprintf(stderr, "error: option %s has invalid value\n", tag_name);
              exit(1);
@@ -854,20 +925,20 @@ static int virt_machine_parse_config(VirtMachineParams *p,
       tag_name = "enable_l2_cache";
       if (vm_get_str(cfg, tag_name, &str) < 0) {
           fprintf(stderr, "%s not found, selecting default value %s\n",
-                  tag_name, sim_param_status[p->sim_params.enable_l2_cache]);
+                  tag_name, sim_param_status[p->sim_params->enable_l2_cache]);
       }
       else {
           if (strcmp(str, "false") == 0) {
-              p->sim_params.enable_l2_cache = DISABLE;
+              p->sim_params->enable_l2_cache = DISABLE;
           } else if (strcmp(str, "true") == 0) {
-              p->sim_params.enable_l2_cache = ENABLE;
+              p->sim_params->enable_l2_cache = ENABLE;
           } else {
               fprintf(stderr, "error: option %s has invalid value\n", tag_name);
               exit(1);
           }
       }
 
-      if (p->sim_params.enable_l2_cache) {
+      if (p->sim_params->enable_l2_cache) {
         snprintf(buf1, sizeof(buf1), "%s", "l2_shared_cache");
         obj = json_object_get(cfg, buf1);
 
@@ -877,33 +948,33 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         }
 
         tag_name = "probe_latency";
-        if (vm_get_int(obj, tag_name, &p->sim_params.l2_probe_latency) < 0) {
+        if (vm_get_int(obj, tag_name, &p->sim_params->l2_probe_latency) < 0) {
           fprintf(stderr, "l2_shared_cache %s not found, selecting default value: %d\n",
-                  tag_name, p->sim_params.l2_probe_latency);
+                  tag_name, p->sim_params->l2_probe_latency);
         }
 
         tag_name = "size";
-        if (vm_get_int(obj, tag_name, &p->sim_params.l2_shared_cache_size) < 0) {
+        if (vm_get_int(obj, tag_name, &p->sim_params->l2_shared_cache_size) < 0) {
           fprintf(stderr, "l2_shared_cache %s not found, selecting default value: %d\n",
-                  tag_name, p->sim_params.l2_shared_cache_size);
+                  tag_name, p->sim_params->l2_shared_cache_size);
         }
 
         tag_name = "ways";
-        if (vm_get_int(obj, tag_name, &p->sim_params.l2_shared_cache_ways) < 0) {
+        if (vm_get_int(obj, tag_name, &p->sim_params->l2_shared_cache_ways) < 0) {
           fprintf(stderr, "l2_shared_cache %s not found, selecting default value: %d\n",
-                  tag_name, p->sim_params.l2_shared_cache_ways);
+                  tag_name, p->sim_params->l2_shared_cache_ways);
         }
 
         tag_name = "eviction";
         if (vm_get_str(obj, tag_name, &str) < 0) {
             fprintf(stderr, "l2-cache %s policy not found, selecting default value %s\n",
-                    tag_name, cache_evict_str[p->sim_params.l2_shared_cache_evict]);
+                    tag_name, cache_evict_str[p->sim_params->l2_shared_cache_evict]);
         }
         else {
             if (strcmp(str, "lru") == 0) {
-                p->sim_params.l2_shared_cache_evict = CACHE_LRU_EVICT;
+                p->sim_params->l2_shared_cache_evict = CACHE_LRU_EVICT;
             } else if (strcmp(str, "random") == 0) {
-                p->sim_params.l2_shared_cache_evict = CACHE_RANDOM_EVICT;
+                p->sim_params->l2_shared_cache_evict = CACHE_RANDOM_EVICT;
             } else {
                 fprintf(stderr, "error: option l2-cache %s policy has invalid value\n", tag_name);
                 exit(1);
@@ -913,43 +984,43 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     }
 
 
-    switch (p->sim_params.mem_model_type)
+    switch (p->sim_params->mem_model_type)
     {
         case MEM_MODEL_BASE:
         {
             tag_name = "mem_bus_access_rtt_latency";
-            if (vm_get_int(cfg, tag_name, &p->sim_params.mem_bus_access_rtt_latency) < 0) {
+            if (vm_get_int(cfg, tag_name, &p->sim_params->mem_bus_access_rtt_latency) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                      p->sim_params.mem_bus_access_rtt_latency);
+                      p->sim_params->mem_bus_access_rtt_latency);
             }
 
             tag_name = "tCL";
-            if (vm_get_int(cfg, tag_name, &p->sim_params.tCL) < 0) {
+            if (vm_get_int(cfg, tag_name, &p->sim_params->tCL) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                      p->sim_params.tCL);
+                      p->sim_params->tCL);
             }
 
             tag_name = "tRCD";
-            if (vm_get_int(cfg, tag_name, &p->sim_params.tRCD) < 0) {
+            if (vm_get_int(cfg, tag_name, &p->sim_params->tRCD) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                      p->sim_params.tRCD);
+                      p->sim_params->tRCD);
             }
 
             tag_name = "tRP";
-            if (vm_get_int(cfg, tag_name, &p->sim_params.tRP) < 0) {
+            if (vm_get_int(cfg, tag_name, &p->sim_params->tRP) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                      p->sim_params.tRP);
+                      p->sim_params->tRP);
             }
 
             tag_name = "row_buffer_write_latency";
-            if (vm_get_int(cfg, tag_name, &p->sim_params.row_buffer_write_latency) < 0) {
+            if (vm_get_int(cfg, tag_name, &p->sim_params->row_buffer_write_latency) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                      p->sim_params.row_buffer_write_latency);
+                      p->sim_params->row_buffer_write_latency);
             }
             tag_name = "dram_burst_size";
-            if (vm_get_int(cfg, tag_name, (int *)&p->sim_params.dram_burst_size) < 0) {
+            if (vm_get_int(cfg, tag_name, (int *)&p->sim_params->dram_burst_size) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %u\n", tag_name,
-                      p->sim_params.dram_burst_size);
+                      p->sim_params->dram_burst_size);
             }
             break;
         }
@@ -958,28 +1029,28 @@ static int virt_machine_parse_config(VirtMachineParams *p,
             tag_name = "dramsim_ini_file";
             if (vm_get_str(cfg, tag_name, &str) < 0) {
                 fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-                    p->sim_params.dramsim_ini_file);
+                    p->sim_params->dramsim_ini_file);
             } else {
-                free(p->sim_params.dramsim_ini_file);
-                p->sim_params.dramsim_ini_file = strdup(str);
+                free(p->sim_params->dramsim_ini_file);
+                p->sim_params->dramsim_ini_file = strdup(str);
             }
 
             tag_name = "dramsim_system_ini_file";
             if (vm_get_str(cfg, tag_name, &str) < 0) {
                 fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-                    p->sim_params.dramsim_system_ini_file);
+                    p->sim_params->dramsim_system_ini_file);
             } else {
-                free(p->sim_params.dramsim_system_ini_file);
-                p->sim_params.dramsim_system_ini_file = strdup(str);
+                free(p->sim_params->dramsim_system_ini_file);
+                p->sim_params->dramsim_system_ini_file = strdup(str);
             }
 
             tag_name = "dramsim_stats_dir";
             if (vm_get_str(cfg, tag_name, &str) < 0) {
                 fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-                    p->sim_params.dramsim_stats_dir);
+                    p->sim_params->dramsim_stats_dir);
             } else {
-                free(p->sim_params.dramsim_stats_dir);
-                p->sim_params.dramsim_stats_dir = strdup(str);
+                free(p->sim_params->dramsim_stats_dir);
+                p->sim_params->dramsim_stats_dir = strdup(str);
             }
             break;
         }
@@ -996,8 +1067,8 @@ static int virt_machine_parse_config(VirtMachineParams *p,
      * Hence disable it here for safety.
      *
      */
-    if (p->sim_params.core_type == CORE_TYPE_OOCORE) {
-        p->sim_params.enable_bpu = FALSE;
+    if (p->sim_params->core_type == CORE_TYPE_OOCORE) {
+        p->sim_params->enable_bpu = FALSE;
     }
 
     /* Set RAM size to be used by simulated memory model */
@@ -1010,7 +1081,7 @@ static int virt_machine_parse_config(VirtMachineParams *p,
      * This guest_ram_size is passed to either the base memory model or
      * DRAMSim2, depending on which is being used.
      */
-    p->sim_params.guest_ram_size
+    p->sim_params->guest_ram_size
         = next_high_power_of_2(2048 + (p->ram_size >> 20));
 
     json_free(cfg);
@@ -1049,14 +1120,14 @@ char *get_file_path(const char *base_filename, const char *filename)
         goto done; /* full URL */
     if (filename[0] == '/')
         goto done;
-    p = (char *)strrchr(base_filename, '/');
+    p = strrchr(base_filename, '/');
     if (!p) {
     done:
         return strdup(filename);
     }
     len = p + 1 - base_filename;
     len1 = strlen(filename);
-    fname = (char *)malloc(len + len1 + 1);
+    fname = malloc(len + len1 + 1);
     memcpy(fname, base_filename, len);
     memcpy(fname + len, filename, len1 + 1);
     return fname;
@@ -1084,7 +1155,7 @@ static int load_file(uint8_t **pbuf, const char *filename)
     fseek(f, 0, SEEK_END);
     size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    buf = (uint8_t *)malloc(size);
+    buf = malloc(size);
     if (fread(buf, 1, size, f) != size) {
         fprintf(stderr, "%s: read error\n", filename);
         exit(1);
@@ -1098,14 +1169,14 @@ static int load_file(uint8_t **pbuf, const char *filename)
 #ifdef CONFIG_FS_NET
 static void config_load_file_cb(void *opaque, int err, void *data, size_t size)
 {
-    VMConfigLoadState *s = (VMConfigLoadState *)opaque;
+    VMConfigLoadState *s = opaque;
     
     //    printf("err=%d data=%p size=%ld\n", err, data, size);
     if (err < 0) {
         vm_error("Error %d while loading file\n", -err);
         exit(1);
     }
-    s->file_load_cb(s->file_load_opaque, (uint8_t *)data, size);
+    s->file_load_cb(s->file_load_opaque, data, size);
 }
 #endif
 
@@ -1136,7 +1207,7 @@ void virt_machine_load_config_file(VirtMachineParams *p,
 {
     VMConfigLoadState *s;
     
-    s = (VMConfigLoadState *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     s->vm_params = p;
     s->start_cb = start_cb;
     s->opaque = opaque;
@@ -1147,7 +1218,7 @@ void virt_machine_load_config_file(VirtMachineParams *p,
 
 static void config_file_loaded(void *opaque, uint8_t *buf, int buf_len)
 {
-    VMConfigLoadState *s = (VMConfigLoadState *)opaque;
+    VMConfigLoadState *s = opaque;
     VirtMachineParams *p = s->vm_params;
 
     if (virt_machine_parse_config(p, (char *)buf, buf_len) < 0)
@@ -1183,10 +1254,10 @@ static void config_additional_file_load(VMConfigLoadState *s)
 static void config_additional_file_load_cb(void *opaque,
                                            uint8_t *buf, int buf_len)
 {
-    VMConfigLoadState *s = (VMConfigLoadState *)opaque;
+    VMConfigLoadState *s = opaque;
     VirtMachineParams *p = s->vm_params;
 
-    p->files[s->file_index].buf = (uint8_t *)malloc(buf_len);
+    p->files[s->file_index].buf = malloc(buf_len);
     memcpy(p->files[s->file_index].buf, buf, buf_len);
     p->files[s->file_index].len = buf_len;
 
@@ -1204,7 +1275,7 @@ void vm_add_cmdline(VirtMachineParams *p, const char *cmdline)
         old_cmdline = p->cmdline;
         if (!old_cmdline)
             old_cmdline = "";
-        new_cmdline = (char *)malloc(strlen(old_cmdline) + 1 + strlen(cmdline) + 1);
+        new_cmdline = malloc(strlen(old_cmdline) + 1 + strlen(cmdline) + 1);
         strcpy(new_cmdline, old_cmdline);
         strcat(new_cmdline, " ");
         strcat(new_cmdline, cmdline);
@@ -1217,6 +1288,7 @@ void virt_machine_free_config(VirtMachineParams *p)
 {
     int i;
     
+    free(p->machine_name);
     free(p->cmdline);
     for(i = 0; i < VM_FILE_COUNT; i++) {
         free(p->files[i].filename);
@@ -1237,4 +1309,21 @@ void virt_machine_free_config(VirtMachineParams *p)
     free(p->input_device);
     free(p->display_device);
     free(p->cfg_filename);
+}
+
+VirtMachine *virt_machine_init(const VirtMachineParams *p)
+{
+    const VirtMachineClass *vmc = p->vmc;
+    return vmc->virt_machine_init(p);
+}
+
+void virt_machine_set_defaults(VirtMachineParams *p)
+{
+    memset(p, 0, sizeof(*p));
+    p->sim_params = sim_params_init();
+}
+
+void virt_machine_end(VirtMachine *s)
+{
+    s->vmc->virt_machine_end(s);
 }

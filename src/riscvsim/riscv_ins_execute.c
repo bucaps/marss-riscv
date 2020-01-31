@@ -33,9 +33,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 #include "riscv_instruction.h"
-#include "../riscv_cpu_shared.h"
+#include "../riscv_cpu_priv.h"
 #include "../softfp.h"
 
 // #include "inorder.h"

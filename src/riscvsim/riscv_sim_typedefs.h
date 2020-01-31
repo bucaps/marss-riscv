@@ -1,9 +1,14 @@
 /**
- * DRAMSim2 wrapper C connector
+ * Global typedefs and macros used by MARSS-RISCV
+ *
+ * Copyright (c) 2016-2017 Fabrice Bellard
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2020 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * State University of New York at Binghamton
+ *
+ * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,30 +29,39 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef _DRAMSIM_WRAPPER_C_CONNECTOR_H_
-#define _DRAMSIM_WRAPPER_C_CONNECTOR_H_
+#ifndef _RISCV_SIM_TYPEDEFS_H_
+#define _RISCV_SIM_TYPEDEFS_H_
 
 #include <inttypes.h>
 
-#include "memory_controller_utils.h"
-#include "riscv_sim_typedefs.h"
-
-#ifdef __cplusplus
-extern "C" {
+#if MAX_XLEN == 32
+#define RV32
+#define BIT_SIZE 32
+#elif MAX_XLEN  == 64
+#define RV64
+#define BIT_SIZE 64
 #endif
-void dramsim_wrapper_init(const char *dram_ini_file,
-                          const char *system_ini_file, const char *stats_dir,
-                          const char *app_name, int size_mb,
-                          StageMemAccessQueue *frontend_mem_access_queue,
-                          StageMemAccessQueue *backend_mem_access_queue);
-void dramsim_wrapper_destroy();
-int dramsim_wrapper_can_add_transaction(target_ulong addr);
-int dramsim_wrapper_add_transaction(target_ulong addr, int isWrite);
-void dramsim_wrapper_update();
-void dramsim_wrapper_print_stats();
-int dramsim_get_burst_size();
 
-#ifdef __cplusplus
-}
-#endif
+#if BIT_SIZE == 32
+typedef int32_t target_long;
+typedef uint32_t target_ulong;
+#define TARGET_ULONG_FMT PRIu32
+#define TARGET_LONG_FMT PRId32
+#define TARGET_ULONG_SCN SCNu32
+#define TARGET_LONG_SCN SCNd32
+#define TARGET_ULONG_HEX PRIx32
+
+#elif BIT_SIZE == 64
+typedef int64_t target_long;
+typedef uint64_t target_ulong;
+#define TARGET_ULONG_FMT PRIu64
+#define TARGET_LONG_FMT PRId64
+#define TARGET_ULONG_SCN SCNu64
+#define TARGET_LONG_SCN SCNd64
+#define TARGET_ULONG_HEX PRIx64
+
+#endif // BIT_SIZE == 64
+
+#include "riscv_sim_macros.h"
+
 #endif

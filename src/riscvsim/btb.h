@@ -31,7 +31,7 @@
 #define _BRANCH_TARGET_BUFFER_H_
 
 #include "../sim_params_stats.h"
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 
 typedef struct BtbEntry
 {

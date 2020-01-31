@@ -32,7 +32,7 @@
 
 #include <inttypes.h>
 
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 #include "../sim_params_stats.h"
 #include "memory_controller_utils.h"
 

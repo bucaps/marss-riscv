@@ -75,7 +75,7 @@ static void copy_file(const char *src_filename, const char *dst_filename)
     FILE *fi, *fo;
     int len;
     
-    buf = (uint8_t *)malloc(COPY_BUF_LEN);
+    buf = malloc(COPY_BUF_LEN);
     fi = fopen(src_filename, "rb");
     if (!fi) {
         perror(src_filename);
@@ -94,7 +94,6 @@ static void copy_file(const char *src_filename, const char *dst_filename)
     }
     fclose(fo);
     fclose(fi);
-    free(buf);
 }
 
 typedef struct {

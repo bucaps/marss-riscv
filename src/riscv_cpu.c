@@ -47,10 +47,26 @@
 #include "sim_params_stats.h"
 #include "riscvsim/dramsim_wrapper_c_connector.h"
 
-static no_inline int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
-                                      target_ulong addr, int size_log2);
-static no_inline int target_write_slow(RISCVCPUState *s, target_ulong addr,
-                                       mem_uint_t val, int size_log2);
+#ifndef MAX_XLEN
+#error MAX_XLEN must be defined
+#endif
+#ifndef CONFIG_RISCV_MAX_XLEN
+#error CONFIG_RISCV_MAX_XLEN must be defined
+#endif
+
+//#define DUMP_INVALID_MEM_ACCESS
+//#define DUMP_MMU_EXCEPTIONS
+//#define DUMP_INTERRUPTS
+//#define DUMP_INVALID_CSR
+//#define DUMP_EXCEPTIONS
+//#define DUMP_CSR
+//#define CONFIG_LOGFILE
+
+#include "riscv_cpu_priv.h"
+
+#if FLEN > 0
+#include "softfp.h"
+#endif
 
 #ifdef USE_GLOBAL_STATE
 static RISCVCPUState riscv_cpu_global_state;
@@ -64,20 +80,20 @@ static RISCVCPUState riscv_cpu_global_state;
 #ifdef CONFIG_LOGFILE
 static FILE *log_file;
 
-void log_vprintf(const char *fmt, va_list ap)
+static void log_vprintf(const char *fmt, va_list ap)
 {
     if (!log_file)
         log_file = fopen("/tmp/riscemu.log", "wb");
     vfprintf(log_file, fmt, ap);
 }
 #else
-void log_vprintf(const char *fmt, va_list ap)
+static void log_vprintf(const char *fmt, va_list ap)
 {
     vprintf(fmt, ap);
 }
 #endif
 
-void __attribute__((format(printf, 1, 2))) log_printf(const char *fmt, ...)
+static void __attribute__((format(printf, 1, 2), unused)) log_printf(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -172,94 +188,6 @@ PHYS_MEM_READ_WRITE(8, uint8_t)
 PHYS_MEM_READ_WRITE(32, uint32_t)
 PHYS_MEM_READ_WRITE(64, uint64_t)
 
-/* return 0 if OK, != 0 if exception */
-#define TARGET_READ_WRITE(size, uint_type, size_log2)                          \
-    __exception int target_read_u##size(RISCVCPUState *s, uint_type *pval,     \
-                                        target_ulong addr)                     \
-    {                                                                          \
-        uint32_t tlb_idx;                                                      \
-                                                                               \
-        s->is_device_io = 0;                                                   \
-        tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);                         \
-        if (s->simulation)                                                     \
-        {                                                                      \
-            ++s->simcpu->stats[s->priv].load_tlb_lookups;                       \
-        }                                                                      \
-        if (likely(s->tlb_read[tlb_idx].vaddr                                  \
-                   == (addr & ~(PG_MASK & ~((size / 8) - 1)))))                \
-        {                                                                      \
-            *pval = *(uint_type *)(s->tlb_read[tlb_idx].mem_addend             \
-                                   + (uintptr_t)addr);                         \
-            if (s->simulation)                                                 \
-            {                                                                  \
-                ++s->simcpu->stats[s->priv].load_tlb_hits;                      \
-            }                                                                  \
-        }                                                                      \
-        else                                                                   \
-        {                                                                      \
-            mem_uint_t val;                                                    \
-            int ret;                                                           \
-            ret = target_read_slow(s, &val, addr, size_log2);                  \
-            if (ret)                                                           \
-                return ret;                                                    \
-            *pval = val;                                                       \
-        }                                                                      \
-                                                                               \
-        if (!s->is_device_io)                                                  \
-        {                                                                      \
-            s->data_guest_paddr = s->tlb_read[tlb_idx].guest_paddr             \
-                                  + (addr - s->tlb_read[tlb_idx].vaddr);       \
-        }                                                                      \
-        return 0;                                                              \
-    }                                                                          \
-                                                                               \
-    __exception int target_write_u##size(RISCVCPUState *s, target_ulong addr,  \
-                                         uint_type val)                        \
-    {                                                                          \
-        uint32_t tlb_idx;                                                      \
-                                                                               \
-        s->is_device_io = 0;                                                   \
-        tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);                         \
-        if (s->simulation)                                                     \
-        {                                                                      \
-            ++s->simcpu->stats[s->priv].store_tlb_lookups;                      \
-        }                                                                      \
-        if (likely(s->tlb_write[tlb_idx].vaddr                                 \
-                   == (addr & ~(PG_MASK & ~((size / 8) - 1)))))                \
-        {                                                                      \
-            *(uint_type *)(s->tlb_write[tlb_idx].mem_addend + (uintptr_t)addr) \
-                = val;                                                         \
-            if (s->simulation)                                                 \
-            {                                                                  \
-                ++s->simcpu->stats[s->priv].store_tlb_hits;                     \
-            }                                                                  \
-        }                                                                      \
-        else                                                                   \
-        {                                                                      \
-            int ret;                                                           \
-            ret = target_write_slow(s, addr, val, size_log2);                  \
-            if (ret)                                                           \
-                return ret;                                                    \
-        }                                                                      \
-                                                                               \
-        if (!s->is_device_io)                                                  \
-        {                                                                      \
-            s->data_guest_paddr = s->tlb_write[tlb_idx].guest_paddr            \
-                                  + (addr - s->tlb_write[tlb_idx].vaddr);      \
-        }                                                                      \
-        return 0;                                                              \
-    }
-
-TARGET_READ_WRITE(8, uint8_t, 0)
-TARGET_READ_WRITE(16, uint16_t, 1)
-TARGET_READ_WRITE(32, uint32_t, 2)
-#if MLEN >= 64
-TARGET_READ_WRITE(64, uint64_t, 3)
-#endif
-#if MLEN >= 128
-TARGET_READ_WRITE(128, uint128_t, 4)
-#endif
-
 #define PTE_V_MASK (1 << 0)
 #define PTE_U_MASK (1 << 4)
 #define PTE_A_MASK (1 << 6)
@@ -312,7 +240,7 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
         sim_time = GET_SIM_TIMER_DIFF(s->sim_start, s->sim_end) / 1000000;
 
         fprintf(stderr,
-                "(marss-riscv): Switching to emulation mode at pc = 0x%" TARGET_ULONG_HEX "\n", pc);
+                "(marss-riscv): Switching to emulation mode at pc = 0x%" PR_target_ulong "\n", pc);
 
         PRINT_SIM_STAT_HEADER_TO_TERMINAL(stderr);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "commits", ins_simulated);
@@ -471,8 +399,8 @@ static int get_phys_addr(RISCVCPUState *s,
 }
 
 /* return 0 if OK, != 0 if exception */
-static no_inline int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
-                                      target_ulong addr, int size_log2)
+int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
+                     target_ulong addr, int size_log2)
 {
     int size, tlb_idx, err, al;
     target_ulong paddr, offset;
@@ -544,7 +472,6 @@ static no_inline int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
             abort();
         }
     } else {
-
         if (get_phys_addr(s, &paddr, addr, ACCESS_READ)) {
             s->pending_tval = addr;
             s->pending_exception = CAUSE_LOAD_PAGE_FAULT;
@@ -556,7 +483,6 @@ static no_inline int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
 
             return -1;
         }
-
         pr = get_phys_mem_range(s->mem_map, paddr);
         if (!pr) {
 #ifdef DUMP_INVALID_MEM_ACCESS
@@ -624,8 +550,8 @@ static no_inline int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
 }
 
 /* return 0 if OK, != 0 if exception */
-static no_inline int target_write_slow(RISCVCPUState *s, target_ulong addr,
-                                       mem_uint_t val, int size_log2)
+int target_write_slow(RISCVCPUState *s, target_ulong addr,
+                      mem_uint_t val, int size_log2)
 {
     int size, i, tlb_idx, err;
     target_ulong paddr, offset;
@@ -642,7 +568,6 @@ static no_inline int target_write_slow(RISCVCPUState *s, target_ulong addr,
                 return err;
         }
     } else {
-
         if (get_phys_addr(s, &paddr, addr, ACCESS_WRITE)) {
             s->pending_tval = addr;
             s->pending_exception = CAUSE_STORE_PAGE_FAULT;
@@ -654,7 +579,6 @@ static no_inline int target_write_slow(RISCVCPUState *s, target_ulong addr,
 
             return -1;
         }
-
         pr = get_phys_mem_range(s->mem_map, paddr);
         if (!pr) {
 #ifdef DUMP_INVALID_MEM_ACCESS
@@ -735,15 +659,15 @@ uint32_t get_insn32(uint8_t *ptr)
 }
 
 /* return 0 if OK, != 0 if exception */
-__exception int target_read_insn_slow(RISCVCPUState *s,
-                                                       uintptr_t *pmem_addend,
+no_inline __exception int target_read_insn_slow(RISCVCPUState *s,
+                                                       uint8_t **pptr,
                                                        target_ulong addr)
 {
     int tlb_idx;
     target_ulong paddr;
     uint8_t *ptr;
     PhysMemoryRange *pr;
-
+    
     if (get_phys_addr(s, &paddr, addr, ACCESS_CODE)) {
         s->pending_tval = addr;
         s->pending_exception = CAUSE_FETCH_PAGE_FAULT;
@@ -762,13 +686,12 @@ __exception int target_read_insn_slow(RISCVCPUState *s,
         s->pending_exception = CAUSE_FAULT_FETCH;
         return -1;
     }
-
     tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);
     ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
     s->tlb_code[tlb_idx].vaddr = addr & ~PG_MASK;
     s->tlb_code[tlb_idx].mem_addend = (uintptr_t)ptr - addr;
     s->tlb_code[tlb_idx].guest_paddr = paddr & ~PG_MASK;
-    *pmem_addend = s->tlb_code[tlb_idx].mem_addend;
+    *pptr = ptr;
     return 0;
 }
 
@@ -777,25 +700,24 @@ __exception int target_read_insn_u16(RISCVCPUState *s, uint16_t *pinsn,
                                                    target_ulong addr)
 {
     uint32_t tlb_idx;
-    uintptr_t mem_addend;
-
+    uint8_t *ptr;
     if (s->simulation) {
         ++s->simcpu->stats[s->priv].code_tlb_lookups;
     }
-
     tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);
     if (likely(s->tlb_code[tlb_idx].vaddr == (addr & ~PG_MASK))) {
-        mem_addend = s->tlb_code[tlb_idx].mem_addend;
+        ptr = (uint8_t *)(s->tlb_code[tlb_idx].mem_addend +
+                          (uintptr_t)addr);
 
         if (s->simulation) {
             ++s->simcpu->stats[s->priv].code_tlb_hits;
         }
 
     } else {
-        if (target_read_insn_slow(s, &mem_addend, addr))
+        if (target_read_insn_slow(s, &ptr, addr))
             return -1;
     }
-    *pinsn = *(uint16_t *)(mem_addend + (uintptr_t)addr);
+    *pinsn = *(uint16_t *)ptr;
     return 0;
 }
 
@@ -830,8 +752,9 @@ static void tlb_flush_vaddr(RISCVCPUState *s, target_ulong vaddr)
 }
 
 /* XXX: inefficient but not critical as long as it is seldom used */
-void riscv_cpu_flush_tlb_write_range_ram(RISCVCPUState *s,
-                                         uint8_t *ram_ptr, size_t ram_size)
+static void glue(riscv_cpu_flush_tlb_write_range_ram,
+                 MAX_XLEN)(RISCVCPUState *s,
+                           uint8_t *ram_ptr, size_t ram_size)
 {
     uint8_t *ptr, *ram_end;
     int i;
@@ -1453,19 +1376,19 @@ static inline uint32_t get_field1(uint32_t val, int src_pos,
 }
 
 #define XLEN 32
-#include "riscvemu_template.h"
+#include "riscv_cpu_template.h"
 
 #if MAX_XLEN >= 64
 #define XLEN 64
-#include "riscvemu_template.h"
+#include "riscv_cpu_template.h"
 #endif
 
 #if MAX_XLEN >= 128
 #define XLEN 128
-#include "riscvemu_template.h"
+#include "riscv_cpu_template.h"
 #endif
 
-void riscv_cpu_interp(RISCVCPUState *s, int n_cycles)
+static void glue(riscv_cpu_interp, MAX_XLEN)(RISCVCPUState *s, int n_cycles)
 {
 #ifdef USE_GLOBAL_STATE
     s = &riscv_cpu_global_state;
@@ -1478,16 +1401,16 @@ void riscv_cpu_interp(RISCVCPUState *s, int n_cycles)
         n_cycles = timeout - s->insn_counter;
         switch(s->cur_xlen) {
         case 32:
-            riscv_cpu_interp32(s, n_cycles);
+            riscv_cpu_interp_x32(s, n_cycles);
             break;
 #if MAX_XLEN >= 64
         case 64:
-            riscv_cpu_interp64(s, n_cycles);
+            riscv_cpu_interp_x64(s, n_cycles);
             break;
 #endif
 #if MAX_XLEN >= 128
         case 128:
-            riscv_cpu_interp128(s, n_cycles);
+            riscv_cpu_interp_x128(s, n_cycles);
             break;
 #endif
         default:
@@ -1497,12 +1420,12 @@ void riscv_cpu_interp(RISCVCPUState *s, int n_cycles)
 }
 
 /* Note: the value is not accurate when called in riscv_cpu_interp() */
-uint64_t riscv_cpu_get_cycles(RISCVCPUState *s)
+static uint64_t glue(riscv_cpu_get_cycles, MAX_XLEN)(RISCVCPUState *s)
 {
     return s->insn_counter;
 }
 
-void riscv_cpu_set_mip(RISCVCPUState *s, uint32_t mask)
+static void glue(riscv_cpu_set_mip, MAX_XLEN)(RISCVCPUState *s, uint32_t mask)
 {
     s->mip |= mask;
     /* exit from power down if an interrupt is pending */
@@ -1510,35 +1433,31 @@ void riscv_cpu_set_mip(RISCVCPUState *s, uint32_t mask)
         s->power_down_flag = FALSE;
 }
 
-void riscv_cpu_reset_mip(RISCVCPUState *s, uint32_t mask)
+static void glue(riscv_cpu_reset_mip, MAX_XLEN)(RISCVCPUState *s, uint32_t mask)
 {
     s->mip &= ~mask;
 }
 
-uint32_t riscv_cpu_get_mip(RISCVCPUState *s)
+static uint32_t glue(riscv_cpu_get_mip, MAX_XLEN)(RISCVCPUState *s)
 {
     return s->mip;
 }
 
-BOOL riscv_cpu_get_power_down(RISCVCPUState *s)
+static BOOL glue(riscv_cpu_get_power_down, MAX_XLEN)(RISCVCPUState *s)
 {
     return s->power_down_flag;
 }
 
-int riscv_cpu_get_max_xlen(void)
-{
-    return MAX_XLEN;
-}
-
-RISCVCPUState *riscv_cpu_init(PhysMemoryMap *mem_map, const SimParams *p)
+static RISCVCPUState *glue(riscv_cpu_init, MAX_XLEN)(PhysMemoryMap *mem_map, const SimParams *p)
 {
     RISCVCPUState *s;
     
 #ifdef USE_GLOBAL_STATE
     s = &riscv_cpu_global_state;
 #else
-    s = (RISCVCPUState *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
 #endif
+    s->common.class_ptr = &glue(riscv_cpu_class, MAX_XLEN);
     s->sim_params = (SimParams *)p;
     s->mem_map = mem_map;
     s->pc = 0x1000;
@@ -1608,7 +1527,7 @@ RISCVCPUState *riscv_cpu_init(PhysMemoryMap *mem_map, const SimParams *p)
     return s;
 }
 
-void riscv_cpu_end(RISCVCPUState *s)
+static void glue(riscv_cpu_end, MAX_XLEN)(RISCVCPUState *s)
 {
     assert(s->tlb_code);
     assert(s->tlb_read);
@@ -1617,10 +1536,57 @@ void riscv_cpu_end(RISCVCPUState *s)
     free(s);
 }
 
-uint32_t riscv_cpu_get_misa(RISCVCPUState *s)
+static uint32_t glue(riscv_cpu_get_misa, MAX_XLEN)(RISCVCPUState *s)
 {
     return s->misa;
 }
+
+const RISCVCPUClass glue(riscv_cpu_class, MAX_XLEN) = {
+    glue(riscv_cpu_init, MAX_XLEN),
+    glue(riscv_cpu_end, MAX_XLEN),
+    glue(riscv_cpu_interp, MAX_XLEN),
+    glue(riscv_cpu_get_cycles, MAX_XLEN),
+    glue(riscv_cpu_set_mip, MAX_XLEN),
+    glue(riscv_cpu_reset_mip, MAX_XLEN),
+    glue(riscv_cpu_get_mip, MAX_XLEN),
+    glue(riscv_cpu_get_power_down, MAX_XLEN),
+    glue(riscv_cpu_get_misa, MAX_XLEN),
+    glue(riscv_cpu_flush_tlb_write_range_ram, MAX_XLEN),
+};
+
+//#if CONFIG_RISCV_MAX_XLEN == MAX_XLEN
+RISCVCPUState *riscv_cpu_init(PhysMemoryMap *mem_map, int max_xlen, const SimParams *p)
+{
+    const RISCVCPUClass *c;
+    switch(max_xlen) {
+        /* with emscripten we compile a single CPU */
+#if defined(EMSCRIPTEN)
+    case MAX_XLEN:
+        c = &glue(riscv_cpu_class, MAX_XLEN);
+        break;
+#else
+#if MAX_XLEN == 32
+    case 32:
+        c = &riscv_cpu_class32;
+        break;
+#endif
+#if MAX_XLEN == 64
+    case 64:
+        c = &riscv_cpu_class64;
+        break;
+#endif
+#if CONFIG_RISCV_MAX_XLEN == 128
+    case 128:
+        c = &riscv_cpu_class128;
+        break;
+#endif
+#endif /* !EMSCRIPTEN */
+    default:
+        return NULL;
+    }
+    return c->riscv_cpu_init(mem_map, p);
+}
+//#endif /* CONFIG_RISCV_MAX_XLEN == MAX_XLEN */
 
 int
 switch_to_cpu_simulation(RISCVCPUState* s)

@@ -180,10 +180,6 @@ enum MEM_MODEL_TYPE
 #define DEF_DRAMSIM_SYSTEM_INI_FILE "DRAMSim2/system.ini.example"
 #define DEF_DRAMSIM_STATS_DIR "."
 
-/* Max length for comma separated latency string for FU stages specified
-   in RISCVEMU config file */
-#define LATENCY_STRING_MAX_LENGTH 256
-
 #define PRINT_SIM_STAT_HEADER(fp)                                         \
   do {                                                                    \
     fprintf(fp, "%s,%s,%s,%s,%s,%s\n", "stat-name", "user", "supervisor", \
@@ -384,7 +380,7 @@ typedef struct SimStats
     uint64_t store_page_faults;
 } SimStats;
 
-void sim_params_set_defaults(SimParams *p);
+SimParams *sim_params_init();
 void sim_params_print(const SimParams *p);
 void sim_params_validate(const SimParams *p);
 void sim_params_free(SimParams *p);

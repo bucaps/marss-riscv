@@ -37,7 +37,7 @@
 #include "inorder.h"
 #include "memory_controller.h"
 #include "riscv_ins_execute_lib.h"
-#include "../riscv_cpu_shared.h"
+#include "../riscv_cpu_priv.h"
 #include "riscv_sim_cpu.h"
 
 /*=================================================

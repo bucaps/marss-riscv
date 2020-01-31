@@ -31,7 +31,7 @@
 #define _ADAPTIVE_PREDICTOR_H_
 
 #include "../sim_params_stats.h"
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 
 /* Adaptive Predictor Level 1: Global History Table (GHT) Entry */
 typedef struct GHTEntry

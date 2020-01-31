@@ -95,7 +95,7 @@ void dbuf_write(DynBuf *s, size_t offset, const uint8_t *data, size_t len)
     new_size = end = offset + len;
     if (new_size > s->allocated_size) {
         new_size = max_int(new_size, s->allocated_size * 3 / 2);
-        s->buf = (uint8_t *)realloc(s->buf, new_size);
+        s->buf = realloc(s->buf, new_size);
         s->allocated_size = new_size;
     }
     memcpy(s->buf + offset, data, len);

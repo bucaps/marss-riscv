@@ -27,7 +27,7 @@
 #include <stdlib.h>
 
 #include "../cutils.h"
-#include "../riscv_cpu_shared.h"
+#include "../riscv_cpu_priv.h"
 #include "circular_queue.h"
 #include "ooo.h"
 #include "riscv_sim_cpu.h"

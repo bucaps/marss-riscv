@@ -30,7 +30,7 @@
  * THE SOFTWARE.
  */
 #include "inorder.h"
-#include "../riscv_cpu_shared.h"
+#include "../riscv_cpu_priv.h"
 #include "bpu.h"
 #include "circular_queue.h"
 #include "riscv_isa_decoder_lib.h"

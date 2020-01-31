@@ -29,38 +29,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef _RISCV_SIM_TYPEDEFS_H_
-#define _RISCV_SIM_TYPEDEFS_H_
-
-#include <inttypes.h>
-
-#if defined(RV32)
-#define BIT_SIZE 32
-#elif defined(RV64)
-#define BIT_SIZE 64
-#endif
-
-#if BIT_SIZE == 32
-typedef int32_t target_long;
-typedef uint32_t target_ulong;
-#define SIM_XLEN 32
-#define TARGET_ULONG_FMT PRIu32
-#define TARGET_LONG_FMT PRId32
-#define TARGET_ULONG_SCN SCNu32
-#define TARGET_LONG_SCN SCNd32
-#define TARGET_ULONG_HEX PRIx32
-
-#elif BIT_SIZE == 64
-typedef int64_t target_long;
-typedef uint64_t target_ulong;
-#define SIM_XLEN 64
-#define TARGET_ULONG_FMT PRIu64
-#define TARGET_LONG_FMT PRId64
-#define TARGET_ULONG_SCN SCNu64
-#define TARGET_LONG_SCN SCNd64
-#define TARGET_ULONG_HEX PRIx64
-
-#endif // BIT_SIZE == 64
+#ifndef _RISCV_SIM_MACROS_H_
+#define _RISCV_SIM_MACROS_H_
 
 /* Type of Functional Units */
 #define FU_ALU 0x0

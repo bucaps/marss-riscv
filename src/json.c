@@ -135,7 +135,7 @@ int json_object_set(JSONValue val, const char *name, JSONValue prop_val)
     } else {
         if (obj->len >= obj->size) {
             new_size = max_int(obj->len + 1, obj->size * 3 / 2);
-            obj->props = (JSONProperty *)realloc(obj->props, new_size * sizeof(JSONProperty));
+            obj->props = realloc(obj->props, new_size * sizeof(JSONProperty));
             obj->size = new_size;
         }
         f = &obj->props[obj->len++];
@@ -173,7 +173,7 @@ int json_array_set(JSONValue val, unsigned int idx, JSONValue prop_val)
     } else if (idx == array->len) {
         if (array->len >= array->size) {
             new_size = max_int(array->len + 1, array->size * 3 / 2);
-            array->tab = (JSONValue *)realloc(array->tab, new_size * sizeof(JSONValue));
+            array->tab = realloc(array->tab, new_size * sizeof(JSONValue));
             array->size = new_size;
         }
         array->tab[array->len++] = prop_val;
@@ -202,7 +202,7 @@ JSONValue json_string_new2(const char *str, int len)
     JSONValue val;
     JSONString *str1;
 
-    str1 = (JSONString *)malloc(sizeof(JSONString) + len + 1);
+    str1 = malloc(sizeof(JSONString) + len + 1);
     str1->len = len;
     memcpy(str1->data, str, len + 1);
     val.type = JSON_STR;
@@ -233,7 +233,7 @@ JSONValue json_object_new(void)
 {
     JSONValue val;
     JSONObject *obj;
-    obj = (JSONObject *)mallocz(sizeof(JSONObject));
+    obj = mallocz(sizeof(JSONObject));
     val.type = JSON_OBJ;
     val.u.obj = obj;
     return val;
@@ -243,7 +243,7 @@ JSONValue json_array_new(void)
 {
     JSONValue val;
     JSONArray *array;
-    array = (JSONArray *)mallocz(sizeof(JSONArray));
+    array = mallocz(sizeof(JSONArray));
     val.type = JSON_ARRAY;
     val.u.array = array;
     return val;
@@ -455,7 +455,7 @@ JSONValue json_parse_value_len(const char *p, int len)
 {
     char *str;
     JSONValue val;
-    str = (char *)malloc(len + 1);
+    str = malloc(len + 1);
     memcpy(str, p, len);
     str[len] = '\0';
     val = json_parse_value(str);

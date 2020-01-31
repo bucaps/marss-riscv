@@ -29,7 +29,7 @@
  */
 #include "common_core_utils.h"
 #include "../cutils.h"
-#include "../riscv_cpu_shared.h"
+#include "../riscv_cpu_priv.h"
 
 static char cpu_mode_str[][128] = { "U-mode", "S-mode", "H-mode", "M-mode" };
 
@@ -129,7 +129,7 @@ code_tlb_access_and_ins_fetch(RISCVCPUState *s, IMapEntry *e)
     {
         uint32_t tlb_idx;
         uint16_t insn_high;
-        uintptr_t mem_addend;
+        uint8_t *ptr;
         target_ulong addr = simcpu->pc;
 
         ++simcpu->stats[s->priv].code_tlb_lookups;
@@ -139,20 +139,20 @@ code_tlb_access_and_ins_fetch(RISCVCPUState *s, IMapEntry *e)
         if (likely(s->tlb_code[tlb_idx].vaddr == (addr & ~PG_MASK)))
         {
             /* TLB match */
-            mem_addend = s->tlb_code[tlb_idx].mem_addend;
+            ptr = (uint8_t *)(s->tlb_code[tlb_idx].mem_addend
+                              + (uintptr_t)addr);
             ++simcpu->stats[s->priv].code_tlb_hits;
         }
         else
         {
-            if (unlikely(target_read_insn_slow(s, &mem_addend, addr)))
+            if (unlikely(target_read_insn_slow(s, &ptr, addr)))
                 goto exception;
         }
 
-        s->code_ptr = (uint8_t *)(mem_addend + (uintptr_t)addr);
-        s->code_end = (uint8_t *)(mem_addend + (uintptr_t)((addr & ~PG_MASK)
-                                                           + PG_MASK - 1));
+        s->code_ptr = ptr;
+        s->code_end = ptr + (PG_MASK - 1 - (addr & PG_MASK));
+        s->code_to_pc_addend = addr - (uintptr_t)s->code_ptr;
 
-        s->code_to_pc_addend = addr - (uintptr_t)(s->code_ptr);
         s->code_guest_paddr = s->tlb_code[tlb_idx].guest_paddr
                               + (addr - s->tlb_code[tlb_idx].vaddr);
 
@@ -698,7 +698,7 @@ print_ins_trace(struct RISCVCPUState *s, uint64_t cycle, target_ulong pc,
 {
     char buf[10], *op;
 
-    fprintf(s->sim_trace, "cycle=%-8" PRIu64 "pc=%-16" TARGET_ULONG_HEX ": ", cycle,
+    fprintf(s->sim_trace, "cycle=%-8" PRIu64 "pc=%-16" PR_target_ulong ": ", cycle,
     pc);
 
     if (3 == (insn & 3))

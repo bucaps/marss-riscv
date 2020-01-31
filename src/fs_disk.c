@@ -69,7 +69,7 @@ static void fs_delete(FSDevice *fs, FSFile *f)
 static FSFile *fid_create(FSDevice *s1, char *path, uint32_t uid)
 {
     FSFile *f;
-    f = (FSFile *)mallocz(sizeof(*f));
+    f = mallocz(sizeof(*f));
     f->path = path;
     f->uid = uid;
     return f;
@@ -162,7 +162,7 @@ static char *compose_path(const char *path, const char *name)
 
     path_len = strlen(path);
     name_len = strlen(name);
-    d = (char *)malloc(path_len + 1 + name_len + 1);
+    d = malloc(path_len + 1 + name_len + 1);
     memcpy(d, path, path_len);
     d[path_len] = '/';
     memcpy(d + path_len + 1, name, name_len + 1);
@@ -629,7 +629,7 @@ FSDevice *fs_disk_init(const char *root_path)
     if (!S_ISDIR(st.st_mode))
         return NULL;
 
-    fs = (FSDeviceDisk *)mallocz(sizeof(*fs));
+    fs = mallocz(sizeof(*fs));
 
     fs->common.fs_end = fs_disk_end;
     fs->common.fs_delete = fs_delete;

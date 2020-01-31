@@ -25,7 +25,7 @@
  * THE SOFTWARE.
  */
 #include "ooo.h"
-#include "../riscv_cpu_shared.h"
+#include "../riscv_cpu_priv.h"
 #include "circular_queue.h"
 #include "riscv_isa_decoder_lib.h"
 #include "riscv_sim_cpu.h"

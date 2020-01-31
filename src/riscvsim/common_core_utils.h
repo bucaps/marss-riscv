@@ -32,7 +32,7 @@
 
 #include "bpu.h"
 #include "riscv_instruction.h"
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 
 struct RISCVCPUState;
 

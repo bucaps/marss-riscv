@@ -16,7 +16,8 @@ struct quehead {
 	struct quehead *qh_rlink;
 };
 
-void slirp_insque(void *a, void *b)
+inline void
+insque(void *a, void *b)
 {
 	register struct quehead *element = (struct quehead *) a;
 	register struct quehead *head = (struct quehead *) b;
@@ -27,7 +28,8 @@ void slirp_insque(void *a, void *b)
 	= (struct quehead *)element;
 }
 
-void slirp_remque(void *a)
+inline void
+remque(void *a)
 {
   register struct quehead *element = (struct quehead *) a;
   ((struct quehead *)(element->qh_link))->qh_rlink = element->qh_rlink;

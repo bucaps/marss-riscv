@@ -98,7 +98,7 @@ void simplefb_refresh(FBDevice *fb_dev,
 static void simplefb_refresh1(FBDevice *fb_dev,
                               SimpleFBDrawFunc *redraw_func, void *opaque)
 {
-    SimpleFBState *s = (SimpleFBState *)fb_dev->device_opaque;
+    SimpleFBState *s = fb_dev->device_opaque;
     simplefb_refresh(fb_dev, redraw_func, opaque, s->mem_range,
                      s->fb_page_count);
 }
@@ -108,7 +108,7 @@ SimpleFBState *simplefb_init(PhysMemoryMap *map, uint64_t phys_addr,
 {
     SimpleFBState *s;
     
-    s = (SimpleFBState *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     s->fb_dev = fb_dev;
 
     fb_dev->width = width;

@@ -31,7 +31,7 @@
 #define _RISCV_INSTRUCTION_H_
 
 #include <inttypes.h>
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 
 typedef struct RVInstruction
 {

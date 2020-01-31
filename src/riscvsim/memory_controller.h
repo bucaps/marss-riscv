@@ -36,7 +36,7 @@
 #include "circular_queue.h"
 #include "dram.h"
 #include "memory_controller_utils.h"
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 
 #define FRONTEND_MEM_ACCESS_QUEUE_SIZE 64
 #define BACKEND_MEM_ACCESS_QUEUE_SIZE 64

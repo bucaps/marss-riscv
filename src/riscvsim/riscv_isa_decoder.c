@@ -36,7 +36,7 @@
 
 #include "riscv_ins_str_creator.h"
 #include "riscv_instruction.h"
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 
 static inline int32_t
 sextc(int32_t val, int n)

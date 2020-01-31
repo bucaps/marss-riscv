@@ -1,7 +1,7 @@
 /*
- * RISCV emulator
+ * TinyEMU
  * 
- * Copyright (c) 2016-2017 Fabrice Bellard
+ * Copyright (c) 2016-2018 Fabrice Bellard
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -49,15 +49,13 @@
 #include "fs_utils.h"
 #include "fs_wget.h"
 #endif
-#include "riscv_cpu.h"
 #ifdef CONFIG_SLIRP
 #include "slirp/libslirp.h"
 #endif
 
-
+#include "sim_params_stats.h"
 
 #ifndef _WIN32
-
 typedef struct {
     int stdin_fd;
     int console_esc_state;
@@ -107,7 +105,7 @@ static void console_write(void *opaque, const uint8_t *buf, int len)
 
 static int console_read(void *opaque, uint8_t *buf, int len)
 {
-    STDIODevice *s = (STDIODevice *)opaque;
+    STDIODevice *s = opaque;
     int ret, i, j;
     uint8_t ch;
     
@@ -135,7 +133,8 @@ static int console_read(void *opaque, uint8_t *buf, int len)
                 printf("\n"
                        "C-a h   print this help\n"
                        "C-a x   exit emulator\n"
-                       "C-a C-a send C-a\n");
+                       "C-a C-a send C-a\n"
+                       );
                 break;
             case 1:
                 goto output_char;
@@ -184,8 +183,8 @@ CharacterDevice *console_init(BOOL allow_ctrlc)
 
     term_init(allow_ctrlc);
 
-    dev = (CharacterDevice *)mallocz(sizeof(*dev));
-    s = (STDIODevice *)mallocz(sizeof(*s));
+    dev = mallocz(sizeof(*dev));
+    s = mallocz(sizeof(*s));
     s->stdin_fd = 0;
     /* Note: the glibc does not properly tests the return value of
        write() in printf, so some messages on stdout may be lost */
@@ -225,7 +224,7 @@ typedef struct BlockDeviceFile {
 
 static int64_t bf_get_sector_count(BlockDevice *bs)
 {
-    BlockDeviceFile *bf = (BlockDeviceFile *)bs->opaque;
+    BlockDeviceFile *bf = bs->opaque;
     return bf->nb_sectors;
 }
 
@@ -235,7 +234,7 @@ static int bf_read_async(BlockDevice *bs,
                          uint64_t sector_num, uint8_t *buf, int n,
                          BlockDeviceCompletionFunc *cb, void *opaque)
 {
-    BlockDeviceFile *bf = (BlockDeviceFile *)bs->opaque;
+    BlockDeviceFile *bf = bs->opaque;
     //    printf("bf_read_async: sector_num=%" PRId64 " n=%d\n", sector_num, n);
 #ifdef DUMP_BLOCK_READ
     {
@@ -271,7 +270,7 @@ static int bf_write_async(BlockDevice *bs,
                           uint64_t sector_num, const uint8_t *buf, int n,
                           BlockDeviceCompletionFunc *cb, void *opaque)
 {
-    BlockDeviceFile *bf = (BlockDeviceFile *)bs->opaque;
+    BlockDeviceFile *bf = bs->opaque;
     int ret;
 
     switch(bf->mode) {
@@ -290,7 +289,7 @@ static int bf_write_async(BlockDevice *bs,
                 return -1;
             for(i = 0; i < n; i++) {
                 if (!bf->sector_table[sector_num]) {
-                    bf->sector_table[sector_num] = (uint8_t *)malloc(SECTOR_SIZE);
+                    bf->sector_table[sector_num] = malloc(SECTOR_SIZE);
                 }
                 memcpy(bf->sector_table[sector_num], buf, SECTOR_SIZE);
                 sector_num++;
@@ -329,15 +328,15 @@ static BlockDevice *block_device_init(const char *filename,
     fseek(f, 0, SEEK_END);
     file_size = ftello(f);
 
-    bs = (BlockDevice *) mallocz(sizeof(*bs));
-    bf = (BlockDeviceFile *)mallocz(sizeof(*bf));
+    bs = mallocz(sizeof(*bs));
+    bf = mallocz(sizeof(*bf));
 
     bf->mode = mode;
     bf->nb_sectors = file_size / 512;
     bf->f = f;
 
     if (mode == BF_MODE_SNAPSHOT) {
-        bf->sector_table = (uint8_t **)mallocz(sizeof(bf->sector_table[0]) *
+        bf->sector_table = mallocz(sizeof(bf->sector_table[0]) *
                                    bf->nb_sectors);
     }
     
@@ -358,7 +357,7 @@ typedef struct {
 static void tun_write_packet(EthernetDevice *net,
                              const uint8_t *buf, int len)
 {
-    TunState *s = (TunState *)net->opaque;
+    TunState *s = net->opaque;
     write(s->fd, buf, len);
 }
 
@@ -366,7 +365,7 @@ static void tun_select_fill(EthernetDevice *net, int *pfd_max,
                             fd_set *rfds, fd_set *wfds, fd_set *efds,
                             int *pdelay)
 {
-    TunState *s = (TunState *)net->opaque;
+    TunState *s = net->opaque;
     int net_fd = s->fd;
 
     s->select_filled = net->device_can_write_packet(net);
@@ -376,11 +375,11 @@ static void tun_select_fill(EthernetDevice *net, int *pfd_max,
     }
 }
 
-static void tun_select_poll(EthernetDevice *net,
+static void tun_select_poll(EthernetDevice *net, 
                             fd_set *rfds, fd_set *wfds, fd_set *efds,
                             int select_ret)
 {
-    TunState *s = (TunState *)net->opaque;
+    TunState *s = net->opaque;
     int net_fd = s->fd;
     uint8_t buf[2048];
     int ret;
@@ -436,14 +435,14 @@ static EthernetDevice *tun_open(const char *ifname)
     }
     fcntl(fd, F_SETFL, O_NONBLOCK);
 
-    net = (EthernetDevice *)mallocz(sizeof(*net));
+    net = mallocz(sizeof(*net));
     net->mac_addr[0] = 0x02;
     net->mac_addr[1] = 0x00;
     net->mac_addr[2] = 0x00;
     net->mac_addr[3] = 0x00;
     net->mac_addr[4] = 0x00;
     net->mac_addr[5] = 0x01;
-    s = (TunState *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     s->fd = fd;
     net->opaque = s;
     net->write_packet = tun_write_packet;
@@ -464,19 +463,19 @@ static Slirp *slirp_state;
 static void slirp_write_packet(EthernetDevice *net,
                                const uint8_t *buf, int len)
 {
-    Slirp *slirp_state = (Slirp *)net->opaque;
+    Slirp *slirp_state = net->opaque;
     slirp_input(slirp_state, buf, len);
 }
 
 int slirp_can_output(void *opaque)
 {
-    EthernetDevice *net = (EthernetDevice *)opaque;
+    EthernetDevice *net = opaque;
     return net->device_can_write_packet(net);
 }
 
 void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
 {
-    EthernetDevice *net = (EthernetDevice *)opaque;
+    EthernetDevice *net = opaque;
     return net->device_write_packet(net, pkt, pkt_len);
 }
 
@@ -484,15 +483,15 @@ static void slirp_select_fill1(EthernetDevice *net, int *pfd_max,
                                fd_set *rfds, fd_set *wfds, fd_set *efds,
                                int *pdelay)
 {
-    Slirp *slirp_state = (Slirp *)net->opaque;
+    Slirp *slirp_state = net->opaque;
     slirp_select_fill(slirp_state, pfd_max, rfds, wfds, efds);
 }
 
-static void slirp_select_poll1(EthernetDevice *net,
+static void slirp_select_poll1(EthernetDevice *net, 
                                fd_set *rfds, fd_set *wfds, fd_set *efds,
                                int select_ret)
 {
-    Slirp *slirp_state = (Slirp *)net->opaque;
+    Slirp *slirp_state = net->opaque;
     slirp_select_poll(slirp_state, rfds, wfds, efds, (select_ret <= 0));
 }
 
@@ -512,7 +511,7 @@ static EthernetDevice *slirp_open(void)
         fprintf(stderr, "Only a single slirp instance is allowed\n");
         return NULL;
     }
-    net = (EthernetDevice *)mallocz(sizeof(*net));
+    net = mallocz(sizeof(*net));
 
     slirp_state = slirp_init(restricted, net_addr, mask, host, vhostname,
                              "", bootfile, dhcp, dns, net);
@@ -554,7 +553,7 @@ void virt_machine_run(VirtMachine *m)
     fd_max = -1;
 #ifndef _WIN32
     if (m->console_dev && (uart_can_rx(m) || virtio_console_can_write_data(m->console_dev))) {
-        STDIODevice *s = (STDIODevice *)m->console->opaque;
+        STDIODevice *s = m->console->opaque;
         stdin_fd = s->stdin_fd;
         FD_SET(stdin_fd, &rfds);
         fd_max = stdin_fd;
@@ -617,19 +616,16 @@ static struct option options[] = {
     { "simstart", no_argument },
     { "stats-display", no_argument },
     { "mem-model", required_argument },
+    { "build-preload", required_argument },
     { NULL },
 };
 
 void help(void)
 {
     printf("marss-riscv version " CONFIG_VERSION ", Copyright (c) 2017-2019 Gaurav Kothari, Parikshit Sarnaik, Gokturk Yuksek\n"
-           "riscvemu version 2017-08-06, Copyright (c) 2016-2017 Fabrice Bellard\n"
-           "XLEN=" CONFIG_XLEN ", FLEN=" CONFIG_FLEN "\n"
+           "temu version 2018-09-23, Copyright (c) 2016-2017 Fabrice Bellard\n"
            "usage: marss-riscv [options] config_file\n"
            "options are:\n"
-#ifdef CONFIG_CPU_RISCV
-           "-b [32|64]    set the integer register width in bits\n"
-#endif
            "-m ram_size                 set the RAM size in MB\n"
            "-rw                         allow write access to the disk image (default=snapshot)\n"
            "-ctrlc                      the C-c key stops the emulator instead of being sent to the\n"
@@ -643,38 +639,6 @@ void help(void)
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
     exit(1);
 }
-
-#ifdef CONFIG_CPU_RISCV
-void launch_alternate_executable(char **argv, int xlen)
-{
-    char filename[1024];
-    char new_exename[64];
-    const char *p, *exename;
-    int len;
-
-    snprintf(new_exename, sizeof(new_exename), "riscvemu%d", xlen);
-    exename = argv[0];
-    p = strrchr(exename, '/');
-    if (p) {
-        len = p - exename + 1;
-    } else {
-        len = 0;
-    }
-    if (len + strlen(new_exename) > sizeof(filename) - 1) {
-        fprintf(stderr, "%s: filename too long\n", exename);
-        exit(1);
-    }
-    memcpy(filename, exename, len);
-    filename[len] = '\0';
-    strcat(filename, new_exename);
-    argv[0] = filename;
-
-    if (execvp(argv[0], argv) < 0) {
-        perror(argv[0]);
-        exit(1);
-    }
-}
-#endif
 
 #ifdef CONFIG_FS_NET
 static BOOL net_completed;
@@ -694,7 +658,7 @@ static BOOL net_poll_cb(void *arg)
 int main(int argc, char **argv)
 {
     VirtMachine *s;
-    const char *path, *cmdline;
+    const char *path, *cmdline, *build_preload_file;
     int c, option_index, i, ram_size, accel_enable;
     BOOL allow_ctrlc;
     BlockDeviceModeEnum drive_mode;
@@ -709,8 +673,9 @@ int main(int argc, char **argv)
     drive_mode = BF_MODE_SNAPSHOT;
     accel_enable = -1;
     cmdline = NULL;
+    build_preload_file = NULL;
     for(;;) {
-        c = getopt_long_only(argc, argv, "hb:m:", options, &option_index);
+        c = getopt_long_only(argc, argv, "hm:", options, &option_index);
         if (c == -1)
             break;
         switch(c) {
@@ -752,6 +717,9 @@ int main(int argc, char **argv)
                     exit(1);
                 }
                 break;
+            case 9: /* build-preload */
+                build_preload_file = optarg;
+                break;
             default:
                 fprintf(stderr, "unknown option index: %d\n", option_index);
                 exit(1);
@@ -760,21 +728,6 @@ int main(int argc, char **argv)
         case 'h':
             help();
             break;
-#ifdef CONFIG_CPU_RISCV
-        case 'b':
-            {
-                int xlen;
-                xlen = atoi(optarg);
-                if (xlen != 32 && xlen != 64) {
-                    fprintf(stderr, "Invalid integer register width\n");
-                    exit(1);
-                }
-                if (xlen != riscv_cpu_get_max_xlen()) {
-                    launch_alternate_executable(argv, xlen);
-                }
-            }
-            break;
-#endif
         case 'm':
             ram_size = (uint64_t)strtoul(optarg, NULL, 0) << 20;
             break;
@@ -790,7 +743,7 @@ int main(int argc, char **argv)
     path = argv[optind++];
 
     virt_machine_set_defaults(p);
-    p->sim_params.mem_model_type = marss_mem_model;
+    p->sim_params->mem_model_type = marss_mem_model;
 #ifdef CONFIG_FS_NET
     fs_wget_init();
 #endif
@@ -806,13 +759,12 @@ int main(int argc, char **argv)
     }
     if (accel_enable != -1)
         p->accel_enable = accel_enable;
-
     if (cmdline) {
         vm_add_cmdline(p, cmdline);
     }
 
-    p->sim_params.start_in_sim = marss_start_in_sim;
-    p->sim_params.enable_stats_display = marss_stats_display;
+    p->sim_params->start_in_sim = marss_start_in_sim;
+    p->sim_params->enable_stats_display = marss_stats_display;
 
     /* open the files & devices */
     for(i = 0; i < p->drive_count; i++) {
@@ -844,6 +796,8 @@ int main(int argc, char **argv)
             fs = fs_net_init(path, NULL, NULL);
             if (!fs)
                 exit(1);
+            if (build_preload_file)
+                fs_dump_cache_load(fs, build_preload_file);
             fs_net_event_loop(NULL, NULL);
         } else
 #endif
@@ -903,7 +857,9 @@ int main(int argc, char **argv)
     p->rtc_real_time = TRUE;
 
     s = virt_machine_init(p);
-
+    if (!s)
+        exit(1);
+    
     virt_machine_free_config(p);
 
     if (s->net) {

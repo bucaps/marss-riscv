@@ -42,7 +42,7 @@
                     goto illegal_insn;
                 s->fp_reg[rd] = glue(add_sf, F_SIZE)(s->fp_reg[rs1],
                                          s->fp_reg[rs2],
-                                         (RoundingModeEnum)rm, &s->fflags) | F_HIGH;
+                                         rm, &s->fflags) | F_HIGH;
                 s->fs = 3;                                             
                 break;
             case (0x01 << 2) | OPID:
@@ -51,7 +51,7 @@
                     goto illegal_insn;
                 s->fp_reg[rd] = glue(sub_sf, F_SIZE)(s->fp_reg[rs1],
                                                s->fp_reg[rs2],
-                                               (RoundingModeEnum)rm, &s->fflags) | F_HIGH;
+                                               rm, &s->fflags) | F_HIGH;
                 s->fs = 3;                                             
                 break;
             case (0x02 << 2) | OPID:
@@ -60,7 +60,7 @@
                     goto illegal_insn;
                 s->fp_reg[rd] = glue(mul_sf, F_SIZE)(s->fp_reg[rs1],
                                                s->fp_reg[rs2],
-                                               (RoundingModeEnum)rm, &s->fflags) | F_HIGH;
+                                               rm, &s->fflags) | F_HIGH;
                 s->fs = 3;                                             
                 break;
             case (0x03 << 2) | OPID:
@@ -69,7 +69,7 @@
                     goto illegal_insn;
                 s->fp_reg[rd] = glue(div_sf, F_SIZE)(s->fp_reg[rs1],
                                                s->fp_reg[rs2],
-                                               (RoundingModeEnum)rm, &s->fflags) | F_HIGH;
+                                               rm, &s->fflags) | F_HIGH;
                 s->fs = 3;                                             
                 break;
             case (0x0b << 2) | OPID:
@@ -77,7 +77,7 @@
                 if (rm < 0 || rs2 != 0)
                     goto illegal_insn;
                 s->fp_reg[rd] = glue(sqrt_sf, F_SIZE)(s->fp_reg[rs1],
-                                                (RoundingModeEnum)rm, &s->fflags) | F_HIGH;
+                                                rm, &s->fflags) | F_HIGH;
                 s->fs = 3;                                             
                 break;
             case (0x04 << 2) | OPID:
@@ -122,31 +122,31 @@
                     goto illegal_insn;
                 switch(rs2) {
                 case 0: /* fcvt.w.[sdq] */
-                    val = (int32_t)glue(glue(cvt_sf, F_SIZE), _i32)(s->fp_reg[rs1], (RoundingModeEnum)rm,
+                    val = (int32_t)glue(glue(cvt_sf, F_SIZE), _i32)(s->fp_reg[rs1], rm,
                                                           &s->fflags);
                     break;
                 case 1: /* fcvt.wu.[sdq] */
-                    val = (int32_t)glue(glue(cvt_sf, F_SIZE), _u32)(s->fp_reg[rs1], (RoundingModeEnum)rm,
+                    val = (int32_t)glue(glue(cvt_sf, F_SIZE), _u32)(s->fp_reg[rs1], rm,
                                                           &s->fflags);
                     break;
 #if XLEN >= 64
                 case 2: /* fcvt.l.[sdq] */
-                    val = (int64_t)glue(glue(cvt_sf, F_SIZE), _i64)(s->fp_reg[rs1], (RoundingModeEnum)rm,
+                    val = (int64_t)glue(glue(cvt_sf, F_SIZE), _i64)(s->fp_reg[rs1], rm,
                                                           &s->fflags);
                     break;
                 case 3: /* fcvt.lu.[sdq] */
-                    val = (int64_t)glue(glue(cvt_sf, F_SIZE), _u64)(s->fp_reg[rs1], (RoundingModeEnum)rm,
+                    val = (int64_t)glue(glue(cvt_sf, F_SIZE), _u64)(s->fp_reg[rs1], rm,
                                                           &s->fflags);
                     break;
 #endif
 #if XLEN >= 128
                 /* XXX: the index is not defined in the spec */
                 case 4: /* fcvt.t.[sdq] */
-                    val = glue(glue(cvt_sf, F_SIZE), _i128)(s->fp_reg[rs1], (RoundingModeEnum)rm,
+                    val = glue(glue(cvt_sf, F_SIZE), _i128)(s->fp_reg[rs1], rm,
                                                           &s->fflags);
                     break;
                 case 5: /* fcvt.tu.[sdq] */
-                    val = glue(glue(cvt_sf, F_SIZE), _u128)(s->fp_reg[rs1], (RoundingModeEnum)rm,
+                    val = glue(glue(cvt_sf, F_SIZE), _u128)(s->fp_reg[rs1], rm,
                                                           &s->fflags);
                     break;
 #endif
@@ -182,31 +182,31 @@
                     goto illegal_insn;
                 switch(rs2) {
                 case 0: /* fcvt.[sdq].w */
-                    s->fp_reg[rd] = glue(cvt_i32_sf, F_SIZE)(s->reg[rs1], (RoundingModeEnum)rm,
+                    s->fp_reg[rd] = glue(cvt_i32_sf, F_SIZE)(s->reg[rs1], rm,
                                                        &s->fflags) | F_HIGH;
                     break;
                 case 1: /* fcvt.[sdq].wu */
-                    s->fp_reg[rd] = glue(cvt_u32_sf, F_SIZE)(s->reg[rs1], (RoundingModeEnum)rm,
+                    s->fp_reg[rd] = glue(cvt_u32_sf, F_SIZE)(s->reg[rs1], rm,
                                                        &s->fflags) | F_HIGH;
                     break;
 #if XLEN >= 64
                 case 2: /* fcvt.[sdq].l */
-                    s->fp_reg[rd] = glue(cvt_i64_sf, F_SIZE)(s->reg[rs1], (RoundingModeEnum)rm,
+                    s->fp_reg[rd] = glue(cvt_i64_sf, F_SIZE)(s->reg[rs1], rm,
                                                        &s->fflags) | F_HIGH;
                     break;
                 case 3: /* fcvt.[sdq].lu */
-                    s->fp_reg[rd] = glue(cvt_u64_sf, F_SIZE)(s->reg[rs1], (RoundingModeEnum)rm,
+                    s->fp_reg[rd] = glue(cvt_u64_sf, F_SIZE)(s->reg[rs1], rm,
                                                             &s->fflags) | F_HIGH;
                     break;
 #endif
 #if XLEN >= 128
                 /* XXX: the index is not defined in the spec */
                 case 4: /* fcvt.[sdq].t */
-                    s->fp_reg[rd] = glue(cvt_i128_sf, F_SIZE)(s->reg[rs1], (RoundingModeEnum)rm,
+                    s->fp_reg[rd] = glue(cvt_i128_sf, F_SIZE)(s->reg[rs1], rm,
                                                        &s->fflags) | F_HIGH;
                     break;
                 case 5: /* fcvt.[sdq].tu */
-                    s->fp_reg[rd] = glue(cvt_u128_sf, F_SIZE)(s->reg[rs1], (RoundingModeEnum)rm,
+                    s->fp_reg[rd] = glue(cvt_u128_sf, F_SIZE)(s->reg[rs1], rm,
                                                             &s->fflags) | F_HIGH;
                     break;
 #endif
@@ -223,11 +223,11 @@
                 switch(rs2) {
 #if F_SIZE == 32 && FLEN >= 64
                 case 1: /* cvt.s.d */
-                    s->fp_reg[rd] = cvt_sf64_sf32(s->fp_reg[rs1], (RoundingModeEnum)rm, &s->fflags) | F32_HIGH;
+                    s->fp_reg[rd] = cvt_sf64_sf32(s->fp_reg[rs1], rm, &s->fflags) | F32_HIGH;
                     break;
 #if FLEN >= 128
                 case 3: /* cvt.s.q */
-                    s->fp_reg[rd] = cvt_sf128_sf32(s->fp_reg[rs1], (RoundingModeEnum)rm, &s->fflags) | F32_HIGH;
+                    s->fp_reg[rd] = cvt_sf128_sf32(s->fp_reg[rs1], rm, &s->fflags) | F32_HIGH;
                     break;
 #endif
 #endif /* F_SIZE == 32 */

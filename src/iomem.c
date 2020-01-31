@@ -41,7 +41,7 @@ static void default_set_addr(PhysMemoryMap *map,
 PhysMemoryMap *phys_mem_map_init(void)
 {
     PhysMemoryMap *s;
-    s = (PhysMemoryMap *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     s->register_ram = default_register_ram;
     s->free_ram = default_free_ram;
     s->get_dirty_bits = default_get_dirty_bits;
@@ -106,7 +106,7 @@ static PhysMemoryRange *default_register_ram(PhysMemoryMap *s, uint64_t addr,
 
     pr = register_ram_entry(s, addr, size, devram_flags);
 
-    pr->phys_mem = (uint8_t *)mallocz(size);
+    pr->phys_mem = mallocz(size);
     if (!pr->phys_mem) {
         fprintf(stderr, "Could not allocate VM memory\n");
         exit(1);
@@ -119,7 +119,7 @@ static PhysMemoryRange *default_register_ram(PhysMemoryMap *s, uint64_t addr,
         pr->dirty_bits_size = ((nb_pages + 31) / 32) * sizeof(uint32_t);
         pr->dirty_bits_index = 0;
         for(i = 0; i < 2; i++) {
-            pr->dirty_bits_tab[i] = (uint32_t *)mallocz(pr->dirty_bits_size);
+            pr->dirty_bits_tab[i] = mallocz(pr->dirty_bits_size);
         }
         pr->dirty_bits = pr->dirty_bits_tab[pr->dirty_bits_index];
     }
@@ -153,6 +153,27 @@ static const uint32_t *default_get_dirty_bits(PhysMemoryMap *map,
     pr->dirty_bits = pr->dirty_bits_tab[pr->dirty_bits_index];
     memset(pr->dirty_bits, 0, pr->dirty_bits_size);
     return dirty_bits;
+}
+
+/* reset the dirty bit of one page at 'offset' inside 'pr' */
+void phys_mem_reset_dirty_bit(PhysMemoryRange *pr, size_t offset)
+{
+    size_t page_index;
+    uint32_t mask, *dirty_bits_ptr;
+    PhysMemoryMap *map;
+    if (pr->dirty_bits) {
+        page_index = offset >> DEVRAM_PAGE_SIZE_LOG2;
+        mask = 1 << (page_index & 0x1f);
+        dirty_bits_ptr = pr->dirty_bits + (page_index >> 5);
+        if (*dirty_bits_ptr & mask) {
+            *dirty_bits_ptr &= ~mask;
+            /* invalidate the corresponding CPU write TLBs */
+            map = pr->map;
+            map->flush_tlb_write_range(map->opaque,
+                                       pr->phys_mem + (offset & ~(DEVRAM_PAGE_SIZE - 1)),
+                                       DEVRAM_PAGE_SIZE);
+        }
+    }
 }
 
 static void default_free_ram(PhysMemoryMap *s, PhysMemoryRange *pr)
@@ -218,6 +239,19 @@ void phys_mem_set_addr(PhysMemoryRange *pr, uint64_t addr, BOOL enabled)
     } else {
         return map->set_ram_addr(map, pr, addr, enabled);
     }
+}
+
+/* return NULL if no valid RAM page. The access can only be done in the page */
+uint8_t *phys_mem_get_ram_ptr(PhysMemoryMap *map, uint64_t paddr, BOOL is_rw)
+{
+    PhysMemoryRange *pr = get_phys_mem_range(map, paddr);
+    uintptr_t offset;
+    if (!pr || !pr->is_ram)
+        return NULL;
+    offset = paddr - pr->addr;
+    if (is_rw)
+        phys_mem_set_dirty_bit(pr, offset);
+    return pr->phys_mem + (uintptr_t)offset;
 }
 
 /* IRQ support */

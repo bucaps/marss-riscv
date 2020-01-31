@@ -123,7 +123,7 @@ typedef int VIRTIODeviceRecvFunc(VIRTIODevice *s1, int queue_idx,
                                  int write_size);
 
 /* return NULL if no RAM at this address. The mapping is valid for one page */
-typedef uint8_t *VIRTIOGetRAMPtrFunc(VIRTIODevice *s, virtio_phys_addr_t paddr);
+typedef uint8_t *VIRTIOGetRAMPtrFunc(VIRTIODevice *s, virtio_phys_addr_t paddr, BOOL is_rw);
 
 struct VIRTIODevice {
     PhysMemoryMap *mem_map;
@@ -178,19 +178,14 @@ static void virtio_reset(VIRTIODevice *s)
     }
 }
 
-static uint8_t *virtio_pci_get_ram_ptr(VIRTIODevice *s, virtio_phys_addr_t paddr)
+static uint8_t *virtio_pci_get_ram_ptr(VIRTIODevice *s, virtio_phys_addr_t paddr, BOOL is_rw)
 {
-    return pci_device_get_dma_ptr(s->pci_dev, paddr);
+    return pci_device_get_dma_ptr(s->pci_dev, paddr, is_rw);
 }
 
-static uint8_t *virtio_mmio_get_ram_ptr(VIRTIODevice *s, virtio_phys_addr_t paddr)
+static uint8_t *virtio_mmio_get_ram_ptr(VIRTIODevice *s, virtio_phys_addr_t paddr, BOOL is_rw)
 {
-    PhysMemoryRange *pr;
-    
-    pr = get_phys_mem_range(s->mem_map, paddr);
-    if (!pr || !pr->is_ram)
-        return NULL;
-    return pr->phys_mem + (uintptr_t)(paddr - pr->addr);
+    return phys_mem_get_ram_ptr(s->mem_map, paddr, is_rw);
 }
 
 static void virtio_add_pci_capability(VIRTIODevice *s, int cfg_type,
@@ -218,7 +213,7 @@ static void virtio_add_pci_capability(VIRTIODevice *s, int cfg_type,
 static void virtio_pci_bar_set(void *opaque, int bar_num,
                                uint32_t addr, BOOL enabled)
 {
-    VIRTIODevice *s = (VIRTIODevice *)opaque;
+    VIRTIODevice *s = opaque;
     phys_mem_set_addr(s->mem_range, addr, enabled);
 }
 
@@ -305,7 +300,7 @@ static uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)
     uint8_t *ptr;
     if (addr & 1)
         return 0; /* unaligned access are not supported */
-    ptr = s->get_ram_ptr(s, addr);
+    ptr = s->get_ram_ptr(s, addr, FALSE);
     if (!ptr)
         return 0;
     return *(uint16_t *)ptr;
@@ -317,7 +312,7 @@ static void virtio_write16(VIRTIODevice *s, virtio_phys_addr_t addr,
     uint8_t *ptr;
     if (addr & 1)
         return; /* unaligned access are not supported */
-    ptr = s->get_ram_ptr(s, addr);
+    ptr = s->get_ram_ptr(s, addr, TRUE);
     if (!ptr)
         return;
     *(uint16_t *)ptr = val;
@@ -329,7 +324,7 @@ static void virtio_write32(VIRTIODevice *s, virtio_phys_addr_t addr,
     uint8_t *ptr;
     if (addr & 3)
         return; /* unaligned access are not supported */
-    ptr = s->get_ram_ptr(s, addr);
+    ptr = s->get_ram_ptr(s, addr, TRUE);
     if (!ptr)
         return;
     *(uint32_t *)ptr = val;
@@ -343,7 +338,7 @@ static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf,
 
     while (count > 0) {
         l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
-        ptr = s->get_ram_ptr(s, addr);
+        ptr = s->get_ram_ptr(s, addr, FALSE);
         if (!ptr)
             return -1;
         memcpy(buf, ptr, l);
@@ -362,7 +357,7 @@ static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr,
 
     while (count > 0) {
         l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
-        ptr = s->get_ram_ptr(s, addr);
+        ptr = s->get_ram_ptr(s, addr, TRUE);
         if (!ptr)
             return -1;
         memcpy(ptr, buf, l);
@@ -377,7 +372,7 @@ static int get_desc(VIRTIODevice *s, VIRTIODesc *desc,
                     int queue_idx, int desc_idx)
 {
     QueueState *qs = &s->queue[queue_idx];
-    return virtio_memcpy_from_ram(s, (uint8_t *)desc, qs->desc_addr +
+    return virtio_memcpy_from_ram(s, (void *)desc, qs->desc_addr +
                                   desc_idx * sizeof(VIRTIODesc),
                                   sizeof(VIRTIODesc));
 }
@@ -450,7 +445,7 @@ static int memcpy_from_queue(VIRTIODevice *s, void *buf,
                              int queue_idx, int desc_idx,
                              int offset, int count)
 {
-    return memcpy_to_from_queue(s, (uint8_t *)buf, queue_idx, desc_idx, offset, count,
+    return memcpy_to_from_queue(s, buf, queue_idx, desc_idx, offset, count,
                                 FALSE);
 }
 
@@ -458,7 +453,7 @@ static int memcpy_to_queue(VIRTIODevice *s,
                            int queue_idx, int desc_idx,
                            int offset, const void *buf, int count)
 {
-    return memcpy_to_from_queue(s, (uint8_t *)buf, queue_idx, desc_idx, offset,
+    return memcpy_to_from_queue(s, (void *)buf, queue_idx, desc_idx, offset,
                                 count, TRUE);
 }
 
@@ -610,7 +605,7 @@ static void virtio_config_write(VIRTIODevice *s, uint32_t offset,
 
 static uint32_t virtio_mmio_read(void *opaque, uint32_t offset, int size_log2)
 {
-    VIRTIODevice *s = (VIRTIODevice *)opaque;
+    VIRTIODevice *s = opaque;
     uint32_t val;
 
     if (offset >= VIRTIO_MMIO_CONFIG) {
@@ -724,7 +719,7 @@ static void set_low32(virtio_phys_addr_t *paddr, uint32_t val)
 static void virtio_mmio_write(void *opaque, uint32_t offset,
                               uint32_t val, int size_log2)
 {
-    VIRTIODevice *s = (VIRTIODevice *)opaque;
+    VIRTIODevice *s = opaque;
     
 #ifdef DEBUG_VIRTIO
     if (s->debug & VIRTIO_DEBUG_IO) {
@@ -799,7 +794,7 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
 
 static uint32_t virtio_pci_read(void *opaque, uint32_t offset1, int size_log2)
 {
-    VIRTIODevice *s = (VIRTIODevice *)opaque;
+    VIRTIODevice *s = opaque;
     uint32_t offset;
     uint32_t val = 0;
 
@@ -894,7 +889,7 @@ static uint32_t virtio_pci_read(void *opaque, uint32_t offset1, int size_log2)
 static void virtio_pci_write(void *opaque, uint32_t offset1,
                              uint32_t val, int size_log2)
 {
-    VIRTIODevice *s = (VIRTIODevice *)opaque;
+    VIRTIODevice *s = opaque;
     uint32_t offset;
     
 #ifdef DEBUG_VIRTIO
@@ -1054,7 +1049,7 @@ static void virtio_block_req_end(VIRTIODevice *s, int ret)
 
 static void virtio_block_req_cb(void *opaque, int ret)
 {
-    VIRTIODevice *s = (VIRTIODevice *)opaque;
+    VIRTIODevice *s = opaque;
     VIRTIOBlockDevice *s1 = (VIRTIOBlockDevice *)s;
 
     virtio_block_req_end(s, ret);
@@ -1086,7 +1081,7 @@ static int virtio_block_recv_request(VIRTIODevice *s, int queue_idx,
     s1->req.desc_idx = desc_idx;
     switch(h.type) {
     case VIRTIO_BLK_T_IN:
-        s1->req.buf = (uint8_t *)malloc(write_size);
+        s1->req.buf = malloc(write_size);
         s1->req.write_size = write_size;
         ret = bs->read_async(bs, h.sector_num, s1->req.buf, 
                              (write_size - 1) / SECTOR_SIZE,
@@ -1101,7 +1096,7 @@ static int virtio_block_recv_request(VIRTIODevice *s, int queue_idx,
     case VIRTIO_BLK_T_OUT:
         assert(write_size >= 1);
         len = read_size - sizeof(h);
-        buf = (uint8_t *)malloc(len);
+        buf = malloc(len);
         memcpy_from_queue(s, buf, queue_idx, desc_idx, sizeof(h), len);
         ret = bs->write_async(bs, h.sector_num, buf, len / SECTOR_SIZE,
                               virtio_block_req_cb, s);
@@ -1124,7 +1119,7 @@ VIRTIODevice *virtio_block_init(VIRTIOBusDef *bus, BlockDevice *bs)
     VIRTIOBlockDevice *s;
     uint64_t nb_sectors;
 
-    s = (VIRTIOBlockDevice *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     virtio_init(&s->common, bus,
                 2, 8, virtio_block_recv_request);
     s->bs = bs;
@@ -1170,7 +1165,7 @@ static int virtio_net_recv_request(VIRTIODevice *s, int queue_idx,
         if (memcpy_from_queue(s, &h, queue_idx, desc_idx, 0, s1->header_size) < 0)
             return 0;
         len = read_size - s1->header_size;
-        buf = (uint8_t *)malloc(len);
+        buf = malloc(len);
         memcpy_from_queue(s, buf, queue_idx, desc_idx, s1->header_size, len);
         es->write_packet(es, buf, len);
         free(buf);
@@ -1181,7 +1176,7 @@ static int virtio_net_recv_request(VIRTIODevice *s, int queue_idx,
 
 static BOOL virtio_net_can_write_packet(EthernetDevice *es)
 {
-    VIRTIODevice *s = (VIRTIODevice *)es->device_opaque;
+    VIRTIODevice *s = es->device_opaque;
     QueueState *qs = &s->queue[0];
     uint16_t avail_idx;
 
@@ -1193,7 +1188,7 @@ static BOOL virtio_net_can_write_packet(EthernetDevice *es)
 
 static void virtio_net_write_packet(EthernetDevice *es, const uint8_t *buf, int buf_len)
 {
-    VIRTIODevice *s = (VIRTIODevice *)es->device_opaque;
+    VIRTIODevice *s = es->device_opaque;
     VIRTIONetDevice *s1 = (VIRTIONetDevice *)s;
     int queue_idx = 0;
     QueueState *qs = &s->queue[queue_idx];
@@ -1241,7 +1236,7 @@ VIRTIODevice *virtio_net_init(VIRTIOBusDef *bus, EthernetDevice *es)
 {
     VIRTIONetDevice *s;
 
-    s = (VIRTIONetDevice *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     virtio_init(&s->common, bus,
                 1, 6 + 2, virtio_net_recv_request);
     /* VIRTIO_NET_F_MAC, VIRTIO_NET_F_STATUS */
@@ -1280,7 +1275,7 @@ static int virtio_console_recv_request(VIRTIODevice *s, int queue_idx,
 
     if (queue_idx == 1) {
         /* send to console */
-        buf = (uint8_t *)malloc(read_size);
+        buf = malloc(read_size);
         memcpy_from_queue(s, buf, queue_idx, desc_idx, 0, read_size);
         cs->write_data(cs->opaque, buf, read_size);
         free(buf);
@@ -1354,7 +1349,7 @@ VIRTIODevice *virtio_console_init(VIRTIOBusDef *bus, CharacterDevice *cs)
 {
     VIRTIOConsoleDevice *s;
 
-    s = (VIRTIOConsoleDevice *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     virtio_init(&s->common, bus,
                 3, 4, virtio_console_recv_request);
     s->common.device_features = (1 << 0); /* VIRTIO_CONSOLE_F_SIZE */
@@ -1638,7 +1633,7 @@ VIRTIODevice *virtio_input_init(VIRTIOBusDef *bus, VirtioInputTypeEnum type)
 {
     VIRTIOInputDevice *s;
 
-    s = (VIRTIOInputDevice *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     virtio_init(&s->common, bus,
                 18, 256, virtio_input_recv_request);
     s->common.queue[0].manual_recv = TRUE;
@@ -1709,7 +1704,7 @@ static void fid_set(VIRTIO9PDevice *s, uint32_t fid, FSFile *fd)
         s->fs->fs_delete(s->fs, f->fd);
         f->fd = fd;
     } else {
-        f = (FIDDesc *)malloc(sizeof(*f));
+        f = malloc(sizeof(*f));
         f->fid = fid;
         f->fd = fd;
         list_add(&f->link, &s->fid_list);
@@ -1947,7 +1942,7 @@ static int unmarshall(VIRTIO9PDevice *s, int queue_idx,
                     return -1;
                 len = get_le16(buf);
                 offset += 2;
-                str = (char *)malloc(len + 1);
+                str = malloc(len + 1);
                 if (memcpy_from_queue(s1, str, queue_idx, desc_idx, offset, len))
                     return -1;
                 str[len] = '\0';
@@ -1984,7 +1979,7 @@ static void virtio_9p_send_reply(VIRTIO9PDevice *s, int queue_idx,
     }
 #endif
     len = buf_len + 7;
-    buf1 = (uint8_t *)malloc(len);
+    buf1 = malloc(len);
     put_le32(buf1, len);
     buf1[4] = id + 1;
     put_le16(buf1 + 5, tag);
@@ -2032,7 +2027,7 @@ static void virtio_9p_open_reply(FSDevice *fs, FSQID *qid, int err,
 static void virtio_9p_open_cb(FSDevice *fs, FSQID *qid, int err,
                               void *opaque)
 {
-    P9OpenInfo *oi = (P9OpenInfo *)opaque;
+    P9OpenInfo *oi = opaque;
     VIRTIO9PDevice *s = oi->dev;
     int queue_idx = oi->queue_idx;
     
@@ -2119,7 +2114,7 @@ static int virtio_9p_recv_request(VIRTIODevice *s1, int queue_idx,
             f = fid_find(s, fid);
             if (!f)
                 goto fid_not_found;
-            oi = (P9OpenInfo *)malloc(sizeof(*oi));
+            oi = malloc(sizeof(*oi));
             oi->dev = s;
             oi->queue_idx = queue_idx;
             oi->desc_idx = desc_idx;
@@ -2299,7 +2294,7 @@ static int virtio_9p_recv_request(VIRTIODevice *s1, int queue_idx,
             f = fid_find(s, fid);
             if (!f)
                 goto fid_not_found;
-            buf = (uint8_t *)malloc(count + 4);
+            buf = malloc(count + 4);
             n = fs->fs_readdir(fs, f, offs, buf + 4, count);
             if (n < 0) {
                 err = n;
@@ -2516,8 +2511,8 @@ static int virtio_9p_recv_request(VIRTIODevice *s1, int queue_idx,
             f = fid_find(s, fid);
             if (!f)
                 goto fid_not_found;
-            names = (char **)mallocz(sizeof(names[0]) * nwname);
-            qids = (FSQID *)malloc(sizeof(qids[0]) * nwname);
+            names = mallocz(sizeof(names[0]) * nwname);
+            qids = malloc(sizeof(qids[0]) * nwname);
             for(i = 0; i < nwname; i++) {
                 if (unmarshall(s, queue_idx, desc_idx, &offset, 
                                "s", &names[i])) {
@@ -2559,7 +2554,7 @@ static int virtio_9p_recv_request(VIRTIODevice *s1, int queue_idx,
             f = fid_find(s, fid);
             if (!f)
                 goto fid_not_found;
-            buf = (uint8_t *)malloc(count + 4);
+            buf = malloc(count + 4);
             n = fs->fs_read(fs, f, offs, buf + 4, count);
             if (n < 0) {
                 err = n;
@@ -2585,7 +2580,7 @@ static int virtio_9p_recv_request(VIRTIODevice *s1, int queue_idx,
             f = fid_find(s, fid);
             if (!f)
                 goto fid_not_found;
-            buf1 = (uint8_t *)malloc(count);
+            buf1 = malloc(count);
             if (memcpy_from_queue(s1, buf1, queue_idx, desc_idx, offset,
                                   count)) {
                 free(buf1);
@@ -2635,7 +2630,7 @@ VIRTIODevice *virtio_9p_init(VIRTIOBusDef *bus, FSDevice *fs,
     uint8_t *cfg;
 
     len = strlen(mount_tag);
-    s = (VIRTIO9PDevice *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     virtio_init(&s->common, bus,
                 9, 2 + len, virtio_9p_recv_request);
     s->common.device_features = 1 << 0;

@@ -30,7 +30,7 @@
 #include <cstdint>
 
 #include "memory_controller_utils.h"
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 #include <DRAMSim.h>
 
 using namespace DRAMSim;

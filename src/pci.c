@@ -69,7 +69,7 @@ static int bus_map_irq(PCIDevice *d, int irq_num)
 
 static void pci_device_set_irq(void *opaque, int irq_num, int level)
 {
-    PCIDevice *d = (PCIDevice *)opaque;
+    PCIDevice *d = opaque;
     PCIBus *b = d->bus;
     uint32_t mask;
     int i, irq_level;
@@ -116,7 +116,7 @@ PCIDevice *pci_register_device(PCIBus *b, const char *name, int devfn,
     if (b->device[devfn])
         return NULL;
 
-    d = (PCIDevice *)mallocz(sizeof(PCIDevice));
+    d = mallocz(sizeof(PCIDevice));
     d->bus = b;
     d->name = strdup(name);
     d->devfn = devfn;
@@ -404,13 +404,9 @@ static uint32_t pci_data_read(PCIBus *s, uint32_t addr, int size_log2)
 
 /* warning: only valid for one DEVIO page. Return NULL if no memory at
    the given address */
-uint8_t *pci_device_get_dma_ptr(PCIDevice *d, uint64_t addr)
+uint8_t *pci_device_get_dma_ptr(PCIDevice *d, uint64_t addr, BOOL is_rw)
 {
-    PhysMemoryRange *pr;
-    pr = get_phys_mem_range(d->bus->mem_map, addr);
-    if (!pr || !pr->is_ram)
-        return NULL;
-    return pr->phys_mem + (uintptr_t)(addr - pr->addr);
+    return phys_mem_get_ram_ptr(d->bus->mem_map, addr, is_rw);
 }
 
 void pci_device_set_config8(PCIDevice *d, uint8_t addr, uint8_t val)
@@ -458,20 +454,20 @@ struct I440FXState {
 static void i440fx_write_addr(void *opaque, uint32_t offset,
                               uint32_t data, int size_log2)
 {
-    I440FXState *s = (I440FXState *)opaque;
+    I440FXState *s = opaque;
     s->config_reg = data;
 }
 
 static uint32_t i440fx_read_addr(void *opaque, uint32_t offset, int size_log2)
 {
-    I440FXState *s = (I440FXState *)opaque;
+    I440FXState *s = opaque;
     return s->config_reg;
 }
 
 static void i440fx_write_data(void *opaque, uint32_t offset,
                               uint32_t data, int size_log2)
 {
-    I440FXState *s = (I440FXState *)opaque;
+    I440FXState *s = opaque;
     if (s->config_reg & 0x80000000) {
         if (size_log2 == 2) {
             /* it is simpler to assume 32 bit config accesses are
@@ -485,7 +481,7 @@ static void i440fx_write_data(void *opaque, uint32_t offset,
 
 static uint32_t i440fx_read_data(void *opaque, uint32_t offset, int size_log2)
 {
-    I440FXState *s = (I440FXState *)opaque;
+    I440FXState *s = opaque;
     if (!(s->config_reg & 0x80000000))
         return val_ones[size_log2];
     if (size_log2 == 2) {
@@ -499,7 +495,7 @@ static uint32_t i440fx_read_data(void *opaque, uint32_t offset, int size_log2)
 
 static void i440fx_set_irq(void *opaque, int irq_num, int irq_level)
 {
-    I440FXState *s = (I440FXState *)opaque;
+    I440FXState *s = opaque;
     PCIDevice *hd = s->piix3_dev;
     int pic_irq;
     
@@ -525,9 +521,9 @@ I440FXState *i440fx_init(PCIBus **pbus, int *ppiix3_devfn,
     PCIDevice *d;
     int i;
     
-    s = (I440FXState *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     
-    b = (PCIBus*)mallocz(sizeof(PCIBus));
+    b = mallocz(sizeof(PCIBus));
     b->bus_num = 0;
     b->mem_map = mem_map;
     b->port_map = port_map;

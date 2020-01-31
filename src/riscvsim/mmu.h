@@ -33,7 +33,7 @@
 #include "../sim_params_stats.h"
 #include "cache.h"
 #include "memory_controller.h"
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 
 typedef struct MemoryManagementUnit
 {

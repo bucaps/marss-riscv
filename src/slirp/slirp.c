@@ -192,7 +192,7 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
                   const char *bootfile, struct in_addr vdhcp_start,
                   struct in_addr vnameserver, void *opaque)
 {
-    Slirp *slirp = (Slirp *)mallocz(sizeof(Slirp));
+    Slirp *slirp = mallocz(sizeof(Slirp));
 
     slirp_init_once();
 

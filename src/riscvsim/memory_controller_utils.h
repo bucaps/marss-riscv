@@ -27,7 +27,7 @@
 #ifndef _MEM_CONTROLLER_UTILS_H_
 #define _MEM_CONTROLLER_UTILS_H_
 
-#include "riscv_sim_macros.h"
+#include "riscv_sim_typedefs.h"
 
 /* Memory operation type */
 typedef enum MemAccessType

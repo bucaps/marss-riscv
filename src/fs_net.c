@@ -50,7 +50,9 @@
 */
 
 //#define DEBUG_CACHE
-#define USE_PRELOAD 1
+#if !defined(EMSCRIPTEN)
+#define DUMP_CACHE_LOAD
+#endif
 
 #if defined(EMSCRIPTEN)
 #define DEFAULT_INODE_CACHE_SIZE (64 * 1024 * 1024)
@@ -109,7 +111,7 @@ typedef struct FSINode {
             struct list_head link;
             struct FSOpenInfo *open_info; /* used in LOADING state */
             BOOL is_fscmd;
-#ifdef DEBUG_CACHE
+#ifdef DUMP_CACHE_LOAD
             char *filename;
 #endif
         } reg;
@@ -158,6 +160,7 @@ struct FSFile {
 
 typedef struct {
     struct list_head link;
+    BOOL is_archive;
     const char *name;
 } PreloadFile;
 
@@ -166,6 +169,19 @@ typedef struct {
     FSFileID file_id;
     struct list_head file_list; /* list of PreloadFile.link */
 } PreloadEntry;
+
+typedef struct {
+    struct list_head link;
+    FSFileID file_id;
+    uint64_t size;
+    const char *name;
+} PreloadArchiveFile;
+
+typedef struct {
+    struct list_head link;
+    const char *name;
+    struct list_head file_list; /* list of PreloadArchiveFile.link */
+} PreloadArchive;
 
 typedef struct FSDeviceMem {
     FSDevice common;
@@ -183,17 +199,47 @@ typedef struct FSDeviceMem {
     int64_t inode_cache_size;
     int64_t inode_cache_size_limit;
     struct list_head preload_list; /* list of PreloadEntry.link */
+    struct list_head preload_archive_list; /* list of PreloadArchive.link */
     /* network */
     struct list_head base_url_list; /* list of FSBaseURL.link */
     char *import_dir;
+#ifdef DUMP_CACHE_LOAD
+    BOOL dump_cache_load;
+    BOOL dump_started;
+    char *dump_preload_dir;
+    FILE *dump_preload_file;
+    FILE *dump_preload_archive_file;
+
+    char *dump_archive_name;
+    uint64_t dump_archive_size;
+    FILE *dump_archive_file;
+
+    int dump_archive_num;
+    struct list_head dump_preload_list; /* list of PreloadFile.link */
+    struct list_head dump_exclude_list; /* list of PreloadFile.link */
+#endif
 } FSDeviceMem;
+
+typedef enum {
+    FS_OPEN_WGET_REG,
+    FS_OPEN_WGET_ARCHIVE,
+    FS_OPEN_WGET_ARCHIVE_FILE,
+} FSOpenWgetEnum;
 
 typedef struct FSOpenInfo {
     FSDevice *fs;
+    FSOpenWgetEnum open_type;
+
+    /* used for FS_OPEN_WGET_REG, FS_OPEN_WGET_ARCHIVE */
     XHRState *xhr;
     FSINode *n;
     DecryptFileState *dec_state;
     size_t cur_pos;
+
+    struct list_head archive_link; /* FS_OPEN_WGET_ARCHIVE_FILE */
+    uint64_t archive_offset;  /* FS_OPEN_WGET_ARCHIVE_FILE */
+    struct list_head archive_file_list; /* FS_OPEN_WGET_ARCHIVE */
+    
     /* the following is set in case there is a fs_open callback */
     FSFile *f;
     FSOpenCompletionFunc *cb;
@@ -215,6 +261,10 @@ static FSBaseURL *fs_net_set_base_url(FSDevice *fs1,
                                       const char *user, const char *password,
                                       AES_KEY *aes_state);
 static void fs_cmd_close(FSDevice *fs, FSFile *f);
+static void fs_error_archive(FSOpenInfo *oi);
+#ifdef DUMP_CACHE_LOAD
+static void dump_loaded_file(FSDevice *fs1, FSINode *n);
+#endif
 
 #if !defined(EMSCRIPTEN)
 /* file buffer (the content of the buffer can be stored elsewhere) */
@@ -233,7 +283,7 @@ void file_buffer_reset(FileBuffer *bs)
 int file_buffer_resize(FileBuffer *bs, size_t new_size)
 {
     uint8_t *new_data;
-    new_data = (uint8_t *)realloc(bs->data, new_size);
+    new_data = realloc(bs->data, new_size);
     if (!new_data && new_size != 0)
         return -1;
     bs->data = new_data;
@@ -288,7 +338,7 @@ static void inode_free(FSDevice *fs1, FSINode *n)
         fs->fs_blocks -= to_blocks(fs, n->u.reg.size);
         assert(fs->fs_blocks >= 0);
         file_buffer_reset(&n->u.reg.fbuf);
-#ifdef DEBUG_CACHE
+#ifdef DUMP_CACHE_LOAD
         free(n->u.reg.filename);
 #endif
         switch(n->u.reg.state)  {
@@ -301,7 +351,11 @@ static void inode_free(FSDevice *fs1, FSINode *n)
         case REG_STATE_LOADING:
             {
                 FSOpenInfo *oi = n->u.reg.open_info;
-                fs_wget_free(oi->xhr);
+                if (oi->xhr)
+                    fs_wget_free(oi->xhr);
+                if (oi->open_type == FS_OPEN_WGET_ARCHIVE) {
+                    fs_error_archive(oi);
+                }
                 fs_open_end(oi);
                 fs_base_url_decref(fs1, n->u.reg.base_url);
             }
@@ -360,7 +414,7 @@ static FSINode *inode_new(FSDevice *fs1, FSINodeTypeEnum type,
     FSDeviceMem *fs = (FSDeviceMem *)fs1;
     FSINode *n;
 
-    n = (FSINode *)mallocz(sizeof(*n));
+    n = mallocz(sizeof(*n));
     n->refcount = 1;
     n->open_count = 0;
     n->inode_num = fs->inode_num_alloc;
@@ -402,7 +456,7 @@ static FSDirEntry *inode_dir_add(FSDevice *fs1, FSINode *n, const char *name,
     assert(n->type == FT_DIR);
 
     name_len = strlen(name);
-    de = (FSDirEntry *)mallocz(sizeof(*de) + name_len + 1);
+    de = mallocz(sizeof(*de) + name_len + 1);
     de->inode = n1;
     memcpy(de->name, name, name_len + 1);
     dirent_size = sizeof(*de) + name_len + 1;
@@ -533,7 +587,7 @@ static FSFile *fid_create(FSDevice *fs1, FSINode *n, uint32_t uid)
 {
     FSFile *f;
 
-    f = (FSFile *)mallocz(sizeof(*f));
+    f = mallocz(sizeof(*f));
     f->inode = inode_inc_open(fs1, n);
     f->uid = uid;
     return f;
@@ -619,10 +673,6 @@ static void fs_trim_cache(FSDevice *fs1, int64_t added_size)
     struct list_head *el, *el1;
     FSINode *n;
 
-#if defined(DEBUG_CACHE) && 0
-    printf("fs_trim_cache: size=%" PRId64 "/%" PRId64 " added=%" PRId64 "\n",
-           fs->inode_cache_size, fs->inode_cache_size_limit, added_size);
-#endif
     if ((fs->inode_cache_size + added_size) <= fs->inode_cache_size_limit)
         return;
     list_for_each_prev_safe(el, el1, &fs->inode_cache_list) {
@@ -648,6 +698,9 @@ static void fs_trim_cache(FSDevice *fs1, int64_t added_size)
 
 static void fs_open_end(FSOpenInfo *oi)
 {
+    if (oi->open_type == FS_OPEN_WGET_ARCHIVE_FILE) {
+        list_del(&oi->archive_link);
+    }
     if (oi->dec_state)
         decrypt_file_end(oi->dec_state);
     free(oi);
@@ -655,7 +708,7 @@ static void fs_open_end(FSOpenInfo *oi)
 
 static int fs_open_write_cb(void *opaque, const uint8_t *data, size_t size)
 {
-    FSOpenInfo *oi = (FSOpenInfo *)opaque;
+    FSOpenInfo *oi = opaque;
     size_t len;
     FSINode *n = oi->n;
     
@@ -668,83 +721,262 @@ static int fs_open_write_cb(void *opaque, const uint8_t *data, size_t size)
     return 0;
 }
 
+static void fs_wget_set_loaded(FSINode *n)
+{
+    FSOpenInfo *oi;
+    FSDeviceMem *fs;
+    FSFile *f;
+    FSQID qid;
+
+    assert(n->u.reg.state == REG_STATE_LOADING);
+    oi = n->u.reg.open_info;
+    fs = (FSDeviceMem *)oi->fs;
+    n->u.reg.state = REG_STATE_LOADED;
+    list_add(&n->u.reg.link, &fs->inode_cache_list);
+    fs->inode_cache_size += n->u.reg.size;
+    
+    if (oi->cb) {
+        f = oi->f;
+        f->is_opened = TRUE;
+        inode_to_qid(&qid, n);
+        oi->cb(oi->fs, &qid, 0, oi->opaque);
+    }
+    fs_open_end(oi);
+}
+
+static void fs_wget_set_error(FSINode *n)
+{
+    FSOpenInfo *oi;
+    assert(n->u.reg.state == REG_STATE_LOADING);
+    oi = n->u.reg.open_info;
+    n->u.reg.state = REG_STATE_UNLOADED;
+    file_buffer_reset(&n->u.reg.fbuf);
+    if (oi->cb) {
+        oi->cb(oi->fs, NULL, -P9_EIO, oi->opaque);
+    }
+    fs_open_end(oi);
+}
+
+static void fs_read_archive(FSOpenInfo *oi)
+{
+    FSINode *n = oi->n;
+    uint64_t pos, pos1, l;
+    uint8_t buf[1024];
+    FSINode *n1;
+    FSOpenInfo *oi1;
+    struct list_head *el, *el1;
+    
+    list_for_each_safe(el, el1, &oi->archive_file_list) {
+        oi1 = list_entry(el, FSOpenInfo, archive_link);
+        n1 = oi1->n;
+        /* copy the archive data to the file */
+        pos = oi1->archive_offset;
+        pos1 = 0;
+        while (pos1 < n1->u.reg.size) {
+            l = n1->u.reg.size - pos1;
+            if (l > sizeof(buf))
+                l = sizeof(buf);
+            file_buffer_read(&n->u.reg.fbuf, pos, buf, l);
+            file_buffer_write(&n1->u.reg.fbuf, pos1, buf, l);
+            pos += l;
+            pos1 += l;
+        }
+        fs_wget_set_loaded(n1);
+    }
+}
+
+static void fs_error_archive(FSOpenInfo *oi)
+{
+    FSOpenInfo *oi1;
+    struct list_head *el, *el1;
+    
+    list_for_each_safe(el, el1, &oi->archive_file_list) {
+        oi1 = list_entry(el, FSOpenInfo, archive_link);
+        fs_wget_set_error(oi1->n);
+    }
+}
+
 static void fs_open_cb(void *opaque, int err, void *data, size_t size)
 {
-    FSOpenInfo *oi = (FSOpenInfo *)opaque;
+    FSOpenInfo *oi = opaque;
     FSINode *n = oi->n;
-    FSDeviceMem *fs;
-    FSQID qid;
-    FSFile *f;
     
     //    printf("open_cb: err=%d size=%ld\n", err, size);
     if (err < 0) {
     error:
-        n->u.reg.state = REG_STATE_UNLOADED;
-        file_buffer_reset(&n->u.reg.fbuf);
-        if (oi->cb) {
-            oi->cb(oi->fs, NULL, -P9_EIO, oi->opaque);
-        }
-        fs_open_end(oi);
+        if (oi->open_type == FS_OPEN_WGET_ARCHIVE)
+            fs_error_archive(oi);
+        fs_wget_set_error(n);
     } else {
         if (oi->dec_state) {
-            if (decrypt_file(oi->dec_state, (const uint8_t *)data, size) < 0)
+            if (decrypt_file(oi->dec_state, data, size) < 0)
                 goto error;
             if (err == 0) {
                 if (decrypt_file_flush(oi->dec_state) < 0)
                     goto error;
             }
         } else {
-            fs_open_write_cb(oi, (const uint8_t *)data, size);
+            fs_open_write_cb(oi, data, size);
         }
 
         if (err == 0) {
             /* end of transfer */
             if (oi->cur_pos != n->u.reg.size)
                 goto error;
-            fs = (FSDeviceMem *)oi->fs;
-            n->u.reg.state = REG_STATE_LOADED;
-            list_add(&n->u.reg.link, &fs->inode_cache_list);
-            fs->inode_cache_size += n->u.reg.size;
-
-            if (oi->cb) {
-                f = oi->f;
-                f->is_opened = TRUE;
-                inode_to_qid(&qid, n);
-                oi->cb(oi->fs, &qid, 0, oi->opaque);
-            }
-            fs_open_end(oi);
+#ifdef DUMP_CACHE_LOAD
+            dump_loaded_file(oi->fs, n);
+#endif
+            if (oi->open_type == FS_OPEN_WGET_ARCHIVE)
+                fs_read_archive(oi);
+            fs_wget_set_loaded(n);
         }
     }
 }
 
-static int fs_open_wget(FSDevice *fs1, FSINode *n)
+
+static int fs_open_wget(FSDevice *fs1, FSINode *n, FSOpenWgetEnum open_type)
 {
     char *url;
     FSOpenInfo *oi;
     char fname[FILEID_SIZE_MAX];
     FSBaseURL *bu;
+
+    assert(n->u.reg.state == REG_STATE_UNLOADED);
     
     fs_trim_cache(fs1, n->u.reg.size);
     
     if (file_buffer_resize(&n->u.reg.fbuf, n->u.reg.size) < 0)
         return -P9_EIO;
     n->u.reg.state = REG_STATE_LOADING;
-    file_id_to_filename(fname, n->u.reg.file_id);
-    bu = n->u.reg.base_url;
-    url = compose_path(bu->url, fname);
-#ifdef DEBUG_CACHE
-    printf("load file: %s\n", n->u.reg.filename);
-#endif
-    oi = (FSOpenInfo *)mallocz(sizeof(*oi));
+    oi = mallocz(sizeof(*oi));
     oi->cur_pos = 0;
     oi->fs = fs1;
     oi->n = n;
-    if (bu->encrypted) {
-        oi->dec_state = decrypt_file_init(&bu->aes_state, fs_open_write_cb, oi);
+    oi->open_type = open_type;
+    if (open_type != FS_OPEN_WGET_ARCHIVE_FILE) {
+        if (open_type == FS_OPEN_WGET_ARCHIVE)
+            init_list_head(&oi->archive_file_list);
+        file_id_to_filename(fname, n->u.reg.file_id);
+        bu = n->u.reg.base_url;
+        url = compose_path(bu->url, fname);
+        if (bu->encrypted) {
+            oi->dec_state = decrypt_file_init(&bu->aes_state, fs_open_write_cb, oi);
+        }
+        oi->xhr = fs_wget(url, bu->user, bu->password, oi, fs_open_cb, FALSE);
     }
-    oi->xhr = fs_wget(url, bu->user, bu->password, oi, fs_open_cb, FALSE);
     n->u.reg.open_info = oi;
     return 0;
+}
+
+
+static void fs_preload_file(FSDevice *fs1, const char *filename)
+{
+    FSINode *n;
+
+    n = inode_search_path(fs1, filename);
+    if (n && n->type == FT_REG && n->u.reg.state == REG_STATE_UNLOADED) {
+#if defined(DEBUG_CACHE)
+        printf("preload: %s\n", filename);
+#endif
+        fs_open_wget(fs1, n, FS_OPEN_WGET_REG);
+    }
+}
+
+static PreloadArchive *find_preload_archive(FSDeviceMem *fs,
+                                            const char *filename)
+{
+    PreloadArchive *pa;
+    struct list_head *el;
+    list_for_each(el, &fs->preload_archive_list) {
+        pa = list_entry(el, PreloadArchive, link);
+        if (!strcmp(pa->name, filename))
+            return pa;
+    }
+    return NULL;
+}
+
+static void fs_preload_archive(FSDevice *fs1, const char *filename)
+{
+    FSDeviceMem *fs = (FSDeviceMem *)fs1;
+    PreloadArchive *pa;
+    PreloadArchiveFile *paf;
+    struct list_head *el;
+    FSINode *n, *n1;
+    uint64_t offset;
+    BOOL has_unloaded;
+    
+    pa = find_preload_archive(fs, filename);
+    if (!pa)
+        return;
+#if defined(DEBUG_CACHE)
+    printf("preload archive: %s\n", filename);
+#endif
+    n = inode_search_path(fs1, filename);
+    if (n && n->type == FT_REG && n->u.reg.state == REG_STATE_UNLOADED) {
+        /* if all the files are loaded, no need to load the archive */
+        offset = 0;
+        has_unloaded = FALSE;
+        list_for_each(el, &pa->file_list) {
+            paf = list_entry(el, PreloadArchiveFile, link);
+            n1 = inode_search_path(fs1, paf->name);
+            if (n1 && n1->type == FT_REG &&
+                n1->u.reg.state == REG_STATE_UNLOADED) {
+                has_unloaded = TRUE;
+            }
+            offset += paf->size;
+        }
+        if (!has_unloaded) {
+#if defined(DEBUG_CACHE)
+            printf("archive files already loaded\n");
+#endif
+            return;
+        }
+        /* check archive size consistency */
+        if (offset != n->u.reg.size) {
+#if defined(DEBUG_CACHE)
+            printf("  inconsistent archive size: %" PRId64 " %" PRId64 "\n",
+                   offset, n->u.reg.size);
+#endif
+            goto load_fallback;
+        }
+
+        /* start loading the archive */
+        fs_open_wget(fs1, n, FS_OPEN_WGET_ARCHIVE);
+        
+        /* indicate that all the archive files are being loaded. Also
+           check consistency of size and file id */
+        offset = 0;
+        list_for_each(el, &pa->file_list) {
+            paf = list_entry(el, PreloadArchiveFile, link);
+            n1 = inode_search_path(fs1, paf->name);
+            if (n1 && n1->type == FT_REG &&
+                n1->u.reg.state == REG_STATE_UNLOADED) {
+                if (n1->u.reg.size == paf->size &&
+                    n1->u.reg.file_id == paf->file_id) {
+                    fs_open_wget(fs1, n1, FS_OPEN_WGET_ARCHIVE_FILE);
+                    list_add_tail(&n1->u.reg.open_info->archive_link,
+                                  &n->u.reg.open_info->archive_file_list);
+                    n1->u.reg.open_info->archive_offset = offset;
+                } else {
+#if defined(DEBUG_CACHE)
+                    printf(" inconsistent archive file: %s\n", paf->name);
+#endif
+                    /* fallback to file preload */
+                    fs_preload_file(fs1, paf->name);
+                }
+            }
+            offset += paf->size;
+        }
+    } else {
+    load_fallback:
+        /* if the archive is already loaded or not loaded, we load the
+           files separately (XXX: not optimal if the archive is
+           already loaded, but it should not happen often) */
+        list_for_each(el, &pa->file_list) {
+            paf = list_entry(el, PreloadArchiveFile, link);
+            fs_preload_file(fs1, paf->name);
+        }
+    }
 }
 
 static void fs_preload_files(FSDevice *fs1, FSFileID file_id)
@@ -753,7 +985,6 @@ static void fs_preload_files(FSDevice *fs1, FSFileID file_id)
     struct list_head *el;
     PreloadEntry *pe;
     PreloadFile *pf;
-    FSINode *n;
     
     list_for_each(el, &fs->preload_list) {
         pe = list_entry(el, PreloadEntry, link);
@@ -764,13 +995,10 @@ static void fs_preload_files(FSDevice *fs1, FSFileID file_id)
  found:
     list_for_each(el, &pe->file_list) {
         pf = list_entry(el, PreloadFile, link);
-        n = inode_search_path(fs1, pf->name);
-        if (n && n->type == FT_REG && n->u.reg.state == REG_STATE_UNLOADED) {
-#if defined(DEBUG_CACHE)
-            printf("preload: %s\n", pf->name);
-#endif
-            fs_open_wget(fs1, n);
-        }
+        if (pf->is_archive)
+            fs_preload_archive(fs1, pf->name);
+        else
+            fs_preload_file(fs1, pf->name);
     }
 }
 
@@ -804,10 +1032,11 @@ static int fs_open(FSDevice *fs1, FSQID *qid, FSFile *f, uint32_t flags,
             {
                 FSOpenInfo *oi;
                 /* need to load the file */
-                
                 fs_preload_files(fs1, n->u.reg.file_id);
-
-                ret = fs_open_wget(fs1, n);
+                /* The state can be modified by the fs_preload_files */
+                if (n->u.reg.state == REG_STATE_LOADING)
+                    goto handle_loading;
+                ret = fs_open_wget(fs1, n, FS_OPEN_WGET_REG);
                 if (ret)
                     return ret;
                 oi = n->u.reg.open_info;
@@ -818,6 +1047,7 @@ static int fs_open(FSDevice *fs1, FSQID *qid, FSFile *f, uint32_t flags,
             }
             break;
         case REG_STATE_LOADING:
+        handle_loading:
             {
                 FSOpenInfo *oi;
                 /* we only handle the case where the file is being preloaded */
@@ -1297,7 +1527,7 @@ FSDevice *fs_mem_init(void)
     FSDevice *fs1;
     FSINode *n;
 
-    fs = (FSDeviceMem *)mallocz(sizeof(*fs));
+    fs = mallocz(sizeof(*fs));
     fs1 = &fs->common;
 
     fs->common.fs_end = fs_mem_end;
@@ -1334,6 +1564,7 @@ FSDevice *fs_mem_init(void)
     fs->inode_cache_size_limit = DEFAULT_INODE_CACHE_SIZE;
 
     init_list_head(&fs->preload_list);
+    init_list_head(&fs->preload_archive_list);
 
     init_list_head(&fs->base_url_list);
 
@@ -1391,7 +1622,7 @@ static FSBaseURL *fs_net_set_base_url(FSDevice *fs1,
     assert(fs_is_net(fs1));
     bu = fs_find_base_url(fs1, base_url_id);
     if (!bu) {
-        bu = (FSBaseURL *)mallocz(sizeof(*bu));
+        bu = mallocz(sizeof(*bu));
         bu->base_url_id = strdup(base_url_id);
         bu->ref_count = 1;
         list_add_tail(&bu->link, &fs->base_url_list);
@@ -1468,6 +1699,199 @@ static int fs_net_set_url(FSDevice *fs1, FSINode *n,
     }
     return 0;
 }
+
+#ifdef DUMP_CACHE_LOAD
+
+#include "json.h"
+
+#define ARCHIVE_SIZE_MAX (4 << 20)
+
+static void fs_dump_add_file(struct list_head *head, const char *name)
+{
+    PreloadFile *pf;
+    pf = mallocz(sizeof(*pf));
+    pf->name = strdup(name);
+    list_add_tail(&pf->link, head);
+}
+
+static PreloadFile *fs_dump_find_file(struct list_head *head, const char *name)
+{
+    PreloadFile *pf;
+    struct list_head *el;
+    list_for_each(el, head) {
+        pf = list_entry(el, PreloadFile, link);
+        if (!strcmp(pf->name, name))
+            return pf;
+    }
+    return NULL;
+}
+
+static void dump_close_archive(FSDevice *fs1)
+{
+    FSDeviceMem *fs = (FSDeviceMem *)fs1;
+    if (fs->dump_archive_file) {
+        fclose(fs->dump_archive_file);
+    }
+    fs->dump_archive_file = NULL;
+    fs->dump_archive_size = 0;
+}
+
+static void dump_loaded_file(FSDevice *fs1, FSINode *n)
+{
+    FSDeviceMem *fs = (FSDeviceMem *)fs1;
+    char filename[1024];
+    const char *fname, *p;
+    
+    if (!fs->dump_cache_load || !n->u.reg.filename)
+        return;
+    fname = n->u.reg.filename;
+    
+    if (fs_dump_find_file(&fs->dump_preload_list, fname)) {
+        dump_close_archive(fs1);
+        p = strrchr(fname, '/');
+        if (!p)
+            p = fname;
+        else
+            p++;
+        free(fs->dump_archive_name);
+        fs->dump_archive_name = strdup(p);
+        fs->dump_started = TRUE;
+        fs->dump_archive_num = 0;
+
+        fprintf(fs->dump_preload_file, "\n%s :\n", fname);
+    }
+    if (!fs->dump_started)
+        return;
+    
+    if (!fs->dump_archive_file) {
+        snprintf(filename, sizeof(filename), "%s/%s%d",
+                 fs->dump_preload_dir, fs->dump_archive_name,
+                 fs->dump_archive_num);
+        fs->dump_archive_file = fopen(filename, "wb");
+        if (!fs->dump_archive_file) {
+            perror(filename);
+            exit(1);
+        }
+        fprintf(fs->dump_preload_archive_file, "\n@.preload2/%s%d :\n",
+                fs->dump_archive_name, fs->dump_archive_num);
+        fprintf(fs->dump_preload_file, "  @.preload2/%s%d\n",
+                fs->dump_archive_name, fs->dump_archive_num);
+        fflush(fs->dump_preload_file);
+        fs->dump_archive_num++;
+    }
+
+    if (n->u.reg.size >= ARCHIVE_SIZE_MAX) {
+        /* exclude large files from archive */
+        /* add indicative size */
+        fprintf(fs->dump_preload_file, "  %s %" PRId64 "\n",
+                fname, n->u.reg.size);
+        fflush(fs->dump_preload_file);
+    } else {
+        fprintf(fs->dump_preload_archive_file, "  %s %" PRId64 " %" PRIx64 "\n",
+                n->u.reg.filename, n->u.reg.size, n->u.reg.file_id);
+        fflush(fs->dump_preload_archive_file);
+        fwrite(n->u.reg.fbuf.data, 1, n->u.reg.size, fs->dump_archive_file);
+        fflush(fs->dump_archive_file);
+        fs->dump_archive_size += n->u.reg.size;
+        if (fs->dump_archive_size >= ARCHIVE_SIZE_MAX) {
+            dump_close_archive(fs1);
+        }
+    }
+}
+
+static JSONValue json_load(const char *filename)
+{
+    FILE *f;
+    JSONValue val;
+    size_t size;
+    char *buf;
+    
+    f = fopen(filename, "rb");
+    if (!f) {
+        perror(filename);
+        exit(1);
+    }
+    fseek(f, 0, SEEK_END);
+    size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    buf = malloc(size + 1);
+    fread(buf, 1, size, f);
+    fclose(f);
+    val = json_parse_value_len(buf, size);
+    free(buf);
+    return val;
+}
+
+void fs_dump_cache_load(FSDevice *fs1, const char *cfg_filename)
+{
+    FSDeviceMem *fs = (FSDeviceMem *)fs1;
+    JSONValue cfg, val, array;
+    char *fname;
+    const char *preload_dir, *name;
+    int i;
+    
+    if (!fs_is_net(fs1))
+        return;
+    cfg = json_load(cfg_filename);
+    if (json_is_error(cfg)) {
+        fprintf(stderr, "%s\n", json_get_error(cfg));
+        exit(1);
+    }
+
+    val = json_object_get(cfg, "preload_dir");
+    if (json_is_undefined(cfg)) {
+    config_error:
+        exit(1);
+    }
+    preload_dir = json_get_str(val);
+    if (!preload_dir) {
+        fprintf(stderr, "expecting preload_filename\n");
+        goto config_error;
+    }
+    fs->dump_preload_dir = strdup(preload_dir);
+    
+    init_list_head(&fs->dump_preload_list);
+    init_list_head(&fs->dump_exclude_list);
+
+    array = json_object_get(cfg, "preload");
+    if (array.type != JSON_ARRAY) {
+        fprintf(stderr, "expecting preload array\n");
+        goto config_error;
+    }
+    for(i = 0; i < array.u.array->len; i++) {
+        val = json_array_get(array, i);
+        name = json_get_str(val);
+        if (!name) {
+            fprintf(stderr, "expecting a string\n");
+            goto config_error;
+        }
+        fs_dump_add_file(&fs->dump_preload_list, name);
+    }
+    json_free(cfg);
+
+    fname = compose_path(fs->dump_preload_dir, "preload.txt");
+    fs->dump_preload_file = fopen(fname, "w");
+    if (!fs->dump_preload_file) {
+        perror(fname);
+        exit(1);
+    }
+    free(fname);
+
+    fname = compose_path(fs->dump_preload_dir, "preload_archive.txt");
+    fs->dump_preload_archive_file = fopen(fname, "w");
+    if (!fs->dump_preload_archive_file) {
+        perror(fname);
+        exit(1);
+    }
+    free(fname);
+
+    fs->dump_cache_load = TRUE;
+}
+#else
+void fs_dump_cache_load(FSDevice *fs1, const char *cfg_filename)
+{
+}
+#endif
 
 /***********************************************/
 /* file list processing */
@@ -1570,8 +1994,19 @@ static int filelist_load_rec(FSDevice *fs1, const char **pp, FSINode *dir,
                 return -1;
             }
             fs_net_set_url(fs1, n, "/", file_id, size);
+#ifdef DUMP_CACHE_LOAD
+            {
+                FSDeviceMem *fs = (FSDeviceMem *)fs1;
+                if (fs->dump_cache_load
 #ifdef DEBUG_CACHE
-            n->u.reg.filename = compose_path(path, fname);
+                    || 1
+#endif
+                    ) {
+                    n->u.reg.filename = compose_path(path, fname);
+                } else {
+                    n->u.reg.filename = NULL;
+                }
+            }
 #endif
         }
 
@@ -1652,7 +2087,7 @@ static void head_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque);
 static void filelist_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque);
 static void kernel_load_cb(FSDevice *fs, FSQID *qid, int err,
                            void *opaque);
-static void preload_parse(FSDevice *fs);
+static int preload_parse(FSDevice *fs, const char *fname, BOOL is_new);
 
 #ifdef EMSCRIPTEN
 static FSDevice *fs_import_fs;
@@ -1695,7 +2130,7 @@ static void fs_initial_sync(FSDevice *fs,
     char buf[128];
     struct timeval tv;
     
-    s = (FSNetInitState *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     s->fs = fs;
     s->url = strdup(url);
     s->start_cb = start_cb;
@@ -1717,7 +2152,7 @@ static void fs_initial_sync(FSDevice *fs,
 
 static void head_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
 {
-    FSNetInitState *s = (FSNetInitState *)opaque;
+    FSNetInitState *s = opaque;
     char *buf, *root_url, *url;
     char fname[FILEID_SIZE_MAX];
     FSFileID root_id;
@@ -1728,7 +2163,7 @@ static void head_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
     if (size < 0)
         fatal_error("could not load 'head' file (HTTP error=%d)", -(int)size);
     
-    buf = (char *)malloc(size + 1);
+    buf = malloc(size + 1);
     fs->fs_read(fs, f, 0, (uint8_t *)buf, size);
     buf[size] = '\0';
     fs->fs_delete(fs, f);
@@ -1744,7 +2179,7 @@ static void head_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
         fs_max_size >= ((uint64_t)1 << 20)) {
         fs_net_set_fs_max_size(fs, fs_max_size);
     }
-
+                       
     /* set the Root URL in the filesystem */
     root_url = compose_url(s->url, ROOT_FILENAME);
     fs_net_set_base_url(fs, "/", root_url, NULL, NULL, NULL);
@@ -1763,13 +2198,13 @@ static void head_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
 
 static void filelist_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
 {
-    FSNetInitState *s = (FSNetInitState *)opaque;
+    FSNetInitState *s = opaque;
     uint8_t *buf;
 
     if (size < 0)
         fatal_error("could not load file list (HTTP error=%d)", -(int)size);
     
-    buf = (uint8_t *)malloc(size + 1);
+    buf = malloc(size + 1);
     fs->fs_read(fs, f, 0, buf, size);
     buf[size] = '\0';
     fs->fs_delete(fs, f);
@@ -1784,17 +2219,24 @@ static void filelist_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
 }
 
 
-#define FILE_LOAD_COUNT 1
+#define FILE_LOAD_COUNT 2
 
 static const char *kernel_file_list[FILE_LOAD_COUNT] = {
     ".preload",
+    ".preload2/preload.txt",
 };
 
 static void kernel_load_cb(FSDevice *fs, FSQID *qid1, int err,
                            void *opaque)
 {
-    FSNetInitState *s = (FSNetInitState *)opaque;
+    FSNetInitState *s = opaque;
     FSQID qid;
+
+#ifdef DUMP_CACHE_LOAD
+    /* disable preloading if dumping cache load */
+    if (((FSDeviceMem *)fs)->dump_cache_load)
+        return;
+#endif
 
     if (s->fd) {
         fs->fs_delete(fs, s->fd);
@@ -1803,7 +2245,9 @@ static void kernel_load_cb(FSDevice *fs, FSQID *qid1, int err,
     
     if (s->file_index >= FILE_LOAD_COUNT) {
         /* all files are loaded */
-        preload_parse(fs);
+        if (preload_parse(fs, ".preload2/preload.txt", TRUE) < 0) { 
+            preload_parse(fs, ".preload", FALSE);
+        }
         fs->fs_delete(fs, s->root_fd);
         if (s->start_cb)
             s->start_cb(s->start_opaque);
@@ -1820,14 +2264,14 @@ static void kernel_load_cb(FSDevice *fs, FSQID *qid1, int err,
     }
 }
 
-static void preload_parse_str(FSDevice *fs1, const char *p)
+static void preload_parse_str_old(FSDevice *fs1, const char *p)
 {
     FSDeviceMem *fs = (FSDeviceMem *)fs1;
     char fname[1024];
     PreloadEntry *pe;
     PreloadFile *pf;
     FSINode *n;
-    
+
     for(;;) {
         while (isspace_nolf(*p))
             p++;
@@ -1847,8 +2291,8 @@ static void preload_parse_str(FSDevice *fs1, const char *p)
             fprintf(stderr, "invalid preload file: '%s'\n", fname);
             while (*p != '\n' && *p != '\0')
                 p++;
-        } else if (USE_PRELOAD) {
-            pe = (PreloadEntry *)mallocz(sizeof(*pe));
+        } else {
+            pe = mallocz(sizeof(*pe));
             pe->file_id = n->u.reg.file_id;
             init_list_head(&pe->file_list);
             list_add_tail(&pe->link, &fs->preload_list);
@@ -1862,7 +2306,7 @@ static void preload_parse_str(FSDevice *fs1, const char *p)
                     return;
                 }
                 //                printf("  adding '%s'\n", fname);
-                pf = (PreloadFile *)mallocz(sizeof(*pf));
+                pf = mallocz(sizeof(*pf));
                 pf->name = strdup(fname);
                 list_add_tail(&pf->link, &pe->file_list); 
             }
@@ -1870,23 +2314,126 @@ static void preload_parse_str(FSDevice *fs1, const char *p)
     }
 }
 
-static void preload_parse(FSDevice *fs)
+static void preload_parse_str(FSDevice *fs1, const char *p)
+{
+    FSDeviceMem *fs = (FSDeviceMem *)fs1;
+    PreloadEntry *pe;
+    PreloadArchive *pa;
+    FSINode *n;
+    BOOL is_archive;
+    char fname[1024];
+    
+    pe = NULL;
+    pa = NULL;
+    for(;;) {
+        while (isspace_nolf(*p))
+            p++;
+        if (*p == '\n') {
+            pe = NULL;
+            p++;
+            continue;
+        }
+        if (*p == '#')
+            continue; /* comment */
+        if (*p == '\0')
+            break;
+
+        is_archive = FALSE;
+        if (*p == '@') {
+            is_archive = TRUE;
+            p++;
+        }
+        if (parse_fname(fname, sizeof(fname), &p) < 0) {
+            fprintf(stderr, "invalid filename\n");
+            return;
+        }
+        while (isspace_nolf(*p))
+            p++;
+        if (*p == ':') {
+            p++;
+            //            printf("preload file='%s' archive=%d\n", fname, is_archive);
+            n = inode_search_path(fs1, fname);
+            pe = NULL;
+            pa = NULL;
+            if (!n || n->type != FT_REG || n->u.reg.state == REG_STATE_LOCAL) {
+                fprintf(stderr, "invalid preload file: '%s'\n", fname);
+                while (*p != '\n' && *p != '\0')
+                    p++;
+            } else if (is_archive) {
+                pa = mallocz(sizeof(*pa));
+                pa->name = strdup(fname);
+                init_list_head(&pa->file_list);
+                list_add_tail(&pa->link, &fs->preload_archive_list);
+            } else {
+                pe = mallocz(sizeof(*pe));
+                pe->file_id = n->u.reg.file_id;
+                init_list_head(&pe->file_list);
+                list_add_tail(&pe->link, &fs->preload_list);
+            }
+        } else {
+            if (!pe && !pa) {
+                fprintf(stderr, "filename without target: %s\n", fname);
+                return;
+            }
+            if (pa) {
+                PreloadArchiveFile *paf;
+                FSFileID file_id;
+                uint64_t size;
+
+                if (parse_uint64(&size, &p) < 0) {
+                    fprintf(stderr, "invalid size\n");
+                    return;
+                }
+
+                if (parse_file_id(&file_id, &p) < 0) {
+                    fprintf(stderr, "invalid file id\n");
+                    return;
+                }
+
+                paf = mallocz(sizeof(*paf));
+                paf->name = strdup(fname);
+                paf->file_id = file_id;
+                paf->size = size;
+                list_add_tail(&paf->link, &pa->file_list);
+            } else {
+                PreloadFile *pf;
+                pf = mallocz(sizeof(*pf));
+                pf->name = strdup(fname);
+                pf->is_archive = is_archive;
+                list_add_tail(&pf->link, &pe->file_list);
+            }
+        }
+        /* skip the rest of the line */
+        while (*p != '\n' && *p != '\0')
+            p++;
+        if (*p == '\n')
+            p++;
+    }
+}
+
+static int preload_parse(FSDevice *fs, const char *fname, BOOL is_new)
 {
     FSINode *n;
     char *buf;
     size_t size;
     
-    n = inode_search_path(fs, ".preload");
+    n = inode_search_path(fs, fname);
     if (!n || n->type != FT_REG || n->u.reg.state != REG_STATE_LOADED)
-        return;
+        return -1;
     /* transform to zero terminated string */
     size = n->u.reg.size;
-    buf = (char *)malloc(size + 1);
+    buf = malloc(size + 1);
     file_buffer_read(&n->u.reg.fbuf, 0, (uint8_t *)buf, size);
     buf[size] = '\0';
-    preload_parse_str(fs, buf);
+    if (is_new)
+        preload_parse_str(fs, buf);
+    else
+        preload_parse_str_old(fs, buf);
     free(buf);
+    return 0;
 }
+
+
 
 /************************************************************/
 /* FS user interface */
@@ -2004,7 +2551,7 @@ static int fs_cmd_xhr(FSDevice *fs, FSFile *f,
         post_data_len = 0;
     }
 
-    s = (CmdXHRState *)mallocz(sizeof(*s));
+    s = mallocz(sizeof(*s));
     s->root_fd = root_fd;
     s->fd = fd;
     s->post_fd = post_fd;
@@ -2015,7 +2562,7 @@ static int fs_cmd_xhr(FSDevice *fs, FSFile *f,
         paes_state = NULL;
     }
 
-    req = (FSCMDRequest *)mallocz(sizeof(*req));
+    req = mallocz(sizeof(*req));
     req->type = FS_CMD_XHR;
     req->reply_len = 0;
     req->xhr_state = s;
@@ -2039,7 +2586,7 @@ static int fs_cmd_xhr(FSDevice *fs, FSFile *f,
 static void fs_cmd_xhr_on_load(FSDevice *fs, FSFile *f, int64_t size,
                                void *opaque)
 {
-    CmdXHRState *s = (CmdXHRState *)opaque;
+    CmdXHRState *s = opaque;
     FSCMDRequest *req;
     int ret;
     
@@ -2172,7 +2719,7 @@ static int fs_cmd_export_file(FSDevice *fs, const char *p)
     else
         name = filename;
     /* XXX: pass the buffer to JS to avoid the allocation */
-    buf = (uint8_t *)malloc(n->u.reg.size);
+    buf = malloc(n->u.reg.size);
     file_buffer_read(&n->u.reg.fbuf, 0, buf, n->u.reg.size);
     fs_export_file(name, buf, n->u.reg.size);
     free(buf);
@@ -2207,7 +2754,7 @@ static int fs_cmd_pbkdf2(FSDevice *fs, FSFile *f, const char *p)
     if (key_len > FS_CMD_REPLY_LEN_MAX ||
         key_len == 0)
         goto fail;
-    req = (FSCMDRequest *)mallocz(sizeof(*req));
+    req = mallocz(sizeof(*req));
     req->type = FS_CMD_PBKDF2;
     req->reply_len = key_len;
     pbkdf2_hmac_sha256(pwd, pwd_len, salt, salt_len, iter, key_len,
@@ -2239,7 +2786,7 @@ static int fs_cmd_write(FSDevice *fs, FSFile *f, uint64_t offset,
     int err;
     
     /* transform into a string */
-    buf1 = (char *)malloc(buf_len + 1);
+    buf1 = malloc(buf_len + 1);
     memcpy(buf1, buf, buf_len);
     buf1[buf_len] = '\0';
     

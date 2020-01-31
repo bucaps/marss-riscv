@@ -68,7 +68,7 @@ FSFile *fs_walk_path1(FSDevice *fs, FSFile *f, const char *path,
             is_last = TRUE;
         } else {
             len = p - path;
-            name = (char *)malloc(len + 1);
+            name = malloc(len + 1);
             memcpy(name, path, len);
             name[len] = '\0';
             is_last = FALSE;
