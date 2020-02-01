@@ -165,6 +165,7 @@ typedef struct RISCVCPUState {
     uint8_t fs; /* MSTATUS_FS value */
     uint8_t mxl; /* MXL field in MISA register */
     
+    int32_t n_cycles; /* only used inside the CPU loop */
     uint64_t insn_counter;
     BOOL power_down_flag;
     int pending_exception; /* used during MMU exception handling */
@@ -205,6 +206,8 @@ typedef struct RISCVCPUState {
     TLBEntry *tlb_write;
     TLBEntry *tlb_code;
 
+    int32_t sim_n_cycles; /* only used inside the CPU simulator loop */
+
     struct timespec sim_start, sim_end; /* to measure simulation time */
 
     /* used to fetch instructions from TinyEMU memory map */
@@ -227,7 +230,6 @@ typedef struct RISCVCPUState {
     /* simulated RISC-V core*/
     RISCVSIMCPUState *simcpu;
 
-    int n_cycles;
 
     FILE* sim_trace;
 

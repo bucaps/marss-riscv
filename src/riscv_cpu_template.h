@@ -194,7 +194,7 @@ static inline uintx_t glue(mulhsu, XLEN)(intx_t a, uintx_t b)
     case n+(28 << 2): case n+(29 << 2): case n+(30 << 2): case n+(31 << 2): 
 
 #define GET_PC() (target_ulong)((uintptr_t)code_ptr + code_to_pc_addend)
-#define GET_INSN_COUNTER() (insn_counter_addend - n_cycles)
+#define GET_INSN_COUNTER() (insn_counter_addend - s->n_cycles)
 
 #define C_NEXT_INSN code_ptr += 2; break
 #define NEXT_INSN code_ptr += 4; break
@@ -206,7 +206,7 @@ static inline uintx_t glue(mulhsu, XLEN)(intx_t a, uintx_t b)
     } while (0)
 
 static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
-                                                   int n_cycles)
+                                                   int n_cycles1)
 {
     uint32_t opcode, insn, rd, rs1, rs2, funct3;
     int32_t imm, cond, err;
@@ -223,18 +223,20 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
     int32_t rm;
 #endif
 
-    if (n_cycles == 0)
+    if (n_cycles1 == 0)
         return;
-    insn_counter_addend = s->insn_counter + n_cycles;
+    insn_counter_addend = s->insn_counter + n_cycles1;
+    s->n_cycles = n_cycles1;
 
     /* check pending interrupts */
     if (unlikely((s->mip & s->mie) != 0)) {
-        if (raise_interrupt(s))
+        if (raise_interrupt(s)) {
+            s->n_cycles--; 
             goto done_interp;
+        }
     }
 
     s->pending_exception = -1;
-    n_cycles++;
     /* Note: we assume NULL is represented as a zero number */
     code_ptr = NULL;
     code_end = NULL;
@@ -312,13 +314,13 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         s->code_ptr = code_ptr;
         s->code_end = code_end;
         s->code_to_pc_addend = code_to_pc_addend;
-        s->n_cycles = n_cycles;
+        s->sim_n_cycles = s->n_cycles;
 
         /* Switch to simulation */
         sim_exit_status = switch_to_cpu_simulation(s);
 
         /* Exit from simulation due to an exception */
-        n_cycles = s->n_cycles;
+        s->n_cycles = s->sim_n_cycles;
         code_ptr = NULL;
         code_end = NULL;
 
@@ -375,7 +377,6 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
     /* we use a single execution loop to keep a simple control flow
        for emscripten */
     for(;;) {
-        --n_cycles;
         if (unlikely(code_ptr >= code_end)) {
             uint32_t tlb_idx;
             uint16_t insn_high;
@@ -386,12 +387,13 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
             /* we test n_cycles only between blocks so that timer
                interrupts only happen between the blocks. It is
                important to reduce the translated code size. */
-            if (unlikely(n_cycles <= 0))
+            if (unlikely(s->n_cycles <= 0))
                 goto the_end;
 
             /* check pending interrupts */
             if (unlikely((s->mip & s->mie) != 0)) {
                 if (raise_interrupt(s)) {
+                    s->n_cycles--; 
                     goto the_end;
                 }
             }
@@ -426,6 +428,7 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
             /* fast path */
             insn = get_insn32(code_ptr);
         }
+        s->n_cycles--;
 #if 0
         if (1) {
 #ifdef CONFIG_LOGFILE
@@ -1881,11 +1884,12 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
  exception:
     s->pc = GET_PC();
     if (s->pending_exception >= 0) {
+        /* Note: the idea is that one exception counts for one cycle. */
+        s->n_cycles--; 
         raise_exception2(s, s->pending_exception, s->pending_tval);
     }
     /* we exit because XLEN may have changed */
  done_interp:
-    n_cycles--;
 the_end:
     s->insn_counter = GET_INSN_COUNTER();
 #if 0

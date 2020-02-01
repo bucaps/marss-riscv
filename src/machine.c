@@ -252,15 +252,15 @@ static BOOL find_name(const char *name, const char *name_list)
 static const VirtMachineClass *virt_machine_list[] = {
 #if defined(EMSCRIPTEN)
     /* only a single machine in the EMSCRIPTEN target */
-#ifdef CONFIG_RISCV_MACHINE
+#ifndef CONFIG_X86EMU
     &riscv_machine_class,
-#else
-    &pc_machine_class,
 #endif    
 #else
     &riscv_machine_class,
-   // &pc_machine_class,
 #endif /* !EMSCRIPTEN */
+#ifdef CONFIG_X86EMU
+    &pc_machine_class,
+#endif
     NULL,
 };
 
@@ -317,7 +317,7 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     tag_name = "memory_size";
     if (vm_get_int(cfg, tag_name, &val) < 0)
         goto tag_fail;
-    p->ram_size = ((uint64_t) val) << 20;
+    p->ram_size = (uint64_t)val << 20;
     
     tag_name = "bios";
     if (vm_get_str_opt(cfg, tag_name, &str) < 0)

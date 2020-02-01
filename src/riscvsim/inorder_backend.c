@@ -521,7 +521,7 @@ in_core_commit(INCore *core)
         cpu_stage_flush(&core->commit);
 
         /* Check for timeout */
-        if ((--s->n_cycles) == 1)
+        if ((--s->sim_n_cycles) == 1)
         {
             set_timer_exception_state(s, e);
             return -1;
