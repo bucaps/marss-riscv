@@ -93,11 +93,13 @@ case (0x05 << 2) | OPID:
     switch (rm)
     {
         case 0: /* fmin */
-            i->buffer = simglue(min_sf, F_SIZE)(i->rs1_val, i->rs2_val, fflags)
+            i->buffer = simglue(min_sf, F_SIZE)(i->rs1_val, i->rs2_val, fflags,
+                                                FMINMAX_IEEE754_201X)
                         | F_HIGH;
             break;
         case 1: /* fmax */
-            i->buffer = simglue(max_sf, F_SIZE)(i->rs1_val, i->rs2_val, fflags)
+            i->buffer = simglue(max_sf, F_SIZE)(i->rs1_val, i->rs2_val, fflags,
+                                                FMINMAX_IEEE754_201X)
                         | F_HIGH;
             break;
     }
