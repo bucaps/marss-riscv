@@ -982,6 +982,36 @@ static int riscv_build_fdt(RISCVMachine *m, uint8_t *dst,
 
 
 /***************************   MISC   ***************************/
+static void copy_kernel(RISCVMachine *s, const uint8_t *buf, int buf_len,
+                        const char *cmd_line)
+{
+    uint32_t fdt_addr;
+    uint8_t *ram_ptr;
+    uint32_t *q;
+
+    if (buf_len > s->ram_size) {
+        vm_error("Kernel too big\n");
+        exit(1);
+    }
+
+    ram_ptr = get_ram_ptr(s, RAM_BASE_ADDR, TRUE);
+    memcpy(ram_ptr, buf, buf_len);
+
+    ram_ptr = get_ram_ptr(s, 0, TRUE);
+
+    fdt_addr = 0x1000 + 8 * 8;
+
+    riscv_build_fdt(s, ram_ptr + fdt_addr, 0, 0, 0, 0, cmd_line);
+
+    /* jump_addr = 0x80000000 */
+
+    q = (uint32_t *)(ram_ptr + 0x1000);
+    q[0] = 0x297 + 0x80000000 - 0x1000; /* auipc t0, jump_addr */
+    q[1] = 0x597; /* auipc a1, dtb */
+    q[2] = 0x58593 + ((fdt_addr - 4) << 20); /* addi a1, a1, dtb */
+    q[3] = 0xf1402573; /* csrr a0, mhartid */
+    q[4] = 0x00028067; /* jalr zero, t0, jump_addr */
+}
 
 static void copy_bios(RISCVMachine *s, const uint8_t *buf, int buf_len,
                       const uint8_t *kernel_buf, int kernel_buf_len,
@@ -1206,11 +1236,16 @@ static VirtMachine *riscv_machine_init(const VirtMachineParams *p)
         vm_error("No bios found");
     }
 
-    copy_bios(s, p->files[VM_FILE_BIOS].buf, p->files[VM_FILE_BIOS].len,
-              p->files[VM_FILE_KERNEL].buf, p->files[VM_FILE_KERNEL].len,
-              p->files[VM_FILE_INITRD].buf, p->files[VM_FILE_INITRD].len,
-              p->cmdline);
-    
+    if (p->has_distinct_kernel) {
+        copy_bios(s, p->files[VM_FILE_BIOS].buf, p->files[VM_FILE_BIOS].len,
+                  p->files[VM_FILE_KERNEL].buf, p->files[VM_FILE_KERNEL].len,
+                  p->files[VM_FILE_INITRD].buf, p->files[VM_FILE_INITRD].len,
+                  p->cmdline);
+    } else{
+        copy_kernel(s, p->files[VM_FILE_BIOS].buf, p->files[VM_FILE_BIOS].len,
+                p->cmdline);
+    }
+
     return (VirtMachine *)s;
 }
 

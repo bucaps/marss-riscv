@@ -29,6 +29,7 @@ Currently, our simulator is in alpha status as we are validating the cycle accur
 - VirtIO console, network, block device, input and 9P filesystem
 - JSON configuration file
 - Easy to install, use and modify
+- Support for separate RISC-V BIOS and kernel
 
 For internal micro-architectural details, see [MARSS-RISCV Micro-architecture Documentation](https://marss-riscv-docs.readthedocs.io/en/latest/).
 
@@ -111,6 +112,12 @@ The system is ready for use. It has a working GCC compiler, ssh, git, and [more]
 By default, `Ctrl-C` will not kill the simulator. The command `halt` will cleanly shutdown the guest. Alternatively, you can pass the `-ctrlc` command line argument to the simulator, which will allow it to be killed using `Ctrl-C`.
 
 Once you have access to the guest machine terminal, see next section for running simulations.
+
+The images provided at [marss-riscv-images](https://github.com/bucaps/marss-riscv-images) repository have the kernel compiled into the bios. Hence, you don't have specify separate kernel in the configuration file. However, since the current version of MARSS-RISCV allows support for seperate RISC-V bios and kernel, you can use the native RISC-V boot loader, Linux kernel,  filesystem with busybox and buildroot version with separate kernel option which comes with TinyEMU distribution [here](https://bellard.org/tinyemu/). In such case run using:
+
+```console
+$ ../../temu -has-kernel -mem-model base riscvemu.cfg
+```
 
 ## Running full system simulations
 

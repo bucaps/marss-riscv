@@ -617,6 +617,7 @@ static struct option options[] = {
     { "stats-display", no_argument },
     { "mem-model", required_argument },
     { "build-preload", required_argument },
+    { "has-kernel", no_argument },
     { NULL },
 };
 
@@ -634,6 +635,7 @@ void help(void)
            "-simstart                   start (boot kernel) in simulation mode\n"
            "-stats-display              dump simulation performance stats to a shared memory location, read by stats-display tool\n"
            "-mem-model [base|dramsim2]  type of simulated memory model\n"
+           "-has-kernel                 Specify a separate kernel in the configuration file"
            "\n"
            "Console keys:\n"
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
@@ -659,7 +661,7 @@ int main(int argc, char **argv)
 {
     VirtMachine *s;
     const char *path, *cmdline, *build_preload_file;
-    int c, option_index, i, ram_size, accel_enable;
+    int c, option_index, i, ram_size, accel_enable, has_distinct_kernel = 0;
     BOOL allow_ctrlc;
     BlockDeviceModeEnum drive_mode;
     VirtMachineParams p_s, *p = &p_s;
@@ -720,6 +722,9 @@ int main(int argc, char **argv)
             case 9: /* build-preload */
                 build_preload_file = optarg;
                 break;
+            case 10: /* has-kernel */
+                has_distinct_kernel = TRUE;
+                break;
             default:
                 fprintf(stderr, "unknown option index: %d\n", option_index);
                 exit(1);
@@ -763,6 +768,7 @@ int main(int argc, char **argv)
         vm_add_cmdline(p, cmdline);
     }
 
+    p->has_distinct_kernel = has_distinct_kernel;
     p->sim_params->start_in_sim = marss_start_in_sim;
     p->sim_params->enable_stats_display = marss_stats_display;
 
