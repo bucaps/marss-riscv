@@ -86,6 +86,7 @@ typedef struct VirtMachineClass VirtMachineClass;
 
 typedef struct {
     char *cfg_filename;
+    char *sim_config_filename;
     const VirtMachineClass *vmc;
     char *machine_name;
     uint64_t ram_size;
@@ -149,7 +150,7 @@ void virt_machine_set_defaults(VirtMachineParams *p);
 void virt_machine_load_config_file(VirtMachineParams *p,
                                    const char *filename,
                                    void (*start_cb)(void *opaque),
-                                   void *opaque);
+                                   void *opaque, const char *sim_config_filename);
 void vm_add_cmdline(VirtMachineParams *p, const char *cmdline);
 char *get_file_path(const char *base_filename, const char *filename);
 void virt_machine_free_config(VirtMachineParams *p);

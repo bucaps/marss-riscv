@@ -92,9 +92,9 @@ When decompression finishes, launch the simulator with:
 $ ../../marss-riscv -mem-model base simulator.cfg riscvemu.cfg
 ```
 
-Simulation parameters can be configured using `riscvemu.cfg`, RISCVEMU JSON configuration file. 
+Simulation parameters can be configured using `simulator.cfg`, a JSON configuration file located in `src` folder.
 
-By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. MARSS-RISCV comes with 2 DRAM memory models: Basic and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `riscvemu.cfg` file.
+By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. MARSS-RISCV comes with 2 DRAM memory models: Basic and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `simulator.cfg` file.
 
 It may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found [here](https://github.com/bucaps/marss-riscv-images#how-to-use).
 
@@ -113,11 +113,7 @@ By default, `Ctrl-C` will not kill the simulator. The command `halt` will cleanl
 
 Once you have access to the guest machine terminal, see next section for running simulations.
 
-The images provided at [marss-riscv-images](https://github.com/bucaps/marss-riscv-images) repository have the kernel compiled into the bios. Hence, you don't have specify separate kernel in the configuration file. However, since the current version of MARSS-RISCV allows support for seperate RISC-V bios and kernel, you can use the native RISC-V boot loader, Linux kernel,  filesystem with busybox and buildroot version with separate kernel option which comes with TinyEMU distribution [here](https://bellard.org/tinyemu/). In such case run using:
-
-```console
-$ ../../temu -has-kernel -mem-model base riscvemu.cfg
-```
+Current version of MARSS-RISCV allows support for seperate RISC-V BIOS and kernel, so you can use the native RISC-V boot loader, Linux kernel,  filesystem with busybox and buildroot versions which comes with TinyEMU distribution [here](https://bellard.org/tinyemu/).
 
 ## Running full system simulations
 
