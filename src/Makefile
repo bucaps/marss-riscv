@@ -54,7 +54,7 @@ LDFLAGS=
 bindir=/usr/local/bin
 INSTALL=install
 
-PROGS+= temu$(EXE) stats-display
+PROGS+= marss-riscv$(EXE) stats-display
 ifdef CONFIG_FS_NET
 PROGS+=build_filelist splitimg
 endif
@@ -134,7 +134,7 @@ stats-display: stats_display.c
 	$(CC) stats_display.c -o stats-display -lrt
 # ===============================================================================================
 
-temu$(EXE): $(SIM_OBJ_FILE) $(EMU_OBJS)
+marss-riscv$(EXE): $(SIM_OBJ_FILE) $(EMU_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS) -L. -ldramsim_wrapper_c_connector -Wl,-rpath=.
 
 riscv_cpu.o: riscv_cpu.c

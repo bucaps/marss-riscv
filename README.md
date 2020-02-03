@@ -89,7 +89,7 @@ $ xz -d -k -T 0 riscv32.img.xz
 When decompression finishes, launch the simulator with:
 
 ```console
-$ ../../temu -mem-model base riscvemu.cfg
+$ ../../marss-riscv -mem-model base simulator.cfg riscvemu.cfg
 ```
 
 Simulation parameters can be configured using `riscvemu.cfg`, RISCVEMU JSON configuration file. 
