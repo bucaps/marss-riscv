@@ -122,6 +122,8 @@ typedef struct VirtMachine {
     CharacterDevice *console;
     /* graphics */
     FBDevice *fb_dev;
+    /* params: Keep track to free simulator params */
+    VirtMachineParams *virt_machine_params;
 } VirtMachine;
 
 struct VirtMachineClass {

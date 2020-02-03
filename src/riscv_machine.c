@@ -1116,6 +1116,8 @@ static VirtMachine *riscv_machine_init(const VirtMachineParams *p)
     s->mem_map->opaque = s;
     s->mem_map->flush_tlb_write_range = riscv_flush_tlb_write_range;
 
+    s->common.virt_machine_params = (VirtMachineParams *)p;
+
     /* Validate all the simulation parameters before initializing core */
     sim_params_validate(p->sim_params);
 
@@ -1253,8 +1255,8 @@ static void riscv_machine_end(VirtMachine *s1)
 {
     RISCVMachine *s = (RISCVMachine *)s1;
     /* XXX: stop all */
-    // gkothar1-error: Need to place somewhere else?
-    // sim_params_free(s->cpu_state->sim_params);
+
+    sim_params_free(s->common.virt_machine_params->sim_params);
     riscv_cpu_end(s->cpu_state);
     phys_mem_map_end(s->mem_map);
     free(s);
