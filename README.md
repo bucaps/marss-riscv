@@ -62,7 +62,7 @@ Then, `cd` into the simulator source directory:
 $ cd marss-riscv/src/
 $ git submodule update --init --recursive
 ```
-Modify `CONFIG_XLEN` and `CONFIG_FLEN` options in the Makefile as required. Supported `XLEN` values are `32` and `64`. Supported `FLEN` values are `0`, `32` and `64`. 
+Set the `CONFIG_XLEN` variable in the Makefile to the desired `XLEN` as required. Supported `XLEN` values are `32` and `64`.
 
 Then, compile the simulator using:
 

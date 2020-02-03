@@ -34,7 +34,7 @@
 #
 
 # Set the XLEN value
-CONFIG_SIM_XLEN=64
+CONFIG_XLEN=64
 # if set, network filesystem is enabled. libcurl and libcrypto
 # (openssl) must be installed.
 CONFIG_FS_NET=y
@@ -67,7 +67,7 @@ DRAMSIM2_OBJS+= libdramsim.so libdramsim_wrapper_cpp_lib.so libdramsim_wrapper_c
 
 # Top-level simulator object file
 SIM_OBJ_FILE=riscvsim.o
-CFLAGS+=-DMAX_XLEN=$(CONFIG_SIM_XLEN)
+CFLAGS+=-DMAX_XLEN=$(CONFIG_XLEN)
 
 # Simulator Object Files
 SIM_UTILS:=$(addprefix riscvsim/, circular_queue.o common_core_utils.o sim_params_stats.o)
@@ -114,10 +114,10 @@ CFLAGS+=-DCONFIG_RISCV_MAX_XLEN=64
 
 # For DRAMSim2
 libdramsim_wrapper_c_connector.so:
-	$(CXX) -g -DMAX_XLEN=$(CONFIG_SIM_XLEN) -fpic -shared -o libdramsim_wrapper_c_connector.so riscvsim/dramsim_wrapper_c_connector.cpp -I./DRAMSim2 -L. -ldramsim_wrapper_cpp_lib -Wl,-rpath=. -std=c++11
+	$(CXX) -g -DMAX_XLEN=$(CONFIG_XLEN) -fpic -shared -o libdramsim_wrapper_c_connector.so riscvsim/dramsim_wrapper_c_connector.cpp -I./DRAMSim2 -L. -ldramsim_wrapper_cpp_lib -Wl,-rpath=. -std=c++11
 
 libdramsim_wrapper_cpp_lib.so:
-	$(CXX) -g -DMAX_XLEN=$(CONFIG_SIM_XLEN) -fpic -shared -o libdramsim_wrapper_cpp_lib.so riscvsim/dramsim_wrapper.cpp -I./DRAMSim2 -L./DRAMSim2 -ldramsim -Wl,-rpath=./DRAMSim2 -std=c++11
+	$(CXX) -g -DMAX_XLEN=$(CONFIG_XLEN) -fpic -shared -o libdramsim_wrapper_cpp_lib.so riscvsim/dramsim_wrapper.cpp -I./DRAMSim2 -L./DRAMSim2 -ldramsim -Wl,-rpath=./DRAMSim2 -std=c++11
 
 libdramsim.so:
 	@echo "Building DRAMSim2 shared library:"
@@ -138,7 +138,7 @@ temu$(EXE): $(SIM_OBJ_FILE) $(EMU_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS) -L. -ldramsim_wrapper_c_connector -Wl,-rpath=.
 
 riscv_cpu.o: riscv_cpu.c
-	$(CC) $(CFLAGS) -DMAX_XLEN=$(CONFIG_SIM_XLEN) -c -o $@ $<
+	$(CC) $(CFLAGS) -DMAX_XLEN=$(CONFIG_XLEN) -c -o $@ $<
 
 build_filelist: build_filelist.o fs_utils.o cutils.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
