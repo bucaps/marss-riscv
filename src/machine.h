@@ -100,7 +100,6 @@ typedef struct {
     int fs_count;
     VMEthEntry tab_eth[MAX_ETH_DEVICE];
     int eth_count;
-    int has_distinct_kernel;
 
     char *cmdline; /* bios or kernel command line */
     BOOL accel_enable; /* enable acceleration (KVM) */

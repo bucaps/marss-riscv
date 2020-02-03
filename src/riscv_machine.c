@@ -1238,7 +1238,7 @@ static VirtMachine *riscv_machine_init(const VirtMachineParams *p)
         vm_error("No bios found");
     }
 
-    if (p->has_distinct_kernel) {
+    if (p->files[VM_FILE_KERNEL].buf|| p->files[VM_FILE_INITRD].buf) {
         copy_bios(s, p->files[VM_FILE_BIOS].buf, p->files[VM_FILE_BIOS].len,
                   p->files[VM_FILE_KERNEL].buf, p->files[VM_FILE_KERNEL].len,
                   p->files[VM_FILE_INITRD].buf, p->files[VM_FILE_INITRD].len,
