@@ -348,6 +348,18 @@ in_core_memory(INCore *core)
                     e->max_latency = s->hw_pg_tb_wlk_latency
                                      + get_data_mem_access_latency(s, e);
 
+                    /* If true, it indicates that some sort of memory access request
+                     * are sent to the memory controller for this instruction, so
+                     * request the fast wrap-around read for this address */
+                    if (simcpu->mmu->mem_controller->backend_mem_access_queue
+                            .cur_size)
+                    {
+                        mem_controller_req_fast_read_for_addr(
+                            &simcpu->mmu->mem_controller
+                                 ->backend_mem_access_queue,
+                            s->data_guest_paddr);
+                    }
+
                     if (s->sim_params->enable_l1_caches)
                     {
                         /* L1 caches and TLB are probed in parallel */
@@ -375,10 +387,26 @@ in_core_memory(INCore *core)
 
             /* Lookup latency is completed, now waiting for pending DRAM
              * accesses */
-            if ((e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
-                && simcpu->mmu->mem_controller->backend_mem_access_queue.cur_size)
+            if ((e->ins.is_load || e->ins.is_store || e->ins.is_atomic))
             {
-                return;
+                if (simcpu->mmu->mem_controller->backend_mem_access_queue
+                        .cur_size)
+                {
+                    return;
+                }
+                else
+                {
+                    /* Memory controller read logic will install the tag in the cache line with
+                     * the first word read, while the remaining words are still
+                     * being fetched. This may cause a false hit on the following
+                     * words. Check the memory controller to see if the word is
+                     * received. Only then, proceed further. */
+                    if (mem_controller_wrap_around_read_pending(
+                            simcpu->mmu->mem_controller, s->data_guest_paddr))
+                    {
+                        return;
+                    }
+                }
             }
 
             /* MMU exception */

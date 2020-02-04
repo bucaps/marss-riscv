@@ -95,6 +95,17 @@ oo_core_fetch(OOCore *core)
                       + mmu_insn_read(simcpu->mmu, s->code_guest_paddr, 4,
                                       FETCH, s->priv);
 
+                /* If true, it indicates that some sort of memory access request
+                 * are sent to memory controller for this instruction, so
+                 * request the fast wrap-around read for this address */
+                if (simcpu->mmu->mem_controller->frontend_mem_access_queue
+                        .cur_size)
+                {
+                    mem_controller_req_fast_read_for_addr(
+                        &simcpu->mmu->mem_controller->frontend_mem_access_queue,
+                        s->code_guest_paddr);
+                }
+
                 if (s->sim_params->enable_l1_caches)
                 {
                     /* L1 caches and TLB are probed in parallel */
@@ -139,6 +150,17 @@ oo_core_fetch(OOCore *core)
             if (!simcpu->mmu->mem_controller->frontend_mem_access_queue
                      .cur_size)
             {
+                /* Memory controller read logic will install the tag in the cache line with
+                 * the first word read, while the remaining words are still
+                 * being fetched. This may cause a false hit on the following
+                 * words. Check the memory controller to see if the word is
+                 * received. Only then, proceed further. */
+                if (mem_controller_wrap_around_read_pending(simcpu->mmu->mem_controller,
+                                             s->code_guest_paddr))
+                {
+                    return;
+                }
+
                 /* If the next stage is available, send this instruction to next
                    stage, else stall fetch */
                 if (!core->decode.has_data)

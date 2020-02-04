@@ -52,8 +52,18 @@ typedef struct MemoryController
 {
     int mem_model_type;
     int current_latency;
-    int max_latency;
     int mem_access_active;
+
+    /* For wrap-around read */
+    int wrap_around_mode;
+    int cur_bit_vec_id;
+    int last_bit_vec_id;
+    int num_bit_vec_read;
+    int wpr_bit_vec_start_id;
+    int *latency_array;
+    int *latency_status_bv;
+    int max_bus_blks;
+
     uint32_t dram_burst_size;
     void (*mem_controller_update_internal)(struct MemoryController *);
     StageMemAccessQueue frontend_mem_access_queue;
@@ -75,4 +85,8 @@ int mem_controller_access_dram(MemoryController *m, target_ulong paddr,
                                int bytes_to_access, MemAccessType op_type,
                                void *p_mem_access_info);
 void mem_controller_flush_dram_queue(MemoryController *m);
+void mem_controller_req_fast_read_for_addr(StageMemAccessQueue *q, target_ulong addr);
+void mem_controller_create_wrap_around_bit_vec(MemoryController *m);
+int mem_controller_wrap_around_read_pending(MemoryController *m, target_ulong addr);
+
 #endif
