@@ -113,6 +113,10 @@ oo_core_lsu(OOCore *core)
                 core->lsq.entries[e->lsq_idx].mem_request_complete = TRUE;
                 cpu_stage_flush(&core->lsu);
             }
+            else
+            {
+                ++simcpu->stats[s->priv].backend_mem_delay;
+            }
         }
         else
         {

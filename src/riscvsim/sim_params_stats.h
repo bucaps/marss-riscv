@@ -320,6 +320,8 @@ typedef struct SimStats
     /* General Stats */
     uint64_t sim_time;
     uint64_t cycles;
+    uint64_t frontend_mem_delay;
+    uint64_t backend_mem_delay;
 
     /* Instruction Stats */
     uint64_t ins_fetch;

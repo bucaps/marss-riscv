@@ -392,6 +392,7 @@ in_core_memory(INCore *core)
                 if (simcpu->mmu->mem_controller->backend_mem_access_queue
                         .cur_size)
                 {
+                    ++simcpu->stats[s->priv].backend_mem_delay;
                     return;
                 }
                 else

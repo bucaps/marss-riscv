@@ -231,6 +231,10 @@ in_core_fetch(INCore *core)
                     }
                 }
             }
+            else
+            {
+                ++simcpu->stats[s->priv].frontend_mem_delay;
+            }
         }
         else
         {

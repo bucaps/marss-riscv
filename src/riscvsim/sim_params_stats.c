@@ -656,7 +656,8 @@ sim_stats_print(SimStats *s, const char *pathname)
 
     PRINT_SIM_STAT(fp, s, "cycles", cycles);
     PRINT_SIM_STAT(fp, s, "insn_fetched", ins_fetch);
-    PRINT_SIM_STAT(fp, s, "insn_simulated", ins_simulated);
+    PRINT_SIM_STAT(fp, s, "frontend_mem_delay", frontend_mem_delay);
+    PRINT_SIM_STAT(fp, s, "backend_mem_delay", backend_mem_delay);
 
     PRINT_SIM_STAT(fp, s, "operate_insn", ins_type[INS_TYPE_OPERATE]);
     PRINT_SIM_STAT(fp, s, "load_insn", ins_type[INS_TYPE_LOAD]);
