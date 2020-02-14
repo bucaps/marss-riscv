@@ -37,7 +37,6 @@ typedef struct BtbEntry
 {
     target_ulong pc;     /* Virtual address of this branch */
     target_ulong target; /* Target of this branch */
-    int pred;            /* 2-bit saturating counter, used only for bimodal predictor */
     int type;            /* Type of branch, BRANCH_COND or BRANCH_UNCOND */
 } BtbEntry;
 
@@ -57,8 +56,7 @@ typedef struct BranchTargetBuffer
 BranchTargetBuffer *btb_init(const SimParams *p);
 int btb_probe(BranchTargetBuffer *b, target_ulong pc, BtbEntry **btb_entry);
 void btb_add(BranchTargetBuffer *b, target_ulong pc, int type);
-void btb_update(BtbEntry *btb_entry, target_ulong target,
-                int pred, int type);
+void btb_update(BtbEntry *btb_entry, target_ulong target, int type);
 void btb_free(BranchTargetBuffer **b);
 void btb_flush(BranchTargetBuffer *b);
 

@@ -40,13 +40,16 @@
 #include "sim_params_stats.h"
 #include "adaptive_predictor.h"
 #include "btb.h"
+#include "bht.h"
 #include "riscv_sim_typedefs.h"
 
 typedef struct BranchPredUnit
 {
     BranchTargetBuffer *btb;
+    Bht *bht;
     AdaptivePredictor *ap;
     SimStats *stats;
+    int bpu_type;
 } BranchPredUnit;
 
 typedef struct BPUResponsePkt

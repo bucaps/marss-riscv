@@ -123,6 +123,7 @@ enum MEM_MODEL_TYPE
 #define DEF_ENABLE_BPU ENABLE
 #define DEF_BTB_SIZE 512
 #define DEF_BTB_WAYS 2
+#define DEF_BHT_SIZE 256
 #define DEF_GHT_SIZE 1
 #define DEF_PHT_SIZE 1
 #define DEF_HISTORY_BITS 2
@@ -267,6 +268,7 @@ typedef struct SimParams
     int enable_bpu;
     int btb_size;
     int btb_ways;
+    int bht_size;
     int bpu_type;
     int bpu_ght_size;
     int bpu_pht_size;

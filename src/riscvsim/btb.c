@@ -34,13 +34,7 @@
 
 #include "btb.h"
 
-#define GET_INDEX(pc, bits) ((pc) & ((1 << (bits)) - 1))
 #define GET_SET_ADDR(pc, bits) (GET_INDEX((pc), (bits)))
-
-#define PRED_NOT_TAKEN 0x0
-#define PRED_TAKEN 0x1
-#define BPU_MISS 0x0
-#define BPU_HIT 0x1
 
 /**
  * Returns any random way index between 0 to (b->ways - 1)
@@ -80,25 +74,6 @@ btb_evict_policy_lru(BranchTargetBuffer *b, int set)
     /* NOTE: This assert can be removed */
     assert(lower_bound == upper_bound);
     return lower_bound;
-}
-
-static void
-btb_update_two_bit_counter(int *ctr, int pred)
-{
-    if (pred)
-    {
-        if ((*ctr >= 0) && (*ctr < 3))
-        {
-            (*ctr)++;
-        }
-    }
-    else
-    {
-        if ((*ctr >= 1) && (*ctr <= 3))
-        {
-            (*ctr)--;
-        }
-    }
 }
 
 /**
@@ -248,10 +223,6 @@ btb_add(BranchTargetBuffer *b, target_ulong pc, int type)
     // assert(pos >= 0 && pos < b->ways);
     b->data[set_addr][pos].pc = pc;
     b->data[set_addr][pos].target = 0;
-
-    /* In case of bimodal predictor, set the 2-bit saturating counter
-       to 0 (strongly not taken) */
-    b->data[set_addr][pos].pred = PRED_NOT_TAKEN;
     b->data[set_addr][pos].type = type;
 }
 
@@ -261,17 +232,8 @@ btb_add(BranchTargetBuffer *b, target_ulong pc, int type)
  * where the branches are resolved.
  */
 void
-btb_update(BtbEntry *btb_entry, target_ulong target,
-           int pred, int type)
+btb_update(BtbEntry *btb_entry, target_ulong target,int type)
 {
     btb_entry->target = target;
     btb_entry->type = type;
-
-    /* In case of bimodal predictor, update the 2-bit saturating counter,
-       but only for conditional branches
-       NOTE: This condition can be skipped if 2-level branch prediction is used. */
-    if (btb_entry->type == BRANCH_COND)
-    {
-        btb_update_two_bit_counter(&btb_entry->pred, pred);
-    }
 }

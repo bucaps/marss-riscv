@@ -639,6 +639,12 @@ static int virt_machine_parse_sim_config(VirtMachineParams *p,
                     }
                 }
             }
+        } else {
+            tag_name = "bht_size";
+            if (vm_get_int(cfg, tag_name, &p->sim_params->bht_size) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n",
+                      tag_name, p->sim_params->bht_size);
+            }
         }
 
     }

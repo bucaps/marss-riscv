@@ -39,7 +39,6 @@
 #define PAG 0x2
 #define PAP 0x3
 
-#define GET_INDEX(pc, bits) ((pc) & ((1 << (bits)) - 1))
 #define GET_SET_ADDR(pc, bits) (GET_INDEX((pc), (bits)))
 #define UPDATE_GHR(ghr, bits, pred) (GET_INDEX((((ghr) << 1) | (pred)), (bits)))
 

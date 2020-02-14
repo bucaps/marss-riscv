@@ -121,6 +121,7 @@ sim_params_init()
     p->enable_bpu = DEF_ENABLE_BPU;
     p->btb_size = DEF_BTB_SIZE;
     p->btb_ways = DEF_BTB_WAYS;
+    p->bht_size = DEF_BHT_SIZE;
     p->bpu_type = DEF_BPU_TYPE;
 
     p->bpu_ght_size = DEF_GHT_SIZE;
@@ -290,19 +291,31 @@ sim_params_print(const SimParams *p)
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "bpu_type",
                 bpu_type_str[p->bpu_type]);
 
-        if (p->bpu_type)
+        switch (p->bpu_type)
         {
-            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "bpu_ght_size",
-                    p->bpu_ght_size);
-            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "bpu_pht_size",
-                    p->bpu_pht_size);
-            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
-                    "bpu_history_bits", p->bpu_history_bits);
-            if ((p->bpu_ght_size == 1) && (p->bpu_pht_size == 1))
+            case BPU_TYPE_BIMODAL:
             {
-                fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n",
+                fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "bht_size",
+                        p->bht_size);
+                break;
+            }
+
+            case BPU_TYPE_ADAPTIVE:
+            {
+                fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
+                        "bpu_ght_size", p->bpu_ght_size);
+                fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
+                        "bpu_pht_size", p->bpu_pht_size);
+                fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
+                        "bpu_history_bits", p->bpu_history_bits);
+                if ((p->bpu_ght_size == 1) && (p->bpu_pht_size == 1))
+                {
+                    fprintf(
+                        stderr, " \x1B[32m*\x1B[0m %-30s : %s\n",
                         "bpu_aliasing_func_type",
                         bpu_aliasing_func_type_str[p->bpu_aliasing_func_type]);
+                }
+                break;
             }
         }
     }
@@ -547,26 +560,44 @@ sim_params_validate(const SimParams *p)
                     "btb_size");
             abort();
         }
+
         validate_param("btb_ways", 0, 1, 2048, p->btb_ways);
         validate_param("bpu_type", 1, 0, 1, p->bpu_type);
 
-        if (p->bpu_type)
+        switch (p->bpu_type)
         {
-            if (!is_power_of_two(p->bpu_ght_size))
+            case BPU_TYPE_BIMODAL:
             {
-                fprintf(stderr,
-                        "(marss): config error - %s must be a power of 2\n",
-                        "bpu_ght_size");
-                abort();
+                if (!is_power_of_two(p->bht_size))
+                {
+                    fprintf(stderr,
+                            "(marss): config error - %s must be a power of 2\n",
+                            "bht_size");
+                    abort();
+                }
+                break;
             }
-            if (!is_power_of_two(p->bpu_pht_size))
+
+            case BPU_TYPE_ADAPTIVE:
             {
-                fprintf(stderr,
-                        "(marss): config error - %s must be a power of 2\n",
-                        "bpu_pht_size");
-                abort();
+                if (!is_power_of_two(p->bpu_ght_size))
+                {
+                    fprintf(stderr,
+                            "(marss): config error - %s must be a power of 2\n",
+                            "bpu_ght_size");
+                    abort();
+                }
+                if (!is_power_of_two(p->bpu_pht_size))
+                {
+                    fprintf(stderr,
+                            "(marss): config error - %s must be a power of 2\n",
+                            "bpu_pht_size");
+                    abort();
+                }
+                validate_param("bpu_history_bits", 0, 1, 2048,
+                               p->bpu_history_bits);
+                break;
             }
-            validate_param("bpu_history_bits", 0, 1, 2048, p->bpu_history_bits);
         }
     }
 

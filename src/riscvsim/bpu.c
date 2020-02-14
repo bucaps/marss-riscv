@@ -29,11 +29,6 @@
  */
 #include "bpu.h"
 
-#define PRED_NOT_TAKEN 0x0
-#define PRED_TAKEN 0x1
-#define BPU_MISS 0x0
-#define BPU_HIT 0x1
-
 BranchPredUnit *
 bpu_init(const SimParams *p, SimStats *s)
 {
@@ -42,14 +37,25 @@ bpu_init(const SimParams *p, SimStats *s)
     u = (BranchPredUnit *)calloc(1, sizeof(BranchPredUnit));
     assert(u);
     u->btb = NULL;
+    u->bht = NULL;
     u->ap = NULL;
     u->stats = s;
     u->btb = btb_init(p);
+    u->bpu_type = p->bpu_type;
 
-    /* bpu_type with value 0 uses bimodal predictor */
-    if (p->bpu_type)
+    switch (u->bpu_type)
     {
-        u->ap = adaptive_predictor_init(p);
+        case BPU_TYPE_BIMODAL:
+        {
+            u->bht = bht_init(p);
+            break;
+        }
+
+        case BPU_TYPE_ADAPTIVE:
+        {
+            u->ap = adaptive_predictor_init(p);
+            break;
+        }
     }
 
     return u;
@@ -59,9 +65,20 @@ void
 bpu_flush(BranchPredUnit *u)
 {
     btb_flush(u->btb);
-    if (u->ap)
+
+    switch (u->bpu_type)
     {
-        adaptive_predictor_flush(u->ap);
+        case BPU_TYPE_BIMODAL:
+        {
+            bht_flush(u->bht);
+            break;
+        }
+
+        case BPU_TYPE_ADAPTIVE:
+        {
+            adaptive_predictor_flush(u->ap);
+            break;
+        }
     }
 }
 
@@ -69,10 +86,22 @@ void
 bpu_free(BranchPredUnit **u)
 {
     btb_free(&(*u)->btb);
-    if ((*u)->ap)
+
+    switch ((*u)->bpu_type)
     {
-        adaptive_predictor_free(&(*u)->ap);
+        case BPU_TYPE_BIMODAL:
+        {
+            bht_free(&(*u)->bht);
+            break;
+        }
+
+        case BPU_TYPE_ADAPTIVE:
+        {
+            adaptive_predictor_free(&(*u)->ap);
+            break;
+        }
     }
+
     free(*u);
     *u = NULL;
 }
@@ -89,6 +118,7 @@ bpu_probe(BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p, int priv)
     }
     ++(u->stats[priv].btb_probes);
 
+    /* TODO: verify */
     if (u->ap && ((p->btb_probe_status == BPU_MISS)
                   || (p->btb_entry->type == BRANCH_COND)))
     {
@@ -100,8 +130,8 @@ bpu_probe(BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p, int priv)
 
 /**
  * Returns the target address for this pc. Predictions for conditional branches
- * are checked before returning the target address. If prediction is taken,target
- * address is returned, else 0 is returned.
+ * are checked before returning the target address. If prediction is
+ * taken,target address is returned, else 0 is returned.
  */
 target_ulong
 bpu_get_target(BranchPredUnit *u, target_ulong pc, BtbEntry *btb_entry)
@@ -117,36 +147,39 @@ bpu_get_target(BranchPredUnit *u, target_ulong pc, BtbEntry *btb_entry)
 
         case BRANCH_COND:
         {
-            /* Must check prediction for conditional branches, so if prediction is taken
-               return the target address, else return 0. */
-            if (u->ap)
+            /* Must check prediction for conditional branches, so if prediction
+               is taken return the target address, else return 0. */
+            switch (u->bpu_type)
             {
-                if (adaptive_predictor_get_prediction(u->ap, pc))
+                case BPU_TYPE_BIMODAL:
                 {
-                    return btb_entry->target;
+                    if (bht_get_pred(u->bht, pc) > 1)
+                    {
+                        return btb_entry->target;
+                    }
+                    break;
                 }
-            }
-            else
-            {
-                /* Bimodal */
-                if (btb_entry->pred > 1)
-                {
-                    return btb_entry->target;
-                }
-            }
 
-            /* BPU Hit, but prediction is not-taken */
-            return 0;
+                case BPU_TYPE_ADAPTIVE:
+                {
+                    if (adaptive_predictor_get_prediction(u->ap, pc))
+                    {
+                        return btb_entry->target;
+                    }
+                    break;
+                }
+            }
+            break;
         }
     }
 
-    /* Control never reaches here */
-    assert(0);
+    /* BPU Hit, but prediction is not-taken */
     return 0;
 }
 
 void
-bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p, int priv)
+bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p,
+        int priv)
 {
     /* All the branches are allocated BTB entry */
     if (!p->btb_probe_status)
@@ -155,13 +188,27 @@ bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p, int pri
         ++(u->stats[priv].btb_inserts);
     }
 
-    /* If BPU is using adaptive predictor, then PC must also be added in
-       adaptive predictor structures, but only for conditional branches */
-    if (u->ap && (type == BRANCH_COND))
+    switch (u->bpu_type)
     {
-        if (!p->ap_probe_status)
+        case BPU_TYPE_BIMODAL:
         {
-            adaptive_predictor_add(u->ap, pc);
+            if (type == BRANCH_COND)
+            {
+                bht_add(u->bht, pc);
+            }
+            break;
+        }
+
+        case BPU_TYPE_ADAPTIVE:
+        {
+            /* If BPU is using adaptive predictor, then PC must also be added in
+             * adaptive predictor structures, but only for conditional branches
+             */
+            if ((type == BRANCH_COND) && !p->ap_probe_status)
+            {
+                adaptive_predictor_add(u->ap, pc);
+            }
+            break;
         }
     }
 }
@@ -172,17 +219,30 @@ bpu_update(BranchPredUnit *u, target_ulong pc, target_ulong target, int pred,
 {
     if (p->btb_probe_status)
     {
-        btb_update(p->btb_entry, target, pred, type);
+        btb_update(p->btb_entry, target, type);
         ++(u->stats[priv].btb_updates);
     }
 
-    /* If BPU is using adaptive predictor, adaptive predictor structures must be
-       also be updated, but only for conditional branches */
-    if (u->ap && (type == BRANCH_COND))
+    switch (u->bpu_type)
     {
-        if (p->ap_probe_status)
+        case BPU_TYPE_BIMODAL:
         {
-            adaptive_predictor_update(u->ap, pc, pred);
+            if (type == BRANCH_COND)
+            {
+                bht_update(u->bht, pc, pred);
+            }
+            break;
+        }
+
+        case BPU_TYPE_ADAPTIVE:
+        {
+            /* If BPU is using adaptive predictor, adaptive predictor structures
+             * must be also be updated, but only for conditional branches */
+            if ((type == BRANCH_COND) && p->ap_probe_status)
+            {
+                adaptive_predictor_update(u->ap, pc, pred);
+            }
+            break;
         }
     }
 }
