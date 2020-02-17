@@ -39,6 +39,7 @@ bpu_init(const SimParams *p, SimStats *s)
     u->btb = NULL;
     u->bht = NULL;
     u->ap = NULL;
+    u->ras = NULL;
     u->stats = s;
     u->btb = btb_init(p);
     u->bpu_type = p->bpu_type;
@@ -56,6 +57,11 @@ bpu_init(const SimParams *p, SimStats *s)
             u->ap = adaptive_predictor_init(p);
             break;
         }
+    }
+
+    if (p->ras_size)
+    {
+        u->ras = ras_init(p);
     }
 
     return u;
@@ -80,6 +86,11 @@ bpu_flush(BranchPredUnit *u)
             break;
         }
     }
+
+    if (u->ras)
+    {
+        ras_flush(u->ras);
+    }
 }
 
 void
@@ -100,6 +111,11 @@ bpu_free(BranchPredUnit **u)
             adaptive_predictor_free(&(*u)->ap);
             break;
         }
+    }
+
+    if ((*u)->ras)
+    {
+        ras_free(&(*u)->ras);
     }
 
     free(*u);
@@ -179,13 +195,17 @@ bpu_get_target(BranchPredUnit *u, target_ulong pc, BtbEntry *btb_entry)
 
 void
 bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p,
-        int priv)
+        int priv, int fret)
 {
     /* All the branches are allocated BTB entry */
     if (!p->btb_probe_status)
     {
-        btb_add(u->btb, pc, type);
-        ++(u->stats[priv].btb_inserts);
+        /* If using return address stack, don't add function returns to BTB */
+        if (!(u->ras && fret))
+        {
+            btb_add(u->btb, pc, type);
+            ++(u->stats[priv].btb_inserts);
+        }
     }
 
     switch (u->bpu_type)

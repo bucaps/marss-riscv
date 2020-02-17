@@ -318,6 +318,7 @@ in_core_decode(INCore *core)
     int ins_issue_index;
     int read_int_rf = 0;
     int read_fp_rf = 0;
+    target_ulong ras_target = 0;
 
     if (core->decode.has_data)
     {
@@ -336,12 +337,63 @@ in_core_decode(INCore *core)
 
                 /* If branch prediction is enabled and this instruction is a
                  * branch, add BPU entry for this branch if not present */
-                if (s->sim_params->enable_bpu && e->ins.is_branch
-                    && !e->bpu_resp_pkt.bpu_probe_status)
+                if (s->sim_params->enable_bpu && e->ins.is_branch)
                 {
-                    bpu_add(core->simcpu->bpu, e->ins.pc, e->ins.branch_type,
-                            &e->bpu_resp_pkt, s->priv);
-                    ++core->simcpu->stats[s->priv].btb_miss_for_branches;
+                    if (!e->bpu_resp_pkt.bpu_probe_status)
+                    {
+                        bpu_add(core->simcpu->bpu, e->ins.pc,
+                                e->ins.branch_type, &e->bpu_resp_pkt, s->priv,
+                                e->ins.is_func_ret);
+                        ++core->simcpu->stats[s->priv].btb_miss_for_branches;
+                    }
+
+                    /* If return address stack is enabled */
+                    if (core->simcpu->params->ras_size)
+                    {
+                        if (e->ins.is_func_call)
+                        {
+                            ras_push(core->simcpu->bpu->ras, ((e->ins.binary & 3) == 3
+                                                    ? e->ins.pc + 4
+                                                    : e->ins.pc + 2));
+                        }
+
+                        if (e->ins.is_func_ret)
+                        {
+                            ras_target = ras_pop(core->simcpu->bpu->ras);
+
+                            /* Start fetch from address returned by RAS if non-zero */
+                            if (ras_target)
+                            {
+                                s->code_ptr = NULL;
+                                s->code_end = NULL;
+                                s->code_to_pc_addend = ras_target;
+                                e->predicted_target = ras_target;
+
+                                /* Restart PCGEN */
+                                speculative_cpu_stage_flush(&core->pcgen, core->simcpu->imap);
+                                core->pcgen.has_data = TRUE;
+
+                                /* If memory access requests are submitted to dram
+                                 * dispatch queue from fetch stage, remove them from
+                                 * dram dispatch queue */
+                                if (core->simcpu->mmu->mem_controller
+                                        ->frontend_mem_access_queue.cur_size)
+                                {
+                                    mem_controller_flush_stage_queue_entry_from_dram_queue(
+                                        &core->simcpu->mmu->mem_controller
+                                             ->dram_dispatch_queue,
+                                        &core->simcpu->mmu->mem_controller
+                                             ->frontend_mem_access_queue);
+                                }
+
+                                mem_controller_flush_stage_mem_access_queue(
+                                    &core->simcpu->mmu->mem_controller
+                                         ->frontend_mem_access_queue);
+
+                                speculative_cpu_stage_flush(&core->fetch, core->simcpu->imap);
+                            }
+                        }
+                    }
                 }
 
                 e->is_decoded = TRUE;

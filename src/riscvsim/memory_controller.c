@@ -681,3 +681,46 @@ mem_controller_flush_dram_queue(MemoryController *m)
 {
     cq_reset(&m->dram_dispatch_queue.cq);
 }
+
+void
+mem_controller_flush_stage_queue_entry_from_dram_queue(
+    DRAMDispatchQueue *dram_queue, StageMemAccessQueue *stage_queue)
+{
+    int i;
+    target_ulong first_addr = stage_queue->entry[0].addr;
+
+    if (!cq_empty(&dram_queue->cq))
+    {
+        if (dram_queue->cq.rear >= dram_queue->cq.front)
+        {
+            for (i = dram_queue->cq.front; i <= dram_queue->cq.rear; i++)
+            {
+                if (dram_queue->entry[i].addr == first_addr)
+                {
+                    dram_queue->cq.rear = i;
+                    return;
+                }
+            }
+        }
+        else
+        {
+            for (i = dram_queue->cq.front; i < dram_queue->cq.max_size; i++)
+            {
+                if (dram_queue->entry[i].addr == first_addr)
+                {
+                    dram_queue->cq.rear = i;
+                    return;
+                }
+            }
+
+            for (i = 0; i <= dram_queue->cq.rear; i++)
+            {
+                if (dram_queue->entry[i].addr == first_addr)
+                {
+                    dram_queue->cq.rear = i;
+                    return;
+                }
+            }
+        }
+    }
+}

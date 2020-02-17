@@ -647,6 +647,12 @@ static int virt_machine_parse_sim_config(VirtMachineParams *p,
             }
         }
 
+        tag_name = "ras_size";
+        if (vm_get_int(cfg, tag_name, &p->sim_params->ras_size) < 0) {
+              fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->ras_size);
+        }
+
     }
 
     /* L1 Caches */

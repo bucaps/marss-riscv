@@ -122,6 +122,7 @@ sim_params_init()
     p->btb_size = DEF_BTB_SIZE;
     p->btb_ways = DEF_BTB_WAYS;
     p->bht_size = DEF_BHT_SIZE;
+    p->ras_size = DEF_RAS_SIZE;
     p->bpu_type = DEF_BPU_TYPE;
 
     p->bpu_ght_size = DEF_GHT_SIZE;
@@ -318,6 +319,9 @@ sim_params_print(const SimParams *p)
                 break;
             }
         }
+
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "ras_size",
+                p->ras_size);
     }
     fprintf(stderr, "\n");
 

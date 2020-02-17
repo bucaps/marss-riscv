@@ -88,5 +88,6 @@ void mem_controller_flush_dram_queue(MemoryController *m);
 void mem_controller_req_fast_read_for_addr(StageMemAccessQueue *q, target_ulong addr);
 void mem_controller_create_wrap_around_bit_vec(MemoryController *m);
 int mem_controller_wrap_around_read_pending(MemoryController *m, target_ulong addr);
-
+void mem_controller_flush_stage_queue_entry_from_dram_queue(
+    DRAMDispatchQueue *dram_queue, StageMemAccessQueue *stage_queue);
 #endif

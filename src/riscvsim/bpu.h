@@ -41,12 +41,14 @@
 #include "adaptive_predictor.h"
 #include "btb.h"
 #include "bht.h"
+#include "ras.h"
 #include "riscv_sim_typedefs.h"
 
 typedef struct BranchPredUnit
 {
     BranchTargetBuffer *btb;
     Bht *bht;
+    Ras *ras;
     AdaptivePredictor *ap;
     SimStats *stats;
     int bpu_type;
@@ -65,7 +67,8 @@ void bpu_free(BranchPredUnit **u);
 void bpu_probe(BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p, int priv);
 target_ulong bpu_get_target(BranchPredUnit *u, target_ulong pc,
                             BtbEntry *btb_entry);
-void bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p, int priv);
+void bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p,
+             int priv, int fret);
 void bpu_update(BranchPredUnit *u, target_ulong pc, target_ulong target,
                 int pred, int type, BPUResponsePkt *p, int priv);
 void bpu_flush(BranchPredUnit *u);
