@@ -617,6 +617,7 @@ static struct option options[] = {
     { "stats-display", no_argument },
     { "mem-model", required_argument },
     { "build-preload", required_argument },
+    { "flush-sim-mem", no_argument },
     { NULL },
 };
 
@@ -634,6 +635,7 @@ void help(void)
            "-simstart                   start (boot kernel) in simulation mode\n"
            "-stats-display              dump simulation performance stats to a shared memory location, read by stats-display tool\n"
            "-mem-model [base|dramsim2]  type of simulated memory model\n"
+           "-flush-sim-mem              Clear simulator memory hierarchy on every new simulation run\n"
            "\n"
            "Console keys:\n"
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
@@ -667,6 +669,7 @@ int main(int argc, char **argv)
     int marss_start_in_sim = 0;
     int marss_stats_display = 0;
     int marss_mem_model = MEM_MODEL_BASE;
+    int marss_flush_mem = FALSE;
 
     ram_size = -1;
     allow_ctrlc = FALSE;
@@ -721,6 +724,9 @@ int main(int argc, char **argv)
             case 9: /* build-preload */
                 build_preload_file = optarg;
                 break;
+            case 10: /* flush-sim-mem */
+                marss_flush_mem = TRUE;
+                break;
             default:
                 fprintf(stderr, "unknown option index: %d\n", option_index);
                 exit(1);
@@ -771,6 +777,7 @@ int main(int argc, char **argv)
 
     p->sim_params->start_in_sim = marss_start_in_sim;
     p->sim_params->enable_stats_display = marss_stats_display;
+    p->sim_params->flush_sim_mem = marss_flush_mem;
 
     /* open the files & devices */
     for(i = 0; i < p->drive_count; i++) {

@@ -187,6 +187,7 @@ sim_params_init()
     p->dramsim_stats_dir = strdup(DEF_DRAMSIM_STATS_DIR);
     assert(p->dramsim_stats_dir);
 
+    p->flush_sim_mem = DEF_FLUSH_SIM_MEM;
     return p;
 }
 
@@ -377,6 +378,9 @@ sim_params_print(const SimParams *p)
                 cache_wa_str[p->cache_write_allocate_policy]);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "cache_write_policy",
                 cache_wp_str[p->cache_write_policy]);
+
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "flush_sim_mem",
+                sim_param_status[p->flush_sim_mem]);
     }
 
     fprintf(stderr, "\n");

@@ -182,6 +182,8 @@ enum MEM_MODEL_TYPE
 #define DEF_DRAMSIM_SYSTEM_INI_FILE "DRAMSim2/system.ini.example"
 #define DEF_DRAMSIM_STATS_DIR "."
 
+#define DEF_FLUSH_SIM_MEM DISABLE
+
 #define PRINT_SIM_STAT_HEADER(fp)                                         \
   do {                                                                    \
     fprintf(fp, "%s,%s,%s,%s,%s,%s\n", "stat-name", "user", "supervisor", \
@@ -317,6 +319,9 @@ typedef struct SimParams
     char *dramsim_ini_file;
     char *dramsim_system_ini_file;
     char *dramsim_stats_dir;
+
+    /* Flag to control clearing out of caches on every new simulation run */
+    int flush_sim_mem;
 } SimParams;
 
 typedef struct SimStats
