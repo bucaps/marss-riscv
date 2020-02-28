@@ -239,26 +239,65 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
         STOP_SIM_TIMER(s->sim_end);
         sim_time = GET_SIM_TIMER_DIFF(s->sim_start, s->sim_end) / 1000000;
 
-        fprintf(stderr,
-                "(marss-riscv): Switching to emulation mode at pc = 0x%" PR_target_ulong "\n", pc);
+        if (s->simcpu->mmu->mem_controller->mem_model_type == MEM_MODEL_DRAMSIM)
+        {
+            dramsim_wrapper_print_stats();
+        }
 
-        PRINT_SIM_STAT_HEADER_TO_TERMINAL(stderr);
-        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "commits", ins_simulated);
-        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "cycles", cycles);
-
-        fprintf(stderr, "(marss-riscv): Time elapsed on host-machine %lu ms\n",
-                sim_time);
-
-	if (s->simcpu->mmu->mem_controller->mem_model_type == MEM_MODEL_DRAMSIM)
-	{
-		dramsim_wrapper_print_stats();
-	}
-
-	dump_simulation_stats(s);
+        dump_simulation_stats(s);
 
 #if defined(CONFIG_SIM_TRACE)
         fclose(s->sim_trace);
 #endif
+
+        fprintf(stderr, "(marss-riscv): Switching to emulation mode at pc = "
+                        "0x%" PR_target_ulong "\n",
+                pc);
+
+        PRINT_SIM_STAT_HEADER_TO_TERMINAL(stderr);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "commits",
+                                   ins_simulated);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "cycles", cycles);
+
+        if (s->simcpu->params->enable_l1_caches)
+        {
+            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "l1i_read",
+                                       l1i_read);
+            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                       "l1i_read_miss", l1i_read_miss);
+            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "l1d_read",
+                                       l1d_read);
+            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                       "l1d_read_miss", l1d_read_miss);
+            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "l1d_write",
+                                       l1d_write);
+            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                       "l1d_write_miss", l1d_write_miss);
+
+            if (s->simcpu->params->enable_l2_cache)
+            {
+                PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "l2_read",
+                                           l2_read);
+                PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                           "l2_read_miss", l2_read_miss);
+                PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                           "l2_write", l2_write);
+                PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                           "l2_write_miss", l2_write_miss);
+            }
+        }
+
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "cond_branches",
+                                   ins_type[INS_TYPE_COND_BRANCH]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "uncond_branches",
+                                   ins_type[INS_TYPE_UNCOND_BRANCH]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                   "bpu_cond_incorrect", bpu_cond_incorrect);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                   "bpu_uncond_incorrect",
+                                   bpu_uncond_incorrect);
+        fprintf(stderr, "(marss-riscv): Time elapsed on host-machine %lu ms\n",
+                sim_time);
     }
 }
 
