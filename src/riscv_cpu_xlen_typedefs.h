@@ -6,7 +6,6 @@
 #define FLEN 128
 #else
 #define FLEN 64
-#define SIM_FLEN 64
 #endif
 #endif /* !FLEN */
 

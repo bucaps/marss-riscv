@@ -42,6 +42,8 @@
 #define BIT_SIZE 64
 #endif
 
+#define SIM_FLEN 64
+
 #if BIT_SIZE == 32
 typedef int32_t target_long;
 typedef uint32_t target_ulong;
