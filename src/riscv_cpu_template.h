@@ -373,6 +373,8 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         case SIM_TIMEOUT_EXCEPTION:
             /* We executed all the n_cycles instructions for this interval and now
                we must exit to virt_machine_run() to receive interrupts */
+
+		assert(s->n_cycles == 0);
 #if defined(CONFIG_SIM_TRACE)
             print_ins_trace(s, s->simcpu->clock, s->sim_epc, 0, "",
                             0, 0, 0, 0, 0, s->priv, "timeout");
