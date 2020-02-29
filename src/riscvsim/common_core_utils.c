@@ -226,7 +226,7 @@ set_timer_exception_state(RISCVCPUState *s, const IMapEntry *e)
 #define MEMORY_OP_A(size)                                                      \
     {                                                                          \
         uint##size##_t rval;                                                   \
-        uint##size##_t addr = e->ins.mem_addr;                                 \
+        target_ulong addr = e->ins.mem_addr;                                   \
         uint32_t funct3 = e->ins.binary >> 27;                                 \
         switch (funct3)                                                        \
         {                                                                      \
