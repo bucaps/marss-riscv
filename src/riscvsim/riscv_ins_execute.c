@@ -512,7 +512,7 @@ execute_ext_c_q1(RVInstruction *i)
             break;
 #elif defined(RV64)
         case 1: /* c.addiw */
-            i->buffer = (target_long)(i->rs1_val + i->imm);
+            i->buffer = (int32_t)(i->rs1_val + i->imm);
             break;
 #endif
         case 2: /* c.li */
