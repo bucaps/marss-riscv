@@ -1889,6 +1889,12 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
             goto the_end;
         }
 
+        /* Control should never reach here during simulation */
+        if (s->simulation)
+        {
+            assert(0);
+        }
+
     } /* end of main loop */
  illegal_insn:
     s->pending_exception = CAUSE_ILLEGAL_INSTRUCTION;
