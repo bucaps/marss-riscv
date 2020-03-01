@@ -633,14 +633,6 @@ decode_compressed_type(struct RVInstruction *ins)
 }
 
 static void
-decode_f_fused(struct RVInstruction *ins, uint32_t fused_type)
-{
-    ins->rm = ins->funct3;
-    ins->funct3 = (ins->binary >> 25) & 3;
-    ins->rs3 = ins->binary >> 27;
-}
-
-static void
 set_op_fu(RVInstruction *i)
 {
     uint32_t funct3;
@@ -1088,7 +1080,8 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_fp_src2 = 1;
                 ins->has_fp_src3 = 1;
                 ins->set_fs = 1;
-                decode_f_fused(ins, FMADD_MASK);
+                ins->funct3 = (ins->binary >> 25) & 3;
+                ins->rs3 = ins->binary >> 27;
                 // ins->exception = 1;
                 // ins->exception_cause = 2;
                 break;
@@ -1106,7 +1099,8 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_fp_src2 = 1;
                 ins->has_fp_src3 = 1;
                 ins->set_fs = 1;
-                decode_f_fused(ins, FMSUB_MASK);
+                ins->funct3 = (ins->binary >> 25) & 3;
+                ins->rs3 = ins->binary >> 27;
                 // ins->exception = 1;
                 // ins->exception_cause = 2;
                 break;
@@ -1124,7 +1118,8 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_fp_src2 = 1;
                 ins->has_fp_src3 = 1;
                 ins->set_fs = 1;
-                decode_f_fused(ins, FNMSUB_MASK);
+                ins->funct3 = (ins->binary >> 25) & 3;
+                ins->rs3 = ins->binary >> 27;
                 // ins->exception = 1;
                 // ins->exception_cause = 2;
                 break;
@@ -1142,7 +1137,8 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_fp_src2 = 1;
                 ins->has_fp_src3 = 1;
                 ins->set_fs = 1;
-                decode_f_fused(ins, FNMADD_MASK);
+                ins->funct3 = (ins->binary >> 25) & 3;
+                ins->rs3 = ins->binary >> 27;
                 // ins->exception = 1;
                 // ins->exception_cause = 2;
                 break;

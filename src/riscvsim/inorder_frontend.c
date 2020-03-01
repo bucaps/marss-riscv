@@ -330,7 +330,7 @@ in_core_decode(INCore *core)
             {
                 /* For decoding floating point instructions */
                 e->ins.current_fs = s->fs;
-                e->ins.rm = get_insn_rm(s, e->ins.rm);
+                e->ins.rm = get_insn_rm(s, (e->ins.binary >> 12) & 7);
 
                 /* Decode the instruction */
                 decode_riscv_binary(&e->ins, e->ins.binary);
