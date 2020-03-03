@@ -296,6 +296,14 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
                                    "bpu_uncond_incorrect",
                                    bpu_uncond_incorrect);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "ins_page_faults",
+                                   ins_page_faults);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "load_page_faults",
+                                   load_page_faults);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                   "store_page_faults", store_page_faults);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                                   "ecall (system call)", ecall);
         fprintf(stderr, "(marss-riscv): Time elapsed on host-machine %lu ms\n",
                 sim_time);
     }

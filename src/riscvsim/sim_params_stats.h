@@ -386,6 +386,7 @@ typedef struct SimStats
     uint64_t l2_write_miss;
 
     /* Exceptions */
+    uint64_t ecall;
     uint64_t ins_page_faults;
     uint64_t load_page_faults;
     uint64_t store_page_faults;

@@ -737,6 +737,7 @@ sim_stats_print(SimStats *s, const char *pathname)
     PRINT_SIM_STAT(fp, s, "fu_fpu_alu_accesses", fu_access[FU_FPU_ALU]);
     PRINT_SIM_STAT(fp, s, "fu_fpu_fma_accesses", fu_access[FU_FPU_FMA]);
 
+    PRINT_SIM_STAT(fp, s, "ecall", ecall);
     PRINT_SIM_STAT(fp, s, "ins_page_faults", ins_page_faults);
     PRINT_SIM_STAT(fp, s, "load_page_faults", load_page_faults);
     PRINT_SIM_STAT(fp, s, "store_page_faults", store_page_faults);
