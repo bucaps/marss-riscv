@@ -1642,3 +1642,15 @@ switch_to_cpu_simulation(RISCVCPUState* s)
     riscv_sim_cpu_reset(s->simcpu);
     return riscv_sim_cpu_run(s->simcpu);
 }
+
+uint64_t
+riscv_cpu_get_sim_clock(RISCVCPUState *s)
+{
+    return (s->simcpu->clock + s->guest_rtc_time);
+}
+
+int
+riscv_cpu_in_simulation(RISCVCPUState *s)
+{
+    return s->simulation;
+}

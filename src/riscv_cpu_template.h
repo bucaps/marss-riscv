@@ -248,6 +248,8 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         s->start_simulation = FALSE;
         s->simcpu->clock = 0;
 
+        s->guest_rtc_time = rtc_get_time_sim_start(s->riscv_machine_ptr);
+
         /* Reset simulation stats */
         sim_stats_reset(s->simcpu->stats);
 
