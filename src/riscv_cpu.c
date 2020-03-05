@@ -258,6 +258,9 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "commits",
                                    ins_simulated);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "cycles", cycles);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "frontend_mem_delay", frontend_mem_delay);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "backend_mem_delay", backend_mem_delay);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "exec_unit_delay", exec_unit_delay);
 
         if (s->simcpu->params->enable_l1_caches)
         {

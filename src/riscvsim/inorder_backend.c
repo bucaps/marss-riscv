@@ -94,6 +94,7 @@ in_core_execute(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
         s = core->simcpu->emu_cpu_state;
         simcpu = core->simcpu;
         e = &simcpu->imap[stage->imap_index];
+        ++simcpu->stats[s->priv].exec_unit_delay;
         if (!stage->stage_exec_done)
         {
             if (e->ins.has_dest)
