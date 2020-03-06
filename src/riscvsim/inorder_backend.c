@@ -315,6 +315,12 @@ in_core_memory(INCore *core)
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = MEMORY;
             s->hw_pg_tb_wlk_latency_accounted = 0;
+            s->load_tlb_lookup_accounted = 0;
+            s->load_tlb_hit_accounted = 0;
+            s->load_tlb_page_walks_accounted = 0;
+            s->store_tlb_lookup_accounted = 0;
+            s->store_tlb_hit_accounted = 0;
+            s->store_tlb_page_walks_accounted = 0;
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in memory stage so far */
@@ -393,7 +399,7 @@ in_core_memory(INCore *core)
                 if (simcpu->mmu->mem_controller->backend_mem_access_queue
                         .cur_size)
                 {
-                    ++simcpu->stats[s->priv].backend_mem_delay;
+                    ++simcpu->stats[s->priv].data_mem_delay;
                     return;
                 }
                 else

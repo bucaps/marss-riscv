@@ -327,10 +327,9 @@ typedef struct SimParams
 typedef struct SimStats
 {
     /* General Stats */
-    uint64_t sim_time;
     uint64_t cycles;
-    uint64_t frontend_mem_delay;
-    uint64_t backend_mem_delay;
+    uint64_t insn_mem_delay;
+    uint64_t data_mem_delay;
     uint64_t exec_unit_delay;
 
     /* Instruction Stats */
@@ -375,19 +374,23 @@ typedef struct SimStats
     uint64_t store_tlb_hits;
 
     /* Cache Stats */
-    uint64_t l1i_read;
-    uint64_t l1i_read_miss;
-    uint64_t l1d_read;
-    uint64_t l1d_write;
-    uint64_t l1d_read_miss;
-    uint64_t l1d_write_miss;
-    uint64_t l2_read;
-    uint64_t l2_write;
-    uint64_t l2_read_miss;
-    uint64_t l2_write_miss;
+    uint64_t icache_read;
+    uint64_t icache_read_miss;
+    uint64_t dcache_read;
+    uint64_t dcache_write;
+    uint64_t dcache_read_miss;
+    uint64_t dcache_write_miss;
+    uint64_t l2_cache_read;
+    uint64_t l2_cache_write;
+    uint64_t l2_cache_read_miss;
+    uint64_t l2_cache_write_miss;
 
     /* Exceptions */
     uint64_t ecall;
+    uint64_t interrupts;
+    uint64_t ins_page_walks;
+    uint64_t load_page_walks;
+    uint64_t store_page_walks;
     uint64_t ins_page_faults;
     uint64_t load_page_faults;
     uint64_t store_page_faults;

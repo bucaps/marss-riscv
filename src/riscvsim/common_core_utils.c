@@ -668,22 +668,22 @@ copy_cache_stats_to_global_stats(struct RISCVCPUState *s)
         for (i = 0; i < NUM_MAX_PRV_LEVELS; ++i)
         {
             cache_stats = get_cache_stats(s->simcpu->mmu->icache);
-            s->simcpu->stats[i].l1i_read = cache_stats[i].total_read_cnt;
-            s->simcpu->stats[i].l1i_read_miss = cache_stats[i].read_miss_cnt;
+            s->simcpu->stats[i].icache_read = cache_stats[i].total_read_cnt;
+            s->simcpu->stats[i].icache_read_miss = cache_stats[i].read_miss_cnt;
 
             cache_stats = get_cache_stats(s->simcpu->mmu->dcache);
-            s->simcpu->stats[i].l1d_read = cache_stats[i].total_read_cnt;
-            s->simcpu->stats[i].l1d_read_miss = cache_stats[i].read_miss_cnt;
-            s->simcpu->stats[i].l1d_write = cache_stats[i].total_write_cnt;
-            s->simcpu->stats[i].l1d_write_miss = cache_stats[i].write_miss_cnt;
+            s->simcpu->stats[i].dcache_read = cache_stats[i].total_read_cnt;
+            s->simcpu->stats[i].dcache_read_miss = cache_stats[i].read_miss_cnt;
+            s->simcpu->stats[i].dcache_write = cache_stats[i].total_write_cnt;
+            s->simcpu->stats[i].dcache_write_miss = cache_stats[i].write_miss_cnt;
 
             if (s->sim_params->enable_l2_cache)
             {
                 cache_stats = get_cache_stats(s->simcpu->mmu->l2_cache);
-                s->simcpu->stats[i].l2_read = cache_stats[i].total_read_cnt;
-                s->simcpu->stats[i].l2_read_miss = cache_stats[i].read_miss_cnt;
-                s->simcpu->stats[i].l2_write = cache_stats[i].total_write_cnt;
-                s->simcpu->stats[i].l2_write_miss
+                s->simcpu->stats[i].l2_cache_read = cache_stats[i].total_read_cnt;
+                s->simcpu->stats[i].l2_cache_read_miss = cache_stats[i].read_miss_cnt;
+                s->simcpu->stats[i].l2_cache_write = cache_stats[i].total_write_cnt;
+                s->simcpu->stats[i].l2_cache_write_miss
                     = cache_stats[i].write_miss_cnt;
             }
         }

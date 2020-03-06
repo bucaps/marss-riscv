@@ -129,7 +129,7 @@ print_bpu_stats()
     uint64_t btb_hits = GET_TOTAL_STAT(btb_hits);
     uint64_t correct_pred = GET_TOTAL_STAT(bpu_cond_correct) + GET_TOTAL_STAT(bpu_uncond_correct);
     uint64_t incorrect_pred = GET_TOTAL_STAT(bpu_cond_incorrect) + GET_TOTAL_STAT(bpu_uncond_incorrect);
-    uint64_t total_branches = GET_TOTAL_STAT(ins_type[INS_TYPE_COND_BRANCH]) + GET_TOTAL_STAT(ins_type[INS_TYPE_UNCOND_BRANCH]);
+    uint64_t total_branches = GET_TOTAL_STAT(ins_type[INS_TYPE_COND_BRANCH]) + GET_TOTAL_STAT(ins_type[INS_TYPE_JAL]) + GET_TOTAL_STAT(ins_type[INS_TYPE_JAL]);
 
     printf("%-22s : %-22" PRIu64 "\n", "btb-probes", btb_probes);
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "btb-hits", btb_hits,
@@ -169,32 +169,32 @@ print_tlb_stats()
 static void
 print_caches_stats()
 {
-    uint64_t icache_hit = GET_TOTAL_STAT(l1i_read) - GET_TOTAL_STAT(l1i_read_miss);
-    uint64_t dcache_read_hit = GET_TOTAL_STAT(l1d_read) - GET_TOTAL_STAT(l1d_read_miss);
-    uint64_t dcache_write_hit = GET_TOTAL_STAT(l1d_write) - GET_TOTAL_STAT(l1d_write_miss);
-    uint64_t l2_read_hit = GET_TOTAL_STAT(l2_read) - GET_TOTAL_STAT(l2_read_miss);
-    uint64_t l2_write_hit = GET_TOTAL_STAT(l2_write) - GET_TOTAL_STAT(l2_write_miss);
+    uint64_t icache_hit = GET_TOTAL_STAT(icache_read) - GET_TOTAL_STAT(icache_read_miss);
+    uint64_t dcache_read_hit = GET_TOTAL_STAT(dcache_read) - GET_TOTAL_STAT(dcache_read_miss);
+    uint64_t dcache_write_hit = GET_TOTAL_STAT(dcache_write) - GET_TOTAL_STAT(dcache_write_miss);
+    uint64_t l2_cache_read_hit = GET_TOTAL_STAT(l2_cache_read) - GET_TOTAL_STAT(l2_cache_read_miss);
+    uint64_t l2_cache_write_hit = GET_TOTAL_STAT(l2_cache_write) - GET_TOTAL_STAT(l2_cache_write_miss);
 
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "icache-hits", icache_hit,
-           ((double)icache_hit / (double)GET_TOTAL_STAT(l1i_read)) * 100);
+           ((double)icache_hit / (double)GET_TOTAL_STAT(icache_read)) * 100);
 
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "dcache-read-hits",
            dcache_read_hit,
-           ((double)dcache_read_hit / (double)GET_TOTAL_STAT(l1d_read))
+           ((double)dcache_read_hit / (double)GET_TOTAL_STAT(dcache_read))
                * 100);
 
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "dcache-write-hits",
            dcache_write_hit,
-           ((double)dcache_write_hit / (double)GET_TOTAL_STAT(l1d_write))
+           ((double)dcache_write_hit / (double)GET_TOTAL_STAT(dcache_write))
                * 100);
 
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "l2-shared-read-hits",
-           l2_read_hit,
-           ((double)l2_read_hit / (double)GET_TOTAL_STAT(l2_read)) * 100);
+           l2_cache_read_hit,
+           ((double)l2_cache_read_hit / (double)GET_TOTAL_STAT(l2_cache_read)) * 100);
 
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "l2-shared-write-hits",
-           l2_write_hit,
-           ((double)l2_write_hit / (double)GET_TOTAL_STAT(l2_write)) * 100);
+           l2_cache_write_hit,
+           ((double)l2_cache_write_hit / (double)GET_TOTAL_STAT(l2_cache_write)) * 100);
 
     printf("\n");
 }

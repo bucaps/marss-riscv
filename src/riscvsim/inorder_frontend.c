@@ -113,6 +113,9 @@ in_core_fetch(INCore *core)
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = FETCH;
             s->hw_pg_tb_wlk_latency_accounted = 0;
+            s->ins_page_walks_accounted = 0;
+            s->ins_tlb_lookup_accounted = 0;
+            s->ins_tlb_hit_accounted = 0;
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in fetch stage so far */
@@ -233,7 +236,7 @@ in_core_fetch(INCore *core)
             }
             else
             {
-                ++simcpu->stats[s->priv].frontend_mem_delay;
+                ++simcpu->stats[s->priv].insn_mem_delay;
             }
         }
         else

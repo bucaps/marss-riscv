@@ -46,7 +46,7 @@ case (0x00 << 2) | OPID: /* fadd */
     i->buffer = simglue(add_sf, F_SIZE)(i->rs1_val, i->rs2_val,
                                         (RoundingModeEnum)rm, fflags)
                 | F_HIGH;
-
+    i->type = INS_TYPE_FP_ADD;
     break;
 
 case (0x01 << 2) | OPID: /* fsub */
@@ -59,18 +59,21 @@ case (0x02 << 2) | OPID: /* fmul */
     i->buffer = simglue(mul_sf, F_SIZE)(i->rs1_val, i->rs2_val,
                                         (RoundingModeEnum)rm, fflags)
                 | F_HIGH;
+    i->type = INS_TYPE_FP_MUL;
     break;
 
 case (0x03 << 2) | OPID: /* fdiv */
     i->buffer = simglue(div_sf, F_SIZE)(i->rs1_val, i->rs2_val,
                                         (RoundingModeEnum)rm, fflags)
                 | F_HIGH;
+    i->type = INS_TYPE_FP_DIV_SQRT;
     break;
 
 case (0x0b << 2) | OPID: /* fsqrt */
     i->buffer
         = simglue(sqrt_sf, F_SIZE)(i->rs1_val, (RoundingModeEnum)rm, fflags)
           | F_HIGH;
+    i->type = INS_TYPE_FP_DIV_SQRT;
     break;
 
 case (0x04 << 2) | OPID: /* sign inject */

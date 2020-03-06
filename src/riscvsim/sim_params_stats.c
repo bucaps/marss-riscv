@@ -694,28 +694,38 @@ sim_stats_print(SimStats *s, const char *pathname)
     PRINT_SIM_STAT_HEADER(fp);
 
     PRINT_SIM_STAT(fp, s, "cycles", cycles);
-    PRINT_SIM_STAT(fp, s, "insn_fetched", ins_fetch);
-    PRINT_SIM_STAT(fp, s, "ins_simulated", ins_simulated);
-    PRINT_SIM_STAT(fp, s, "frontend_mem_delay", frontend_mem_delay);
-    PRINT_SIM_STAT(fp, s, "backend_mem_delay", backend_mem_delay);
+    PRINT_SIM_STAT(fp, s, "commits", ins_simulated);
+    PRINT_SIM_STAT(fp, s, "ins_fetch", ins_fetch);
+
+    PRINT_SIM_STAT(fp, s, "insn_mem_delay", insn_mem_delay);
+    PRINT_SIM_STAT(fp, s, "data_mem_delay", data_mem_delay);
     PRINT_SIM_STAT(fp, s, "exec_unit_delay", exec_unit_delay);
 
-    PRINT_SIM_STAT(fp, s, "operate_insn", ins_type[INS_TYPE_OPERATE]);
     PRINT_SIM_STAT(fp, s, "load_insn", ins_type[INS_TYPE_LOAD]);
     PRINT_SIM_STAT(fp, s, "store_insn", ins_type[INS_TYPE_STORE]);
     PRINT_SIM_STAT(fp, s, "atomic_insn", ins_type[INS_TYPE_ATOMIC]);
-    PRINT_SIM_STAT(fp, s, "cond_branches", ins_type[INS_TYPE_COND_BRANCH]);
-    PRINT_SIM_STAT(fp, s, "cond_branches_taken", ins_cond_branch_taken);
-    PRINT_SIM_STAT(fp, s, "uncond_branches", ins_type[INS_TYPE_UNCOND_BRANCH]);
     PRINT_SIM_STAT(fp, s, "system_insn", ins_emulated);
+    PRINT_SIM_STAT(fp, s, "cond_branches", ins_type[INS_TYPE_COND_BRANCH]);
+    PRINT_SIM_STAT(fp, s, "jal_insn", ins_type[INS_TYPE_JAL]);
+    PRINT_SIM_STAT(fp, s, "jalr_insn", ins_type[INS_TYPE_JALR]);
+    PRINT_SIM_STAT(fp, s, "int_mul_insn", ins_type[INS_TYPE_INT_MUL]);
+    PRINT_SIM_STAT(fp, s, "int_div_insn", ins_type[INS_TYPE_INT_DIV]);
+    PRINT_SIM_STAT(fp, s, "fp_load_insn", ins_type[INS_TYPE_FP_LOAD]);
+    PRINT_SIM_STAT(fp, s, "fp_store_insn", ins_type[INS_TYPE_FP_STORE]);
+    PRINT_SIM_STAT(fp, s, "fp_add_insn", ins_type[INS_TYPE_FP_ADD]);
+    PRINT_SIM_STAT(fp, s, "fp_mul_insn", ins_type[INS_TYPE_FP_MUL]);
+    PRINT_SIM_STAT(fp, s, "fp_fma_insn", ins_type[INS_TYPE_FP_FMA]);
+    PRINT_SIM_STAT(fp, s, "fp_div_sqrt_insn", ins_type[INS_TYPE_FP_DIV_SQRT]);
+    PRINT_SIM_STAT(fp, s, "fp_misc_insn", ins_type[INS_TYPE_FP_MISC]);
 
-    // PRINT_SIM_STAT(fp, s, "itlb_reads", code_tlb_lookups);
-    // PRINT_SIM_STAT(fp, s, "itlb_hits", code_tlb_hits);
-    // PRINT_SIM_STAT(fp, s, "load_tlb_reads", load_tlb_lookups);
-    // PRINT_SIM_STAT(fp, s, "load_tlb_hits", load_tlb_hits);
-    // PRINT_SIM_STAT(fp, s, "store_tlb_reads", store_tlb_lookups);
-    // PRINT_SIM_STAT(fp, s, "store_tlb_hits", store_tlb_hits);
+    PRINT_SIM_STAT(fp, s, "itlb_reads", code_tlb_lookups);
+    PRINT_SIM_STAT(fp, s, "itlb_hits", code_tlb_hits);
+    PRINT_SIM_STAT(fp, s, "load_tlb_reads", load_tlb_lookups);
+    PRINT_SIM_STAT(fp, s, "load_tlb_hits", load_tlb_hits);
+    PRINT_SIM_STAT(fp, s, "store_tlb_reads", store_tlb_lookups);
+    PRINT_SIM_STAT(fp, s, "store_tlb_hits", store_tlb_hits);
 
+    PRINT_SIM_STAT(fp, s, "cond_branches_taken", ins_cond_branch_taken);
     PRINT_SIM_STAT(fp, s, "cond_branches_pred_correct", bpu_cond_correct);
     PRINT_SIM_STAT(fp, s, "cond_branches_pred_incorrect", bpu_cond_incorrect);
     PRINT_SIM_STAT(fp, s, "uncond_branches_pred_correct", bpu_uncond_correct);
@@ -740,23 +750,26 @@ sim_stats_print(SimStats *s, const char *pathname)
     PRINT_SIM_STAT(fp, s, "fu_fpu_fma_accesses", fu_access[FU_FPU_FMA]);
 
     PRINT_SIM_STAT(fp, s, "ecall", ecall);
+    PRINT_SIM_STAT(fp, s, "interrupts", interrupts);
+    PRINT_SIM_STAT(fp, s, "ins_page_walks", ins_page_walks);
+    PRINT_SIM_STAT(fp, s, "load_page_walks", load_page_walks);
+    PRINT_SIM_STAT(fp, s, "store_page_walks", store_page_walks);
     PRINT_SIM_STAT(fp, s, "ins_page_faults", ins_page_faults);
     PRINT_SIM_STAT(fp, s, "load_page_faults", load_page_faults);
     PRINT_SIM_STAT(fp, s, "store_page_faults", store_page_faults);
 
-    PRINT_SIM_STAT(fp, s, "L1_icache_reads", l1i_read);
-    PRINT_SIM_STAT(fp, s, "L1_icache_read_misses", l1i_read_miss);
+    PRINT_SIM_STAT(fp, s, "L1_icache_reads", icache_read);
+    PRINT_SIM_STAT(fp, s, "L1_icache_read_misses", icache_read_miss);
 
-    PRINT_SIM_STAT(fp, s, "L1_dcache_reads", l1d_read);
-    PRINT_SIM_STAT(fp, s, "L1_dcache_read_misses", l1d_read_miss);
+    PRINT_SIM_STAT(fp, s, "L1_dcache_reads", dcache_read);
+    PRINT_SIM_STAT(fp, s, "L1_dcache_read_misses", dcache_read_miss);
+    PRINT_SIM_STAT(fp, s, "L1_dcache_writes", dcache_write);
+    PRINT_SIM_STAT(fp, s, "L1_dcache_write_misses", dcache_write_miss);
 
-    PRINT_SIM_STAT(fp, s, "L1_dcache_writes", l1d_write);
-    PRINT_SIM_STAT(fp, s, "L1_dcache_write_misses", l1d_write_miss);
-
-    PRINT_SIM_STAT(fp, s, "L2_cache_reads", l2_read);
-    PRINT_SIM_STAT(fp, s, "L2_cache_read_misses", l2_read_miss);
-    PRINT_SIM_STAT(fp, s, "L2_cache_writes", l2_write);
-    PRINT_SIM_STAT(fp, s, "L2_cache_write_misses", l2_write_miss);
+    PRINT_SIM_STAT(fp, s, "L2_cache_reads", l2_cache_read);
+    PRINT_SIM_STAT(fp, s, "L2_cache_read_misses", l2_cache_read_miss);
+    PRINT_SIM_STAT(fp, s, "L2_cache_writes", l2_cache_write);
+    PRINT_SIM_STAT(fp, s, "L2_cache_write_misses", l2_cache_write_miss);
 
     fclose(fp);
     fprintf(stderr, "(marss-riscv): Saved stats in %s\n", filename);

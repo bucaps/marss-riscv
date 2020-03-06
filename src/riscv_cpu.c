@@ -255,50 +255,74 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
                 pc);
 
         PRINT_SIM_STAT_HEADER_TO_TERMINAL(stderr);
-        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "commits",
-                                   ins_simulated);
+
+        /* total cycles and instructions retired */
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "commits",ins_simulated);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "cycles", cycles);
-        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "frontend_mem_delay", frontend_mem_delay);
-        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "backend_mem_delay", backend_mem_delay);
-        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "exec_unit_delay", exec_unit_delay);
+
+        /* total cycles and instructions retired */
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "load_insn", ins_type[INS_TYPE_LOAD]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "store_insn", ins_type[INS_TYPE_STORE]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "atomic_insn", ins_type[INS_TYPE_ATOMIC]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "system_insn", ins_emulated);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "cond_branches", ins_type[INS_TYPE_COND_BRANCH]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "jal_insn", ins_type[INS_TYPE_JAL]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "jalr_insn", ins_type[INS_TYPE_JALR]);
+
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "int_mul_insn", ins_type[INS_TYPE_INT_MUL]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "int_div_insn", ins_type[INS_TYPE_INT_DIV]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "fp_load_insn", ins_type[INS_TYPE_FP_LOAD]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "fp_store_insn", ins_type[INS_TYPE_FP_STORE]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "fp_add_insn", ins_type[INS_TYPE_FP_ADD]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "fp_mul_insn", ins_type[INS_TYPE_FP_MUL]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "fp_fma_insn", ins_type[INS_TYPE_FP_FMA]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "fp_div_sqrt_insn", ins_type[INS_TYPE_FP_DIV_SQRT]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "fp_misc_insn", ins_type[INS_TYPE_FP_MISC]);
 
         if (s->simcpu->params->enable_l1_caches)
         {
-            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "l1i_read",
-                                       l1i_read);
+            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "icache_read",
+                                       icache_read);
             PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
-                                       "l1i_read_miss", l1i_read_miss);
-            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "l1d_read",
-                                       l1d_read);
+                                       "icache_read_miss", icache_read_miss);
+            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "dcache_read",
+                                       dcache_read);
             PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
-                                       "l1d_read_miss", l1d_read_miss);
-            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "l1d_write",
-                                       l1d_write);
+                                       "dcache_read_miss", dcache_read_miss);
+            PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "dcache_write",
+                                       dcache_write);
             PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
-                                       "l1d_write_miss", l1d_write_miss);
+                                       "dcache_write_miss", dcache_write_miss);
 
             if (s->simcpu->params->enable_l2_cache)
             {
-                PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "l2_read",
-                                           l2_read);
+                PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "l2_cache_read",
+                                           l2_cache_read);
                 PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
-                                           "l2_read_miss", l2_read_miss);
+                                           "l2_cache_read_miss", l2_cache_read_miss);
                 PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
-                                           "l2_write", l2_write);
+                                           "l2_cache_write", l2_cache_write);
                 PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
-                                           "l2_write_miss", l2_write_miss);
+                                           "l2_cache_write_miss", l2_cache_write_miss);
             }
         }
 
-        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "cond_branches",
-                                   ins_type[INS_TYPE_COND_BRANCH]);
-        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "uncond_branches",
-                                   ins_type[INS_TYPE_UNCOND_BRANCH]);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "insn_mem_delay", insn_mem_delay);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "data_mem_delay", data_mem_delay);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "exec_unit_delay", exec_unit_delay);
+
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
                                    "bpu_cond_incorrect", bpu_cond_incorrect);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
                                    "bpu_uncond_incorrect",
                                    bpu_uncond_incorrect);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "ins_page_walks",
+                                       ins_page_walks);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "load_page_walks",
+                                       load_page_walks);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "store_page_walks",
+                                       store_page_walks);
+
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "ins_page_faults",
                                    ins_page_faults);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "load_page_faults",
@@ -307,6 +331,8 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
                                    "store_page_faults", store_page_faults);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
                                    "ecall (system call)", ecall);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
+                           "interrupts", interrupts);
         fprintf(stderr, "(marss-riscv): Time elapsed on host-machine %lu ms\n",
                 sim_time);
     }
@@ -367,6 +393,25 @@ static int get_phys_addr(RISCVCPUState *s,
         pte_addr_bits = 44;
     }
 #endif
+
+    /* for code page walk */
+    if (s->simulation && (access == 2) && !s->ins_page_walks_accounted) {
+        ++s->simcpu->stats[s->priv].ins_page_walks;
+        s->ins_page_walks_accounted = 1;
+    }
+
+    /* for load page walk */
+    if (s->simulation && (access == 0) && !s->load_tlb_page_walks_accounted) {
+        ++s->simcpu->stats[s->priv].load_page_walks;
+        s->load_tlb_page_walks_accounted = 1;
+    }
+
+    /* for store page walk */
+    if (s->simulation && (access == 1) && !s->store_tlb_page_walks_accounted) {
+        ++s->simcpu->stats[s->priv].store_page_walks;
+        s->store_tlb_page_walks_accounted = 1;
+    }
+
     pte_addr = (s->satp & (((target_ulong)1 << pte_addr_bits) - 1)) << PG_SHIFT;
     pte_bits = 12 - pte_size_log2;
     pte_mask = (1 << pte_bits) - 1;
@@ -751,16 +796,20 @@ __exception int target_read_insn_u16(RISCVCPUState *s, uint16_t *pinsn,
 {
     uint32_t tlb_idx;
     uint8_t *ptr;
-    if (s->simulation) {
+
+    if (s->simulation && !s->ins_tlb_lookup_accounted) {
         ++s->simcpu->stats[s->priv].code_tlb_lookups;
+        s->ins_tlb_lookup_accounted = 1;
     }
+
     tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);
     if (likely(s->tlb_code[tlb_idx].vaddr == (addr & ~PG_MASK))) {
         ptr = (uint8_t *)(s->tlb_code[tlb_idx].mem_addend +
                           (uintptr_t)addr);
 
-        if (s->simulation) {
+        if (s->simulation && !s->ins_tlb_hit_accounted) {
             ++s->simcpu->stats[s->priv].code_tlb_hits;
+            s->ins_tlb_hit_accounted = 1;
         }
 
     } else {
@@ -1404,6 +1453,9 @@ static __exception int raise_interrupt(RISCVCPUState *s)
     if (mask == 0)
         return 0;
     irq_num = ctz32(mask);
+    if (s->simulation){
+        ++s->simcpu->stats[s->priv].interrupts;
+    }
     raise_exception(s, irq_num | CAUSE_INTERRUPT);
     return -1;
 }

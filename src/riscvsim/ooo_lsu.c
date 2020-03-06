@@ -115,7 +115,7 @@ oo_core_lsu(OOCore *core)
             }
             else
             {
-                ++simcpu->stats[s->priv].backend_mem_delay;
+                ++simcpu->stats[s->priv].data_mem_delay;
             }
         }
         else

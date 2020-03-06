@@ -184,7 +184,7 @@ oo_core_fetch(OOCore *core)
             }
             else
             {
-                ++simcpu->stats[s->priv].frontend_mem_delay;
+                ++simcpu->stats[s->priv].insn_mem_delay;
             }
         }
         else

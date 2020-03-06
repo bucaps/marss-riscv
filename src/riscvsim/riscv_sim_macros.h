@@ -105,16 +105,28 @@
 #define NUM_MAX_PRV_LEVELS 4
 
 /* Used for updating performance counters */
-#define NUM_MAX_INS_TYPES 7
-#define INS_TYPE_OPERATE 0x0
-#define INS_TYPE_LOAD 0x1
-#define INS_TYPE_STORE 0x2
-#define INS_TYPE_ATOMIC 0x3
-#define INS_TYPE_COND_BRANCH 0x4
-#define INS_TYPE_UNCOND_BRANCH 0x5
-#define INS_TYPE_SYSTEM 0x6
-#define INS_CLASS_INT 0x0
-#define INS_CLASS_FP 0x1
+
+#define NUM_MAX_INS_TYPES 17
+#define INS_TYPE_LOAD 0x0
+#define INS_TYPE_STORE 0x1
+#define INS_TYPE_ATOMIC 0x2
+#define INS_TYPE_SYSTEM 0x3
+#define INS_TYPE_ARITMETIC 0x4
+#define INS_TYPE_COND_BRANCH 0x5
+#define INS_TYPE_JAL 0x6
+#define INS_TYPE_JALR 0x7
+#define INS_TYPE_INT_MUL 0x8
+#define INS_TYPE_INT_DIV 0x9
+#define INS_TYPE_FP_LOAD 0xa
+#define INS_TYPE_FP_STORE 0xb
+#define INS_TYPE_FP_ADD 0xc
+#define INS_TYPE_FP_MUL 0xd
+#define INS_TYPE_FP_FMA 0xe
+#define INS_TYPE_FP_DIV_SQRT 0xf
+#define INS_TYPE_FP_MISC 0x10
+
+#define INS_CLASS_INT 0x11
+#define INS_CLASS_FP 0x12
 
 /* For Branch prediction unit */
 #define BPU_MISS 0x0

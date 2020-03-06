@@ -89,7 +89,7 @@ decode_compressed_q0(struct RVInstruction *ins)
             ins->bytes_to_rw = 8;
             ins->f64_mask = 1;
             ins->set_fs = 1;
-            ins->type = INS_TYPE_LOAD;
+            ins->type = INS_TYPE_FP_LOAD;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
             // ins->exception = 1;
@@ -134,7 +134,7 @@ decode_compressed_q0(struct RVInstruction *ins)
             ins->bytes_to_rw = 4;
             ins->f32_mask = 1;
             ins->set_fs = 1;
-            ins->type = INS_TYPE_LOAD;
+            ins->type = INS_TYPE_FP_LOAD;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
@@ -149,7 +149,7 @@ decode_compressed_q0(struct RVInstruction *ins)
             ins->has_src1 = 1;
             ins->has_fp_src2 = 1;
             ins->bytes_to_rw = 8;
-            ins->type = INS_TYPE_STORE;
+            ins->type = INS_TYPE_FP_STORE;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
             // ins->exception = 1;
@@ -186,7 +186,7 @@ decode_compressed_q0(struct RVInstruction *ins)
             ins->has_src1 = 1;
             ins->has_fp_src2 = 1;
             ins->bytes_to_rw = 4;
-            ins->type = INS_TYPE_STORE;
+            ins->type = INS_TYPE_FP_STORE;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
@@ -233,7 +233,7 @@ decode_compressed_q1(struct RVInstruction *ins)
             ins->has_dest = 1;
             ins->is_branch = 1;
             ins->branch_type = BRANCH_UNCOND;
-            ins->type = INS_TYPE_UNCOND_BRANCH;
+            ins->type = INS_TYPE_JAL;
             rd = 1;
             imm = sextc(
                 cget_field1(insn, 12, 11, 11) | cget_field1(insn, 11, 4, 4)
@@ -330,7 +330,7 @@ decode_compressed_q1(struct RVInstruction *ins)
         case 5: /* c.j */
             ins->is_branch = 1;
             ins->branch_type = BRANCH_UNCOND;
-            ins->type = INS_TYPE_UNCOND_BRANCH;
+            ins->type = INS_TYPE_JAL;
             imm = sextc(
                 cget_field1(insn, 12, 11, 11) | cget_field1(insn, 11, 4, 4)
                     | cget_field1(insn, 9, 8, 9) | cget_field1(insn, 8, 10, 10)
@@ -420,7 +420,7 @@ decode_compressed_q2(struct RVInstruction *ins)
             ins->bytes_to_rw = 8;
             ins->f64_mask = 1;
             ins->set_fs = 1;
-            ins->type = INS_TYPE_LOAD;
+            ins->type = INS_TYPE_FP_LOAD;
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (3 << 3))
                   | cget_field1(insn, 2, 6, 8);
@@ -467,7 +467,7 @@ decode_compressed_q2(struct RVInstruction *ins)
             ins->bytes_to_rw = 4;
             ins->f32_mask = 1;
             ins->set_fs = 1;
-            ins->type = INS_TYPE_LOAD;
+            ins->type = INS_TYPE_FP_LOAD;
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (7 << 2))
                   | cget_field1(insn, 2, 6, 7);
@@ -484,7 +484,7 @@ decode_compressed_q2(struct RVInstruction *ins)
                     /* c.jr */
                     ins->is_branch = 1;
                     ins->branch_type = BRANCH_UNCOND;
-                    ins->type = INS_TYPE_UNCOND_BRANCH;
+                    ins->type = INS_TYPE_JALR;
                     ins->has_src1 = 1;
                     if (rd == 0)
                         goto illegal_insn;
@@ -518,7 +518,7 @@ decode_compressed_q2(struct RVInstruction *ins)
                         /* c.jalr */
                         ins->is_branch = 1;
                         ins->branch_type = BRANCH_UNCOND;
-                        ins->type = INS_TYPE_UNCOND_BRANCH;
+                        ins->type = INS_TYPE_JALR;
                         ins->has_dest = 1;
                         ins->has_src1 = 1;
                         rd = 1;
@@ -542,7 +542,7 @@ decode_compressed_q2(struct RVInstruction *ins)
             ins->has_src1 = 1;
             ins->has_fp_src2 = 1;
             ins->bytes_to_rw = 8;
-            ins->type = INS_TYPE_STORE;
+            ins->type = INS_TYPE_FP_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 7, 6, 8);
             // ins->exception = 1;
@@ -578,7 +578,7 @@ decode_compressed_q2(struct RVInstruction *ins)
             ins->has_src1 = 1;
             ins->has_fp_src2 = 1;
             ins->bytes_to_rw = 4;
-            ins->type = INS_TYPE_STORE;
+            ins->type = INS_TYPE_FP_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 9, 2, 5) | cget_field1(insn, 7, 6, 7);
             // ins->exception = 1;
@@ -648,12 +648,14 @@ set_op_fu(RVInstruction *i)
             case 2: /* mulhsu */
             case 3: /* mulhu */
                 i->fu_type = FU_MUL;
+                i->type = INS_TYPE_INT_MUL;
                 break;
             case 4: /* div */
             case 5: /* divu */
             case 6: /* rem */
             case 7: /* remu */
                 i->fu_type = FU_DIV;
+                i->type = INS_TYPE_INT_DIV;
                 break;
         }
     }
@@ -706,6 +708,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
     ins->binary = insn;
     ins->fu_type = FU_ALU;
     ins->data_class = INS_CLASS_INT;
+    ins->type = INS_TYPE_ARITMETIC;
     if ((ins->binary & 3) != 3)
     {
         /* Compressed Instruction */
@@ -897,7 +900,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                            | ((insn >> (20 - 11)) & (1 << 11))
                            | (insn & 0xff000);
                 ins->imm = (ins->imm << 11) >> 11;
-                ins->type = INS_TYPE_UNCOND_BRANCH;
+                ins->type = INS_TYPE_JAL;
                 if (ins->rd == 1)
                 {
                     ins->is_func_call = 1;
@@ -913,7 +916,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_src1 = 1;
                 ins->has_dest = 1;
                 ins->imm = (int32_t)insn >> 20;
-                ins->type = INS_TYPE_UNCOND_BRANCH;
+                ins->type = INS_TYPE_JALR;
                 if (ins->rd == 1)
                 {
                     ins->is_func_call = 1;
@@ -1018,7 +1021,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_src1 = 1;
                 ins->set_fs = 1;
                 ins->imm = (int32_t)insn >> 20;
-                ins->type = INS_TYPE_LOAD;
+                ins->type = INS_TYPE_FP_LOAD;
                 // ins->exception = 1;
                 // ins->exception_cause = 2;
                 switch (ins->funct3)
@@ -1051,7 +1054,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_fp_src2 = 1;
                 ins->imm = ins->rd | ((insn >> (25 - 5)) & 0xfe0);
                 ins->imm = (ins->imm << 20) >> 20;
-                ins->type = INS_TYPE_STORE;
+                ins->type = INS_TYPE_FP_STORE;
                 // ins->exception = 1;
                 // ins->exception_cause = 2;
                 switch (ins->funct3)
@@ -1075,6 +1078,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 }
                 ins->data_class = INS_CLASS_FP;
                 ins->fu_type = FU_FPU_FMA;
+                ins->type = INS_TYPE_FP_FMA;
                 ins->has_fp_dest = 1;
                 ins->has_fp_src1 = 1;
                 ins->has_fp_src2 = 1;
@@ -1094,6 +1098,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 }
                 ins->data_class = INS_CLASS_FP;
                 ins->fu_type = FU_FPU_FMA;
+                ins->type = INS_TYPE_FP_FMA;
                 ins->has_fp_dest = 1;
                 ins->has_fp_src1 = 1;
                 ins->has_fp_src2 = 1;
@@ -1113,6 +1118,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 }
                 ins->data_class = INS_CLASS_FP;
                 ins->fu_type = FU_FPU_FMA;
+                ins->type = INS_TYPE_FP_FMA;
                 ins->has_fp_dest = 1;
                 ins->has_fp_src1 = 1;
                 ins->has_fp_src2 = 1;
@@ -1132,6 +1138,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 }
                 ins->data_class = INS_CLASS_FP;
                 ins->fu_type = FU_FPU_FMA;
+                ins->type = INS_TYPE_FP_FMA;
                 ins->has_fp_dest = 1;
                 ins->has_fp_src1 = 1;
                 ins->has_fp_src2 = 1;
@@ -1152,6 +1159,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->data_class = INS_CLASS_FP;
                 ins->fu_type = FU_FPU_ALU;
                 ins->rm = ins->funct3;
+                ins->type = INS_TYPE_FP_MISC;
                 // ins->exception = 1;
                 // ins->exception_cause = 2;
                 switch (ins->funct7)

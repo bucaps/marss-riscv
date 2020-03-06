@@ -224,12 +224,20 @@ typedef struct RISCVCPUState {
     int hw_pg_tb_wlk_latency;   /* latency for reading/writing page table entries during page walk */
     int hw_pg_tb_wlk_stage_id;  /* id of the stage (FETCH, MEMORY) which initiated page table walk */
     int ins_page_faults_accounted;
+    int ins_page_walks_accounted;
+    int ins_tlb_lookup_accounted;
+    int ins_tlb_hit_accounted;
     int load_page_faults_accounted;
     int store_page_faults_accounted;
+    int load_tlb_lookup_accounted;
+    int load_tlb_hit_accounted;
+    int load_tlb_page_walks_accounted;
+    int store_tlb_lookup_accounted;
+    int store_tlb_hit_accounted;
+    int store_tlb_page_walks_accounted;
 
     /* simulated RISC-V core*/
     RISCVSIMCPUState *simcpu;
-
 
     FILE* sim_trace;
 
@@ -280,25 +288,27 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
 
 /* return 0 if OK, != 0 if exception */
 #define TARGET_READ_WRITE(size, uint_type, size_log2)                          \
-static inline __exception int target_read_u ##size(RISCVCPUState *s, uint_type *pval,     \
-                                        target_ulong addr)                     \
+    static inline __exception int target_read_u##size(                         \
+        RISCVCPUState *s, uint_type *pval, target_ulong addr)                  \
     {                                                                          \
         uint32_t tlb_idx;                                                      \
                                                                                \
         s->is_device_io = 0;                                                   \
         tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);                         \
-        if (s->simulation)                                                     \
+        if (s->simulation && !s->load_tlb_lookup_accounted)                    \
         {                                                                      \
-            ++s->simcpu->stats[s->priv].load_tlb_lookups;                       \
+            ++s->simcpu->stats[s->priv].load_tlb_lookups;                      \
+            s->load_tlb_lookup_accounted = 1;                                  \
         }                                                                      \
         if (likely(s->tlb_read[tlb_idx].vaddr                                  \
                    == (addr & ~(PG_MASK & ~((size / 8) - 1)))))                \
         {                                                                      \
             *pval = *(uint_type *)(s->tlb_read[tlb_idx].mem_addend             \
                                    + (uintptr_t)addr);                         \
-            if (s->simulation)                                                 \
+            if (s->simulation && !s->load_tlb_hit_accounted)                   \
             {                                                                  \
-                ++s->simcpu->stats[s->priv].load_tlb_hits;                      \
+                ++s->simcpu->stats[s->priv].load_tlb_hits;                     \
+                s->load_tlb_hit_accounted = 1;                                 \
             }                                                                  \
         }                                                                      \
         else                                                                   \
@@ -319,25 +329,27 @@ static inline __exception int target_read_u ##size(RISCVCPUState *s, uint_type *
         return 0;                                                              \
     }                                                                          \
                                                                                \
-static inline __exception int target_write_u ##size(RISCVCPUState *s, target_ulong addr,  \
-                                         uint_type val)                        \
+    static inline __exception int target_write_u##size(                        \
+        RISCVCPUState *s, target_ulong addr, uint_type val)                    \
     {                                                                          \
         uint32_t tlb_idx;                                                      \
                                                                                \
         s->is_device_io = 0;                                                   \
         tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);                         \
-        if (s->simulation)                                                     \
+        if (s->simulation && !s->store_tlb_lookup_accounted)                   \
         {                                                                      \
-            ++s->simcpu->stats[s->priv].store_tlb_lookups;                      \
+            ++s->simcpu->stats[s->priv].store_tlb_lookups;                     \
+            s->store_tlb_lookup_accounted = 1;                                 \
         }                                                                      \
         if (likely(s->tlb_write[tlb_idx].vaddr                                 \
                    == (addr & ~(PG_MASK & ~((size / 8) - 1)))))                \
         {                                                                      \
             *(uint_type *)(s->tlb_write[tlb_idx].mem_addend + (uintptr_t)addr) \
                 = val;                                                         \
-            if (s->simulation)                                                 \
+            if (s->simulation && !s->store_tlb_hit_accounted)                  \
             {                                                                  \
-                ++s->simcpu->stats[s->priv].store_tlb_hits;                     \
+                ++s->simcpu->stats[s->priv].store_tlb_hits;                    \
+                s->store_tlb_hit_accounted = 1;                                \
             }                                                                  \
         }                                                                      \
         else                                                                   \
