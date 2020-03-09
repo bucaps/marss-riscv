@@ -69,6 +69,10 @@ oo_core_fetch(OOCore *core)
              * up in L1 data cache. */
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = FETCH;
+            s->hw_pg_tb_wlk_latency_accounted = 0;
+            s->ins_page_walks_accounted = 0;
+            s->ins_tlb_lookup_accounted = 0;
+            s->ins_tlb_hit_accounted = 0;
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in fetch stage so far */
