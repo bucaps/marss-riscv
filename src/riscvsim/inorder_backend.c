@@ -556,8 +556,7 @@ in_core_commit(INCore *core)
         e->status = IMAP_ENTRY_STATUS_FREE;
         cpu_stage_flush(&core->commit);
 
-        /* Check for timeout */
-        if ((--s->sim_n_cycles) == 0)
+        if (s->do_sim_timer_interrupt)
         {
             set_timer_exception_state(s, e);
             return -1;

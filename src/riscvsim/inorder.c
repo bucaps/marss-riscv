@@ -234,6 +234,11 @@ in_core_run(void *core_type)
         /* Advance simulation cycle */
         ++core->simcpu->clock;
         ++core->simcpu->stats[s->priv].cycles;
+
+        if ((s->simcpu->clock % s->simcpu->params->sim_hw_timer_interval) == 0)
+        {
+            s->do_sim_timer_interrupt = TRUE;
+        }
     }
 }
 

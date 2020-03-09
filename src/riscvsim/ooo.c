@@ -285,8 +285,10 @@ int
 oo_core_run(void *core_type)
 {
     OOCore *core;
+    RISCVCPUState *s;
 
     core = (OOCore *)core_type;
+    s = core->simcpu->emu_cpu_state;
     while (1)
     {
         /* Advance DRAM clock */
@@ -316,6 +318,11 @@ oo_core_run(void *core_type)
         /* Advance CPU clock */
         ++core->simcpu->clock;
         ++core->simcpu->stats[core->simcpu->emu_cpu_state->priv].cycles;
+
+        if ((s->simcpu->clock % s->simcpu->params->sim_hw_timer_interval) == 0)
+        {
+            s->do_sim_timer_interrupt = TRUE;
+        }
     }
 }
 

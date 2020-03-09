@@ -260,6 +260,7 @@ typedef struct RISCVCPUState {
     int stop_simulation;
     int simulation;
     int return_to_sim;
+    int do_sim_timer_interrupt;
 
     SimParams *sim_params;
     uint64_t guest_rtc_time;

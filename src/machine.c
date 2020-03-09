@@ -324,6 +324,14 @@ static int virt_machine_parse_sim_config(VirtMachineParams *p,
     }
 
     /* Parse simulation options */
+    tag_name = "sim_hw_timer_interval";
+    if (vm_get_str(cfg, tag_name, &str) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %lu\n", tag_name,
+            p->sim_params->sim_hw_timer_interval);
+    } else {
+        p->sim_params->sim_hw_timer_interval = strtoll(str, NULL, 10);
+    }
+
     tag_name = "core_name";
     if (vm_get_str(cfg, tag_name, &str) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
