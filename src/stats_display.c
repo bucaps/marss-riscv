@@ -129,7 +129,7 @@ print_bpu_stats()
     uint64_t btb_hits = GET_TOTAL_STAT(btb_hits);
     uint64_t correct_pred = GET_TOTAL_STAT(bpu_cond_correct) + GET_TOTAL_STAT(bpu_uncond_correct);
     uint64_t incorrect_pred = GET_TOTAL_STAT(bpu_cond_incorrect) + GET_TOTAL_STAT(bpu_uncond_incorrect);
-    uint64_t total_branches = GET_TOTAL_STAT(ins_type[INS_TYPE_COND_BRANCH]) + GET_TOTAL_STAT(ins_type[INS_TYPE_JAL]) + GET_TOTAL_STAT(ins_type[INS_TYPE_JAL]);
+    uint64_t total_branches = GET_TOTAL_STAT(ins_type[INS_TYPE_COND_BRANCH]) + GET_TOTAL_STAT(ins_type[INS_TYPE_JAL]) + GET_TOTAL_STAT(ins_type[INS_TYPE_JALR]);
 
     printf("%-22s : %-22" PRIu64 "\n", "btb-probes", btb_probes);
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "btb-hits", btb_hits,
