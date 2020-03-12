@@ -79,7 +79,7 @@ ras_push(Ras *ras, target_ulong pc)
     ras->cur_size++;
 
     /* Overflow */
-    if (ras->spfill > ras->max_size)
+    if (ras->spfill >= ras->max_size)
     {
         ras->spfill = 0;
     }
