@@ -146,6 +146,9 @@ in_core_fetch(INCore *core)
                       + mmu_insn_read(simcpu->mmu, s->code_guest_paddr, 4,
                                       FETCH, s->priv);
 
+                /* Keep track of physical address of this instruction for later use */
+                e->ins.phy_pc = s->code_guest_paddr;
+
                 /* If true, it indicates that some sort of memory access request
                  * are sent to memory controller for this instruction, so
                  * request the fast wrap-around read for this address */
@@ -154,7 +157,7 @@ in_core_fetch(INCore *core)
                 {
                     mem_controller_req_fast_read_for_addr(
                         &simcpu->mmu->mem_controller->frontend_mem_access_queue,
-                        s->code_guest_paddr);
+                        e->ins.phy_pc);
                 }
 
                 if (s->sim_params->enable_l1_caches)
@@ -205,8 +208,9 @@ in_core_fetch(INCore *core)
                  * being fetched. This may cause a false hit on the following
                  * words. Check the memory controller to see if the word is
                  * received. Only then, proceed further. */
-                if (mem_controller_wrap_around_read_pending(simcpu->mmu->mem_controller,
-                                             s->code_guest_paddr))
+                if (!e->ins.exception
+                    && mem_controller_wrap_around_read_pending(
+                           simcpu->mmu->mem_controller, e->ins.phy_pc))
                 {
                     return;
                 }
