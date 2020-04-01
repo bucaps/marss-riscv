@@ -710,6 +710,7 @@ sim_stats_print(SimStats *s, const char *pathname)
     PRINT_SIM_STAT(fp, s, "store_insn", ins_type[INS_TYPE_STORE]);
     PRINT_SIM_STAT(fp, s, "atomic_insn", ins_type[INS_TYPE_ATOMIC]);
     PRINT_SIM_STAT(fp, s, "system_insn", ins_emulated);
+    PRINT_SIM_STAT(fp, s, "aritmetic_insn", ins_type[INS_TYPE_ARITMETIC]);
     PRINT_SIM_STAT(fp, s, "cond_branches", ins_type[INS_TYPE_COND_BRANCH]);
     PRINT_SIM_STAT(fp, s, "jal_insn", ins_type[INS_TYPE_JAL]);
     PRINT_SIM_STAT(fp, s, "jalr_insn", ins_type[INS_TYPE_JALR]);

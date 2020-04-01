@@ -265,6 +265,7 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "store_insn", ins_type[INS_TYPE_STORE]);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "atomic_insn", ins_type[INS_TYPE_ATOMIC]);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "system_insn", ins_emulated);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "aritmetic_insn", ins_type[INS_TYPE_ARITMETIC]);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "cond_branches", ins_type[INS_TYPE_COND_BRANCH]);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "jal_insn", ins_type[INS_TYPE_JAL]);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "jalr_insn", ins_type[INS_TYPE_JALR]);
