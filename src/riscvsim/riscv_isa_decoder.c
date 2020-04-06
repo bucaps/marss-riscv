@@ -488,7 +488,7 @@ decode_compressed_q2(struct RVInstruction *ins)
                     ins->has_src1 = 1;
                     if (rd == 0)
                         goto illegal_insn;
-                    if (ins->rs1 == 1)
+                    if (rs1 == 1)
                     {
                         ins->is_func_ret = 1;
                     }
