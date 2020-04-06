@@ -317,9 +317,40 @@ read_fp_operand(INCore *core, int has_src, int *read_rs, int rs,
     }
 }
 
+static void
+set_waw_lock_int_dest(RISCVCPUState *s, CPUStage *stage, int rd)
+{
+    IMapEntry *e;
+
+    if (stage->has_data)
+    {
+        e = &s->simcpu->imap[stage->imap_index];
+        if (e->ins.has_dest && (e->ins.rd == rd))
+        {
+            e->keep_dest_busy = TRUE;
+        }
+    }
+}
+
+static void
+set_waw_lock_fp_dest(RISCVCPUState *s, CPUStage *stage, int rd)
+{
+    IMapEntry *e;
+
+    if (stage->has_data)
+    {
+        e = &s->simcpu->imap[stage->imap_index];
+        if (e->ins.has_fp_dest && (e->ins.rd == rd))
+        {
+            e->keep_dest_busy = TRUE;
+        }
+    }
+}
+
 void
 in_core_decode(INCore *core)
 {
+    int i;
     IMapEntry *e;
     RISCVCPUState *s;
     int ins_issue_index;
@@ -438,23 +469,56 @@ in_core_decode(INCore *core)
                 goto exit_decode;
             }
 
-            /* Check for WAW hazard (dependency on destination register) on
-             * integer rd */
+            /**
+             * Check if any of the issued instructions are writing to the same
+             * register (WAW hazard) and keep the destination busy until WAW
+             * hazard is resolved.
+             */
             if (e->ins.has_dest)
             {
                 if (!core->int_reg_status[e->ins.rd])
                 {
-                    goto exit_decode;
+                    set_waw_lock_int_dest(s, &core->commit, e->ins.rd);
+                    set_waw_lock_int_dest(s, &core->memory, e->ins.rd);
+                    for (i = core->simcpu->params->num_fpu_alu_stages - 1;
+                         i >= 0; i--)
+                    {
+                        set_waw_lock_int_dest(s, &core->fpu_alu[i], e->ins.rd);
+                    }
+                    for (i = core->simcpu->params->num_div_stages - 1; i >= 0;
+                         i--)
+                    {
+                        set_waw_lock_int_dest(s, &core->idiv[i], e->ins.rd);
+                    }
+                    for (i = core->simcpu->params->num_mul_stages - 1; i >= 0;
+                         i--)
+                    {
+                        set_waw_lock_int_dest(s, &core->imul[i], e->ins.rd);
+                    }
+                    for (i = core->simcpu->params->num_alu_stages - 1; i >= 0;
+                         i--)
+                    {
+                        set_waw_lock_int_dest(s, &core->ialu[i], e->ins.rd);
+                    }
                 }
             }
 
-            /* Check for WAW hazard (dependency on destination register) on fp
-             * rd */
             if (e->ins.has_fp_dest)
             {
                 if (!core->fp_reg_status[e->ins.rd])
                 {
-                    goto exit_decode;
+                    set_waw_lock_fp_dest(s, &core->commit, e->ins.rd);
+                    set_waw_lock_fp_dest(s, &core->memory, e->ins.rd);
+                    for (i = core->simcpu->params->num_fpu_fma_stages - 1;
+                         i >= 0; i--)
+                    {
+                        set_waw_lock_fp_dest(s, &core->fpu_fma[i], e->ins.rd);
+                    }
+                    for (i = core->simcpu->params->num_fpu_alu_stages - 1;
+                         i >= 0; i--)
+                    {
+                        set_waw_lock_fp_dest(s, &core->fpu_alu[i], e->ins.rd);
+                    }
                 }
             }
 

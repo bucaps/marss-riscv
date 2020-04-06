@@ -496,7 +496,10 @@ in_core_commit(INCore *core)
             if (e->ins.rd)
             {
                 s->reg[e->ins.rd] = e->ins.buffer;
-                core->int_reg_status[e->ins.rd] = TRUE;
+                if (!e->keep_dest_busy)
+                {
+                    core->int_reg_status[e->ins.rd] = TRUE;
+                }
                 ++core->simcpu->stats[s->priv].int_regfile_writes;
             }
         }
@@ -513,9 +516,11 @@ in_core_commit(INCore *core)
             {
                 e->ins.buffer |= F64_HIGH;
             }
-
             s->fp_reg[e->ins.rd] = e->ins.buffer;
-            core->fp_reg_status[e->ins.rd] = TRUE;
+            if (!e->keep_dest_busy)
+            {
+                core->fp_reg_status[e->ins.rd] = TRUE;
+            }
             if (e->ins.set_fs)
             {
                 s->fs = 3;

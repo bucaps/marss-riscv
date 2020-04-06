@@ -72,6 +72,7 @@ typedef struct InstructionMapEntry
     int branch_processed;
     int stop_flush;
     int mispredict;
+    int keep_dest_busy;
     struct RVInstruction ins;
     BPUResponsePkt bpu_resp_pkt;
 } IMapEntry;
