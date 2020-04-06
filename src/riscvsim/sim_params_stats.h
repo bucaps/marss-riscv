@@ -133,18 +133,22 @@ enum MEM_MODEL_TYPE
 #define DEF_BPU_TYPE BPU_TYPE_BIMODAL
 
 #define DEF_ENABLE_L1_CACHE ENABLE
-#define DEF_L1_CODE_CACHE_PROBE_LATENCY 1
+#define DEF_L1_CODE_CACHE_READ_LATENCY 1
 #define DEF_L1_CODE_CACHE_SIZE 32
 #define DEF_L1_CODE_CACHE_WAYS 4
 #define DEF_L1_CODE_CACHE_EVICT CACHE_LRU_EVICT
 
 #define DEF_L1_DATA_CACHE_PROBE_LATENCY 1
+#define DEF_L1_DATA_CACHE_READ_LATENCY 1
+#define DEF_L1_DATA_CACHE_WRITE_LATENCY 1
 #define DEF_L1_DATA_CACHE_SIZE 32
 #define DEF_L1_DATA_CACHE_WAYS 4
 #define DEF_L1_DATA_CACHE_EVICT CACHE_LRU_EVICT
 
 #define DEF_ENABLE_L2_CACHE ENABLE
 #define DEF_L2_CACHE_PROBE_LATENCY 1
+#define DEF_L2_CACHE_READ_LATENCY 1
+#define DEF_L2_CACHE_WRITE_LATENCY 1
 #define DEF_L2_CACHE_SIZE 256
 #define DEF_L2_CACHE_WAYS 16
 #define DEF_L2_CACHE_EVICT CACHE_LRU_EVICT
@@ -283,18 +287,20 @@ typedef struct SimParams
 
     /* L1 Caches */
     int enable_l1_caches;
-    int l1_code_cache_probe_latency;
+    int l1_code_cache_read_latency;
     int l1_code_cache_size;
     int l1_code_cache_ways;
     int l1_code_cache_evict;
-    int l1_data_cache_probe_latency;
+    int l1_data_cache_read_latency;
+    int l1_data_cache_write_latency;
     int l1_data_cache_size;
     int l1_data_cache_ways;
     int l1_data_cache_evict;
 
     /* L2 Caches */
     int enable_l2_cache;
-    int l2_probe_latency;
+    int l2_shared_cache_read_latency;
+    int l2_shared_cache_write_latency;
     int l2_shared_cache_size;
     int l2_shared_cache_ways;
     int l2_shared_cache_evict;

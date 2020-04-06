@@ -183,7 +183,7 @@ cache_read(const Cache *c, target_ulong paddr, int bytes_to_read,
     uint32_t start_byte = (paddr & ((1 << c->word_bits) - 1));
     uint32_t set = (paddr >> c->word_bits) & ((1 << c->set_bits) - 1);
     target_ulong tag = paddr >> (c->word_bits);
-    int latency = c->probe_latency;
+    int latency = c->read_latency;
     int available_bytes = 0;
     int cache_miss_updated = 0;
     CacheBlk *blk = c->blk[set];
@@ -395,7 +395,7 @@ cache_write(const Cache *c, target_ulong paddr, int bytes_to_write,
     uint32_t start_byte = (paddr & ((1 << c->word_bits) - 1));
     uint32_t set = (paddr >> c->word_bits) & ((1 << c->set_bits) - 1);
     target_ulong tag = paddr >> (c->word_bits);
-    int latency = c->probe_latency;
+    int latency = c->write_latency;
     int available_bytes = 0;
     int cache_miss_updated = 0;
     CacheBlk *blk = c->blk[set];
@@ -502,7 +502,7 @@ reset_cache_stats(Cache *c)
 
 Cache *
 create_cache(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
-             int probe_latency, Cache *next_level_cache, int words_per_blk,
+             int read_latency, int write_latency, Cache *next_level_cache, int words_per_blk,
              CacheEvictionPolicy evict_policy, CacheWritePolicy write_policy,
              CacheReadAllocPolicy read_alloc_policy,
              CacheWriteAllocPolicy write_alloc_policy,
@@ -551,7 +551,8 @@ create_cache(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
                        << c->word_bits;
     c->max_tag_val = (1 << c->tag_bits);
 
-    c->probe_latency = probe_latency;
+    c->read_latency = read_latency;
+    c->write_latency = write_latency;
     c->mem_controller = mem_controller;
 
     c->next_level_cache = next_level_cache;

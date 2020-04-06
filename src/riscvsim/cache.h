@@ -147,7 +147,8 @@ typedef struct Cache
     target_ulong max_tag_val;
 
     target_ulong tag_bits_mask;
-    int probe_latency;
+    int read_latency;
+    int write_latency;
 
     CacheEvictionPolicy cache_evict_policy;
 
@@ -187,7 +188,7 @@ int cache_write(const Cache *c, target_ulong paddr, int bytes_to_read,
                 void *p_mem_access_info, int priv);
 
 Cache *create_cache(CacheTypes type, CacheLevels level, uint32_t blks,
-                    uint32_t ways, int probe_latency, Cache *next_level_cache,
+                    uint32_t ways, int read_latency, int write_latency, Cache *next_level_cache,
                     int words_per_blk, CacheEvictionPolicy evict_policy,
                     CacheWritePolicy write_policy,
                     CacheReadAllocPolicy read_alloc_policy,

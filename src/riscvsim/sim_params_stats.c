@@ -134,19 +134,21 @@ sim_params_init()
     /* L1 Cache */
     p->enable_l1_caches = DEF_ENABLE_L1_CACHE;
 
-    p->l1_code_cache_probe_latency = DEF_L1_CODE_CACHE_PROBE_LATENCY;
+    p->l1_code_cache_read_latency = DEF_L1_CODE_CACHE_READ_LATENCY;
     p->l1_code_cache_size = DEF_L1_CODE_CACHE_SIZE;
     p->l1_code_cache_ways = DEF_L1_CODE_CACHE_WAYS;
     p->l1_code_cache_evict = DEF_L1_CODE_CACHE_EVICT;
 
-    p->l1_data_cache_probe_latency = DEF_L1_DATA_CACHE_PROBE_LATENCY;
+    p->l1_data_cache_read_latency = DEF_L1_DATA_CACHE_READ_LATENCY;
+    p->l1_data_cache_write_latency = DEF_L1_DATA_CACHE_WRITE_LATENCY;
     p->l1_data_cache_size = DEF_L1_DATA_CACHE_SIZE;
     p->l1_data_cache_ways = DEF_L1_DATA_CACHE_WAYS;
     p->l1_data_cache_evict = DEF_L1_DATA_CACHE_EVICT;
 
     /* L2 Caches */
     p->enable_l2_cache = DEF_ENABLE_L2_CACHE;
-    p->l2_probe_latency = DEF_L2_CACHE_PROBE_LATENCY;
+    p->l2_shared_cache_read_latency = DEF_L2_CACHE_READ_LATENCY;
+    p->l2_shared_cache_write_latency = DEF_L2_CACHE_WRITE_LATENCY;
     p->l2_shared_cache_size = DEF_L2_CACHE_SIZE;
     p->l2_shared_cache_ways = DEF_L2_CACHE_WAYS;
     p->l2_shared_cache_evict = DEF_L2_CACHE_EVICT;
@@ -337,7 +339,7 @@ sim_params_print(const SimParams *p)
     if (p->enable_l1_caches)
     {
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
-                "l1_code_cache_probe_latency", p->l1_code_cache_probe_latency);
+                "l1_code_cache_read_latency", p->l1_code_cache_read_latency);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d KB\n",
                 "l1_code_cache_size", p->l1_code_cache_size);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "l1_code_cache_ways",
@@ -347,7 +349,9 @@ sim_params_print(const SimParams *p)
 
         /* L1-DCache */
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
-                "l1_data_cache_probe_latency", p->l1_data_cache_probe_latency);
+                "l1_data_cache_read_latency", p->l1_data_cache_read_latency);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
+                "l1_data_cache_write_latency", p->l1_data_cache_write_latency);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d KB\n",
                 "l1_data_cache_size", p->l1_data_cache_size);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "l1_data_cache_ways",
@@ -362,7 +366,9 @@ sim_params_print(const SimParams *p)
         if (p->enable_l2_cache)
         {
             fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
-                    "l2_probe_latency", p->l2_probe_latency);
+                    "l2_shared_cache_read_latency", p->l2_shared_cache_read_latency);
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
+                    "l2_shared_cache_write_latency", p->l2_shared_cache_write_latency);
             fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d KB\n",
                     "l2_shared_cache_size", p->l2_shared_cache_size);
             fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
@@ -619,14 +625,16 @@ sim_params_validate(const SimParams *p)
 
     if (p->enable_l1_caches)
     {
-        validate_param("l1_code_cache_probe_latency", 0, 1, 2048,
-                       p->l1_code_cache_probe_latency);
+        validate_param("l1_code_cache_read_latency", 0, 1, 2048,
+                       p->l1_code_cache_read_latency);
         validate_param("l1_code_cache_size", 0, 1, 2048, p->l1_code_cache_size);
         validate_param("l1_code_cache_ways", 0, 1, 2048, p->l1_code_cache_ways);
         validate_param("l1_code_cache_evict", 1, 0, 1, p->l1_code_cache_evict);
 
-        validate_param("l1_data_cache_probe_latency", 0, 1, 2048,
-                       p->l1_data_cache_probe_latency);
+        validate_param("l1_data_cache_read_latency", 0, 1, 2048,
+                       p->l1_data_cache_read_latency);
+        validate_param("l1_data_cache_write_latency", 0, 1, 2048,
+                       p->l1_data_cache_write_latency);
         validate_param("l1_data_cache_size", 0, 1, 2048, p->l1_data_cache_size);
         validate_param("l1_data_cache_ways", 0, 1, 2048, p->l1_data_cache_ways);
         validate_param("l1_data_cache_evict", 1, 0, 1, p->l1_data_cache_evict);
@@ -644,7 +652,10 @@ sim_params_validate(const SimParams *p)
 
         if (p->enable_l2_cache)
         {
-            validate_param("l2_probe_latency", 0, 1, 2048, p->l2_probe_latency);
+            validate_param("l2_shared_cache_read_latency", 0, 1, 2048,
+                           p->l2_shared_cache_read_latency);
+            validate_param("l2_shared_cache_write_latency", 0, 1, 2048,
+                           p->l2_shared_cache_write_latency);
             validate_param("l2_shared_cache_size", 0, 1, 2048,
                            p->l2_shared_cache_size);
             validate_param("l2_shared_cache_ways", 0, 1, 2048,

@@ -165,7 +165,7 @@ in_core_fetch(INCore *core)
                     /* L1 caches and TLB are probed in parallel */
                     e->max_latency
                         -= min_int(s->hw_pg_tb_wlk_latency,
-                                   simcpu->mmu->icache->probe_latency);
+                                   simcpu->mmu->icache->read_latency);
                 }
 
                 /* Increment PC for the next instruction */

@@ -370,9 +370,25 @@ in_core_memory(INCore *core)
                     if (s->sim_params->enable_l1_caches)
                     {
                         /* L1 caches and TLB are probed in parallel */
-                        e->max_latency
-                            -= min_int(s->hw_pg_tb_wlk_latency,
-                                       simcpu->mmu->dcache->probe_latency);
+                        if (e->ins.is_load)
+                        {
+                            e->max_latency
+                                -= min_int(s->hw_pg_tb_wlk_latency,
+                                           simcpu->mmu->dcache->read_latency);
+                        }
+                        if (e->ins.is_store)
+                        {
+                            e->max_latency
+                                -= min_int(s->hw_pg_tb_wlk_latency,
+                                           simcpu->mmu->dcache->write_latency);
+                        }
+                        if (e->ins.is_atomic)
+                        {
+                            e->max_latency -= min_int(
+                                s->hw_pg_tb_wlk_latency,
+                                min_int(simcpu->mmu->dcache->read_latency,
+                                        simcpu->mmu->dcache->write_latency));
+                        }
                     }
                 }
             }

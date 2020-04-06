@@ -689,10 +689,10 @@ static int virt_machine_parse_sim_config(VirtMachineParams *p,
                 buf1);
       }
 
-      tag_name = "probe_latency";
-      if (vm_get_int(obj, tag_name, &p->sim_params->l1_code_cache_probe_latency) < 0) {
+      tag_name = "read_latency";
+      if (vm_get_int(obj, tag_name, &p->sim_params->l1_code_cache_read_latency) < 0) {
         fprintf(stderr, "icache %s not found, selecting default value: %d\n",
-                tag_name, p->sim_params->l1_code_cache_probe_latency);
+                tag_name, p->sim_params->l1_code_cache_read_latency);
       }
 
       tag_name = "size";
@@ -731,10 +731,16 @@ static int virt_machine_parse_sim_config(VirtMachineParams *p,
                 buf1);
       }
 
-      tag_name = "probe_latency";
-      if (vm_get_int(obj, tag_name, &p->sim_params->l1_data_cache_probe_latency) < 0) {
+      tag_name = "read_latency";
+      if (vm_get_int(obj, tag_name, &p->sim_params->l1_data_cache_read_latency) < 0) {
         fprintf(stderr, "dcache %s not found, selecting default value: %d\n",
-                tag_name, p->sim_params->l1_data_cache_probe_latency);
+                tag_name, p->sim_params->l1_data_cache_read_latency);
+      }
+
+      tag_name = "write_latency";
+      if (vm_get_int(obj, tag_name, &p->sim_params->l1_data_cache_write_latency) < 0) {
+        fprintf(stderr, "dcache %s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->l1_data_cache_write_latency);
       }
 
       tag_name = "size";
@@ -844,11 +850,17 @@ static int virt_machine_parse_sim_config(VirtMachineParams *p,
                   buf1);
         }
 
-        tag_name = "probe_latency";
-        if (vm_get_int(obj, tag_name, &p->sim_params->l2_probe_latency) < 0) {
-          fprintf(stderr, "l2_shared_cache %s not found, selecting default value: %d\n",
-                  tag_name, p->sim_params->l2_probe_latency);
-        }
+       tag_name = "read_latency";
+       if (vm_get_int(obj, tag_name, &p->sim_params->l2_shared_cache_read_latency) < 0) {
+         fprintf(stderr, "dcache %s not found, selecting default value: %d\n",
+                 tag_name, p->sim_params->l2_shared_cache_read_latency);
+       }
+
+       tag_name = "write_latency";
+       if (vm_get_int(obj, tag_name, &p->sim_params->l2_shared_cache_write_latency) < 0) {
+         fprintf(stderr, "dcache %s not found, selecting default value: %d\n",
+                 tag_name, p->sim_params->l2_shared_cache_write_latency);
+       }
 
         tag_name = "size";
         if (vm_get_int(obj, tag_name, &p->sim_params->l2_shared_cache_size) < 0) {
