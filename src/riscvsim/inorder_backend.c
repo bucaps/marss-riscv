@@ -456,7 +456,6 @@ in_core_memory(INCore *core)
 
             /* Push the data read by loads/atomics on forwarding bus*/
             if (!e->ins.exception && !e->data_fwd_done
-                && (e->ins.is_load || e->ins.is_atomic)
                 && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
             {
                 core->fwd_latch[5].rd = e->ins.rd;
