@@ -262,9 +262,6 @@ typedef struct RISCVCPUState {
     int return_to_sim;
 
     SimParams *sim_params;
-    uint64_t guest_rtc_time;
-    uint64_t rtc_start_time;
-    struct RISCVMachine *riscv_machine_ptr;
   } RISCVCPUState;
 
 /* Note: Below declared functions are accessed from both simulation and emulation side */

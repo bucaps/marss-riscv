@@ -35,7 +35,6 @@
 #include "cutils.h"
 #include "iomem.h"
 #include "riscv_cpu.h"
-#include "riscv_cpu_priv.h"
 #include "virtio.h"
 #include "machine.h"
 #include "riscvsim/sim_params_stats.h"
@@ -114,11 +113,7 @@ static uint64_t rtc_get_time(RISCVMachine *m)
 {
     uint64_t val;
     if (m->rtc_real_time) {
-        if (riscv_cpu_in_simulation(m->cpu_state)) {
-            val = riscv_cpu_get_sim_clock(m->cpu_state);
-        } else {
-            val = rtc_get_real_time(m) - m->rtc_start_time;
-        }
+        val = rtc_get_real_time(m) - m->rtc_start_time;
     } else {
         val = riscv_cpu_get_cycles(m->cpu_state) / RTC_FREQ_DIV;
     }
@@ -126,11 +121,6 @@ static uint64_t rtc_get_time(RISCVMachine *m)
     return val;
 }
 
-uint64_t
-rtc_get_time_sim_start(struct RISCVMachine *m)
-{
-    return (rtc_get_real_time(m) - m->rtc_start_time);
-}
 
 /***************************   UART   ***************************/
 
@@ -1144,11 +1134,8 @@ static VirtMachine *riscv_machine_init(const VirtMachineParams *p)
     s->rtc_real_time = p->rtc_real_time;
     if (p->rtc_real_time) {
         s->rtc_start_time = rtc_get_real_time(s);
-        s->cpu_state->rtc_start_time = s->rtc_start_time;
     }
-
-    s->cpu_state->riscv_machine_ptr = s;
-
+    
     cpu_register_device(s->mem_map, CLINT_BASE_ADDR, CLINT_SIZE, s,
                         clint_read, clint_write, DEVIO_SIZE32);
     cpu_register_device(s->mem_map, PLIC_BASE_ADDR, PLIC_SIZE, s,

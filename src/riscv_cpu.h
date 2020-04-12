@@ -70,15 +70,9 @@ typedef struct {
     const RISCVCPUClass *class_ptr;
 } RISCVCPUCommonState;
 
-/* forward declare to access rtc time in machine */
-struct RISCVMachine;
-
 void reset_simulation_stats(RISCVCPUState *s);
 int switch_to_cpu_simulation(RISCVCPUState *s);
 int riscv_cpu_get_max_xlen(void);
-uint64_t riscv_cpu_get_sim_clock(RISCVCPUState *s);
-int riscv_cpu_in_simulation(RISCVCPUState *s);
-uint64_t rtc_get_time_sim_start(struct RISCVMachine *m);
 
 extern const RISCVCPUClass riscv_cpu_class32;
 extern const RISCVCPUClass riscv_cpu_class64;
