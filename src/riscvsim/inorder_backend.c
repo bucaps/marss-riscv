@@ -129,7 +129,7 @@ in_core_execute(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
             {
                 /* Push out the result and the register address on the
                  * forwarding bus for this FU*/
-                if (!e->data_fwd_done && !e->ins.is_load && !e->ins.is_store
+                if (!e->data_fwd_done && !e->ins.is_load && !e->ins.is_store && !e->keep_dest_busy
                     && !e->ins.is_atomic && ((e->ins.has_dest && e->ins.rd != 0)
                                              || e->ins.has_fp_dest))
                 {
@@ -455,7 +455,7 @@ in_core_memory(INCore *core)
             }
 
             /* Push the data read by loads/atomics on forwarding bus*/
-            if (!e->ins.exception && !e->data_fwd_done
+            if (!e->ins.exception && !e->data_fwd_done && !e->keep_dest_busy
                 && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
             {
                 core->fwd_latch[5].rd = e->ins.rd;
