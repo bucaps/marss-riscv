@@ -190,7 +190,6 @@ sim_params_init()
     assert(p->dramsim_stats_dir);
 
     p->flush_sim_mem = DEF_FLUSH_SIM_MEM;
-    p->sim_hw_timer_interval = DEF_SIM_HW_TIMER_INTERVAL;
     return p;
 }
 
@@ -228,10 +227,6 @@ sim_params_print(const SimParams *p)
 
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "core_type",
             core_type_str[p->core_type]);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %lu\n", "sim_hw_timer_interval",
-            p->sim_hw_timer_interval);
-    fprintf(stderr, "\n");
-
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "sim_trace_file",
             p->sim_trace_file);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "sim_stats_path",

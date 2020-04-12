@@ -1497,7 +1497,7 @@ static void glue(riscv_cpu_interp, MAX_XLEN)(RISCVCPUState *s, int n_cycles)
     s = &riscv_cpu_global_state;
 #endif
     uint64_t timeout;
-    s->do_sim_timer_interrupt = FALSE;
+
     timeout = s->insn_counter + n_cycles;
     while (!s->power_down_flag &&
            (int)(timeout - s->insn_counter) > 0) {
@@ -1518,10 +1518,6 @@ static void glue(riscv_cpu_interp, MAX_XLEN)(RISCVCPUState *s, int n_cycles)
 #endif
         default:
             abort();
-        }
-        if (s->simulation && s->do_sim_timer_interrupt)
-        {
-            break;
         }
     }
 }

@@ -187,7 +187,6 @@ enum MEM_MODEL_TYPE
 #define DEF_DRAMSIM_STATS_DIR "."
 
 #define DEF_FLUSH_SIM_MEM DISABLE
-#define DEF_SIM_HW_TIMER_INTERVAL 15000000
 
 #define PRINT_SIM_STAT_HEADER(fp)                                         \
   do {                                                                    \
@@ -329,8 +328,6 @@ typedef struct SimParams
 
     /* Flag to control clearing out of caches on every new simulation run */
     int flush_sim_mem;
-
-    uint64_t sim_hw_timer_interval;
 } SimParams;
 
 typedef struct SimStats
