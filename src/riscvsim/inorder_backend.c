@@ -86,15 +86,13 @@ in_core_execute(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
 {
     IMapEntry *e;
     CPUStage *next;
-    RISCVSIMCPUState *simcpu;
     RISCVCPUState *s;
 
+    s = core->simcpu->emu_cpu_state;
     if (stage->has_data)
     {
-        s = core->simcpu->emu_cpu_state;
-        simcpu = core->simcpu;
-        e = &simcpu->imap[stage->imap_index];
-        ++simcpu->stats[s->priv].exec_unit_delay;
+        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
+        ++s->simcpu->stats[s->priv].exec_unit_delay;
         if (!stage->stage_exec_done)
         {
             if (e->ins.has_dest)
@@ -112,7 +110,7 @@ in_core_execute(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
             execute_riscv_instruction(&e->ins, &s->fflags);
 
             /* Update FU stats */
-            ++simcpu->stats[s->priv].fu_access[fu_type];
+            ++s->simcpu->stats[s->priv].fu_access[fu_type];
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in execute stage so far */
@@ -231,7 +229,7 @@ flush_fu_stage(INCore *core, CPUStage *fu, int stages)
         {
             /* This resets the valid bits for INT and FP destination registers
              * on the speculated path */
-            e = &core->simcpu->imap[fu[i].imap_index];
+            e = get_imap_entry(core->simcpu->imap, fu[i].imap_index);
 
             if (e->ins.has_dest)
             {
@@ -250,7 +248,6 @@ static void
 flush_speculated_cpu_state(INCore *core, IMapEntry *e)
 {
     int i;
-    RISCVSIMCPUState *simcpu = core->simcpu;
     RISCVCPUState *s = core->simcpu->emu_cpu_state;
 
     /* Send target PC to pcgen */
@@ -267,11 +264,11 @@ flush_speculated_cpu_state(INCore *core, IMapEntry *e)
     cpu_stage_flush(&core->pcgen);
     cpu_stage_flush(&core->fetch);
     cpu_stage_flush(&core->decode);
-    flush_fu_stage(core, core->ialu, simcpu->params->num_alu_stages);
-    flush_fu_stage(core, core->imul, simcpu->params->num_mul_stages);
-    flush_fu_stage(core, core->idiv, simcpu->params->num_div_stages);
-    flush_fu_stage(core, core->fpu_alu, simcpu->params->num_fpu_alu_stages);
-    flush_fu_stage(core, core->fpu_fma, simcpu->params->num_fpu_fma_stages);
+    flush_fu_stage(core, core->ialu, s->simcpu->params->num_alu_stages);
+    flush_fu_stage(core, core->imul, s->simcpu->params->num_mul_stages);
+    flush_fu_stage(core, core->idiv, s->simcpu->params->num_div_stages);
+    flush_fu_stage(core, core->fpu_alu, s->simcpu->params->num_fpu_alu_stages);
+    flush_fu_stage(core, core->fpu_fma, s->simcpu->params->num_fpu_fma_stages);
 
     /* Reset FU to MEM selector queue */
     cq_reset(&core->ins_dispatch_queue.cq);
@@ -280,7 +277,7 @@ flush_speculated_cpu_state(INCore *core, IMapEntry *e)
     memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
 
     /* Flush memory controller queues on flush */
-    mem_controller_reset(core->simcpu->mmu->mem_controller);
+    mem_controller_reset(s->simcpu->mmu->mem_controller);
 
     /* To start fetching */
     core->pcgen.has_data = TRUE;
@@ -293,7 +290,7 @@ flush_speculated_cpu_state(INCore *core, IMapEntry *e)
     {
         if ((i != core->memory.imap_index) && (i != core->commit.imap_index))
         {
-            simcpu->imap[i].status = IMAP_ENTRY_STATUS_FREE;
+            s->simcpu->imap[i].status = IMAP_ENTRY_STATUS_FREE;
         }
     }
 }
@@ -303,24 +300,22 @@ in_core_memory(INCore *core)
 {
     IMapEntry *e;
     RISCVCPUState *s;
-    RISCVSIMCPUState *simcpu;
 
+    s = core->simcpu->emu_cpu_state;
     if (core->memory.has_data)
     {
-        simcpu = core->simcpu;
-        s = core->simcpu->emu_cpu_state;
-        e = &simcpu->imap[core->memory.imap_index];
+        e = get_imap_entry(s->simcpu->imap, core->memory.imap_index);
         if (!core->memory.stage_exec_done)
         {
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = MEMORY;
-            s->hw_pg_tb_wlk_latency_accounted = 0;
-            s->load_tlb_lookup_accounted = 0;
-            s->load_tlb_hit_accounted = 0;
-            s->load_tlb_page_walks_accounted = 0;
-            s->store_tlb_lookup_accounted = 0;
-            s->store_tlb_hit_accounted = 0;
-            s->store_tlb_page_walks_accounted = 0;
+            s->hw_pg_tb_wlk_latency_accounted = FALSE;
+            s->load_tlb_lookup_accounted = FALSE;
+            s->load_tlb_hit_accounted = FALSE;
+            s->load_tlb_page_walks_accounted = FALSE;
+            s->store_tlb_lookup_accounted = FALSE;
+            s->store_tlb_hit_accounted = FALSE;
+            s->store_tlb_page_walks_accounted = FALSE;
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in memory stage so far */
@@ -358,11 +353,11 @@ in_core_memory(INCore *core)
                     /* If true, it indicates that some sort of memory access request
                      * are sent to the memory controller for this instruction, so
                      * request the fast wrap-around read for this address */
-                    if (simcpu->mmu->mem_controller->backend_mem_access_queue
+                    if (s->simcpu->mmu->mem_controller->backend_mem_access_queue
                             .cur_size)
                     {
                         mem_controller_req_fast_read_for_addr(
-                            &simcpu->mmu->mem_controller
+                            &s->simcpu->mmu->mem_controller
                                  ->backend_mem_access_queue,
                             s->data_guest_paddr);
                     }
@@ -374,27 +369,27 @@ in_core_memory(INCore *core)
                         {
                             e->max_latency
                                 -= min_int(s->hw_pg_tb_wlk_latency,
-                                           simcpu->mmu->dcache->read_latency);
+                                           s->simcpu->mmu->dcache->read_latency);
                         }
                         if (e->ins.is_store)
                         {
                             e->max_latency
                                 -= min_int(s->hw_pg_tb_wlk_latency,
-                                           simcpu->mmu->dcache->write_latency);
+                                           s->simcpu->mmu->dcache->write_latency);
                         }
                         if (e->ins.is_atomic)
                         {
                             e->max_latency -= min_int(
                                 s->hw_pg_tb_wlk_latency,
-                                min_int(simcpu->mmu->dcache->read_latency,
-                                        simcpu->mmu->dcache->write_latency));
+                                min_int(s->simcpu->mmu->dcache->read_latency,
+                                        s->simcpu->mmu->dcache->write_latency));
                         }
                     }
                 }
             }
             else if (e->ins.is_branch)
             {
-                if (simcpu->pfn_branch_handler(s, e))
+                if (s->simcpu->pfn_branch_handler(s, e))
                 {
                     flush_speculated_cpu_state(core, e);
                 }
@@ -412,10 +407,10 @@ in_core_memory(INCore *core)
              * accesses */
             if ((e->ins.is_load || e->ins.is_store || e->ins.is_atomic))
             {
-                if (simcpu->mmu->mem_controller->backend_mem_access_queue
+                if (s->simcpu->mmu->mem_controller->backend_mem_access_queue
                         .cur_size)
                 {
-                    ++simcpu->stats[s->priv].data_mem_delay;
+                    ++s->simcpu->stats[s->priv].data_mem_delay;
                     return;
                 }
                 else
@@ -426,7 +421,7 @@ in_core_memory(INCore *core)
                      * words. Check the memory controller to see if the word is
                      * received. Only then, proceed further. */
                     if (mem_controller_wrap_around_read_pending(
-                            simcpu->mmu->mem_controller, s->data_guest_paddr))
+                            s->simcpu->mmu->mem_controller, s->data_guest_paddr))
                     {
                         return;
                     }
@@ -442,15 +437,15 @@ in_core_memory(INCore *core)
                 cpu_stage_flush(&core->decode);
                 cpu_stage_flush(&core->memory);
                 exec_unit_flush(core->ialu,
-                                core->simcpu->params->num_alu_stages);
+                                s->simcpu->params->num_alu_stages);
                 exec_unit_flush(core->imul,
-                                core->simcpu->params->num_mul_stages);
+                                s->simcpu->params->num_mul_stages);
                 exec_unit_flush(core->idiv,
-                                core->simcpu->params->num_div_stages);
+                                s->simcpu->params->num_div_stages);
                 exec_unit_flush(core->fpu_alu,
-                                core->simcpu->params->num_fpu_alu_stages);
+                                s->simcpu->params->num_fpu_alu_stages);
                 exec_unit_flush(core->fpu_fma,
-                                core->simcpu->params->num_fpu_fma_stages);
+                                s->simcpu->params->num_fpu_fma_stages);
                 return;
             }
 
@@ -458,11 +453,11 @@ in_core_memory(INCore *core)
             if (!e->ins.exception && !e->data_fwd_done && !e->keep_dest_busy
                 && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
             {
-                core->fwd_latch[5].rd = e->ins.rd;
-                core->fwd_latch[5].buffer = e->ins.buffer;
-                core->fwd_latch[5].int_dest = e->ins.has_dest;
-                core->fwd_latch[5].fp_dest = e->ins.has_fp_dest;
-                core->fwd_latch[5].valid = TRUE;
+                core->fwd_latch[NUM_FWD_BUS-1].rd = e->ins.rd;
+                core->fwd_latch[NUM_FWD_BUS-1].buffer = e->ins.buffer;
+                core->fwd_latch[NUM_FWD_BUS-1].int_dest = e->ins.has_dest;
+                core->fwd_latch[NUM_FWD_BUS-1].fp_dest = e->ins.has_fp_dest;
+                core->fwd_latch[NUM_FWD_BUS-1].valid = TRUE;
                 e->data_fwd_done = TRUE;
             }
 
@@ -470,7 +465,7 @@ in_core_memory(INCore *core)
              * stage, else stall memory stage */
             if (!core->commit.has_data)
             {
-                simcpu->mmu->mem_controller->backend_mem_access_queue.cur_idx = 0;
+                s->simcpu->mmu->mem_controller->backend_mem_access_queue.cur_idx = 0;
                 core->memory.stage_exec_done = FALSE;
                 e->max_latency = 0;
                 e->current_latency = 0;
@@ -497,13 +492,11 @@ in_core_commit(INCore *core)
 {
     IMapEntry *e;
     RISCVCPUState *s;
-    RISCVSIMCPUState *simcpu;
 
+    s = core->simcpu->emu_cpu_state;
     if (core->commit.has_data)
     {
-        simcpu = core->simcpu;
-        s = core->simcpu->emu_cpu_state;
-        e = &simcpu->imap[core->commit.imap_index];
+        e = get_imap_entry(s->simcpu->imap, core->commit.imap_index);
 
         if (e->ins.has_dest)
         {
@@ -515,7 +508,7 @@ in_core_commit(INCore *core)
                 {
                     core->int_reg_status[e->ins.rd] = TRUE;
                 }
-                ++core->simcpu->stats[s->priv].int_regfile_writes;
+                ++s->simcpu->stats[s->priv].int_regfile_writes;
             }
         }
         else if (e->ins.has_fp_dest)
@@ -540,20 +533,20 @@ in_core_commit(INCore *core)
             {
                 s->fs = 3;
             }
-            ++core->simcpu->stats[s->priv].fp_regfile_writes;
+            ++s->simcpu->stats[s->priv].fp_regfile_writes;
         }
 
         /* Update stats */
-        ++core->simcpu->stats[s->priv].ins_simulated;
-        ++core->simcpu->stats[s->priv].ins_type[e->ins.type];
+        ++s->simcpu->stats[s->priv].ins_simulated;
+        ++s->simcpu->stats[s->priv].ins_type[e->ins.type];
 
         if ((e->ins.type == INS_TYPE_COND_BRANCH) && e->is_branch_taken)
         {
-            ++core->simcpu->stats[s->priv].ins_cond_branch_taken;
+            ++s->simcpu->stats[s->priv].ins_cond_branch_taken;
         }
 
 #if defined(CONFIG_SIM_TRACE)
-        print_ins_trace(s, core->simcpu->clock, e->ins.pc, e->ins.binary,
+        print_ins_trace(s, s->simcpu->clock, e->ins.pc, e->ins.binary,
                         e->ins.str, (e->ins.has_dest | e->ins.has_fp_dest),
                         e->ins.has_dest, e->ins.rd, e->ins.buffer,
                         e->ins.mem_addr, s->priv, "sim");
@@ -561,13 +554,13 @@ in_core_commit(INCore *core)
 
         if (s->sim_params->enable_stats_display)
         {
-            if ((simcpu->clock % REALTIME_STATS_CLOCK_CYCLES_INTERVAL) == 0)
+            if ((s->simcpu->clock % REALTIME_STATS_CLOCK_CYCLES_INTERVAL) == 0)
             {
                 /* Since cache stats are stored separately inside the Cache
                  * structure, they have to be copied to SimStats, before writing
                  * stats to shared memory. */
                 copy_cache_stats_to_global_stats(s);
-                memcpy(s->stats_shm_ptr, simcpu->stats,
+                memcpy(s->stats_shm_ptr, s->simcpu->stats,
                        NUM_MAX_PRV_LEVELS * sizeof(SimStats));
             }
         }

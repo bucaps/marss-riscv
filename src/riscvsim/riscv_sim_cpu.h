@@ -50,6 +50,7 @@ typedef struct RISCVSIMCPUState
     BranchPredUnit *bpu;    /* Branch prediction unit */
     int (*pfn_branch_handler)(struct RISCVCPUState *, IMapEntry *);
     void (*pfn_branch_frontend_probe_handler)(struct RISCVCPUState *,IMapEntry *);
+    int (*pfn_branch_frontend_decode_handler)(struct RISCVCPUState *, IMapEntry *);
 
     MMU *mmu;               /* Memory controller */
 

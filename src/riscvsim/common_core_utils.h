@@ -92,8 +92,12 @@ void speculative_exec_unit_flush(CPUStage *stage, int num_stages,
 
 IMapEntry *allocate_imap_entry(IMapEntry *imap);
 void reset_imap(IMapEntry *e);
+IMapEntry *get_imap_entry(IMapEntry *imap, int index);
 
 int code_tlb_access_and_ins_fetch(struct RISCVCPUState *s, IMapEntry *e);
+void do_fetch_stage_exec(struct RISCVCPUState *s, IMapEntry *e);
+
+void do_decode_stage_exec(struct RISCVCPUState *s, IMapEntry *e);
 
 void set_exception_state(struct RISCVCPUState *s, const IMapEntry *e);
 void set_timer_exception_state(struct RISCVCPUState *s, const IMapEntry *e);
@@ -104,6 +108,9 @@ void handle_bpu_frontend_probe(struct RISCVCPUState *s, IMapEntry *e);
 void handle_no_bpu_frontend_probe(struct RISCVCPUState *s, IMapEntry *e);
 int handle_branch_with_bpu(struct RISCVCPUState *s, IMapEntry *e);
 int handle_branch_no_bpu(struct RISCVCPUState *s, IMapEntry *e);
+
+int handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e);
+int handle_branch_decode_no_bpu(struct RISCVCPUState *s, IMapEntry *e);
 
 void copy_cache_stats_to_global_stats(struct RISCVCPUState *s);
 void print_ins_trace(struct RISCVCPUState *s, uint64_t cycle, target_ulong pc,

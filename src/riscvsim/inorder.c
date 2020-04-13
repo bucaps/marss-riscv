@@ -214,8 +214,8 @@ in_core_run(void *core_type)
     while (1)
     {
         /* Advance DRAM clock */
-        core->simcpu->mmu->mem_controller->mem_controller_update_internal(
-            core->simcpu->mmu->mem_controller);
+        s->simcpu->mmu->mem_controller->mem_controller_update_internal(
+            s->simcpu->mmu->mem_controller);
 
         /* For 5-stage pipeline calls in_core_run_5_stage(), For 6-stage
          * pipeline calls in_core_run_6_stage() */
@@ -232,8 +232,8 @@ in_core_run(void *core_type)
         }
 
         /* Advance simulation cycle */
-        ++core->simcpu->clock;
-        ++core->simcpu->stats[s->priv].cycles;
+        ++s->simcpu->clock;
+        ++s->simcpu->stats[s->priv].cycles;
     }
 }
 

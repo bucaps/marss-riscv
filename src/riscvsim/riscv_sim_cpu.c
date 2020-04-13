@@ -67,12 +67,16 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
         simcpu->bpu = bpu_init(p, simcpu->stats);
         simcpu->pfn_branch_handler = &handle_branch_with_bpu;
         simcpu->pfn_branch_frontend_probe_handler = &handle_bpu_frontend_probe;
+        simcpu->pfn_branch_frontend_decode_handler
+            = &handle_branch_decode_with_bpu;
     }
     else
     {
         simcpu->pfn_branch_handler = &handle_branch_no_bpu;
         simcpu->pfn_branch_frontend_probe_handler
             = &handle_no_bpu_frontend_probe;
+        simcpu->pfn_branch_frontend_decode_handler
+            = &handle_branch_decode_no_bpu;
     }
 
     switch (p->core_type)

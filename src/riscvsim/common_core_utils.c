@@ -30,6 +30,7 @@
 #include "common_core_utils.h"
 #include "../cutils.h"
 #include "../riscv_cpu_priv.h"
+#include "riscv_isa_decoder_lib.h"
 
 static char cpu_mode_str[][128] = { "U-mode", "S-mode", "H-mode", "M-mode" };
 
@@ -120,6 +121,12 @@ reset_imap(IMapEntry *imap)
     }
 }
 
+IMapEntry *
+get_imap_entry(IMapEntry *imap, int index)
+{
+    return (&imap[index]);
+}
+
 int
 code_tlb_access_and_ins_fetch(RISCVCPUState *s, IMapEntry *e)
 {
@@ -181,6 +188,95 @@ code_tlb_access_and_ins_fetch(RISCVCPUState *s, IMapEntry *e)
     return 0;
 exception:
     return -1;
+}
+
+void
+do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
+{
+    /* Set default minimum page walk latency. If the page walk does occur,
+     * hw_pg_tb_wlk_latency will be higher than this default value because it
+     * will also include the cache lookup latency for reading/writing page table
+     * entries. Page table entries are looked up in L1 data cache. */
+    s->hw_pg_tb_wlk_latency = 1;
+    s->hw_pg_tb_wlk_stage_id = FETCH;
+    s->hw_pg_tb_wlk_latency_accounted = FALSE;
+    s->ins_page_walks_accounted = FALSE;
+    s->ins_tlb_lookup_accounted = FALSE;
+    s->ins_tlb_hit_accounted = FALSE;
+
+    /* current_latency: number of CPU cycles spent by this instruction
+     * in fetch stage so far */
+    e->current_latency = 1;
+
+    /* Fetch instruction from TinyEMU memory map */
+    if (code_tlb_access_and_ins_fetch(s, e))
+    {
+        /* This instruction has raised a page fault exception during
+         * fetch */
+        e->ins.exception = TRUE;
+        e->ins.exception_cause = SIM_EXCEPTION;
+
+        /* Hardware page table walk has been done and its latency must
+         * be simulated */
+        e->max_latency = s->hw_pg_tb_wlk_latency;
+    }
+    else
+    {
+        /* max_latency: Number of CPU cycles required for TLB and Cache
+         * look-up */
+        e->max_latency = s->hw_pg_tb_wlk_latency
+                         + mmu_insn_read(s->simcpu->mmu, s->code_guest_paddr, 4,
+                                         FETCH, s->priv);
+
+        /* Keep track of physical address of this instruction for later use */
+        e->ins.phy_pc = s->code_guest_paddr;
+
+        /* If true, it indicates that some sort of memory access request
+         * are sent to memory controller for this instruction, so
+         * request the fast wrap-around read for this address */
+        if (s->simcpu->mmu->mem_controller->frontend_mem_access_queue.cur_size)
+        {
+            mem_controller_req_fast_read_for_addr(
+                &s->simcpu->mmu->mem_controller->frontend_mem_access_queue,
+                e->ins.phy_pc);
+        }
+
+        if (s->sim_params->enable_l1_caches)
+        {
+            /* L1 caches and TLB are probed in parallel */
+            e->max_latency -= min_int(s->hw_pg_tb_wlk_latency,
+                                      s->simcpu->mmu->icache->read_latency);
+        }
+
+        /* Increment PC for the next instruction */
+        if (3 == (e->ins.binary & 3))
+        {
+            s->code_ptr = s->code_ptr + 4;
+            s->code_guest_paddr = s->code_guest_paddr + 4;
+        }
+        else
+        {
+            /* For compressed */
+            s->code_ptr = s->code_ptr + 2;
+            s->code_guest_paddr = s->code_guest_paddr + 2;
+        }
+
+        /* Probe the branch predictor */
+        s->simcpu->pfn_branch_frontend_probe_handler(s, e);
+
+        ++s->simcpu->stats[s->priv].ins_fetch;
+    }
+}
+
+void
+do_decode_stage_exec(RISCVCPUState *s, IMapEntry *e)
+{
+    /* For decoding floating point instructions */
+    e->ins.current_fs = s->fs;
+    e->ins.rm = get_insn_rm(s, (e->ins.binary >> 12) & 7);
+
+    /* Decode the instruction */
+    decode_riscv_binary(&e->ins, e->ins.binary);
 }
 
 void
@@ -508,6 +604,73 @@ handle_no_bpu_frontend_probe(struct RISCVCPUState *s, IMapEntry *e)
 {
     /* In the absence of BPU, no actions required */
     return;
+}
+
+int
+handle_branch_decode_no_bpu(struct RISCVCPUState *s, IMapEntry *e)
+{
+    return FALSE;
+}
+
+int
+handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
+{
+    target_ulong ras_target = 0;
+
+    /* Add the branch PC into BPU structures if probe during fetch results in
+     * miss */
+    if (!e->bpu_resp_pkt.bpu_probe_status)
+    {
+        bpu_add(s->simcpu->bpu, e->ins.pc, e->ins.branch_type, &e->bpu_resp_pkt,
+                s->priv, e->ins.is_func_ret);
+        ++s->simcpu->stats[s->priv].btb_miss_for_branches;
+    }
+
+    /* If return address stack is enabled */
+    if (s->simcpu->params->ras_size)
+    {
+        if (e->ins.is_func_call)
+        {
+            ras_push(
+                s->simcpu->bpu->ras,
+                ((e->ins.binary & 3) == 3 ? e->ins.pc + 4 : e->ins.pc + 2));
+        }
+
+        if (e->ins.is_func_ret)
+        {
+            ras_target = ras_pop(s->simcpu->bpu->ras);
+
+            /* Start fetch from address returned by RAS if non-zero */
+            if (ras_target)
+            {
+                s->code_ptr = NULL;
+                s->code_end = NULL;
+                s->code_to_pc_addend = ras_target;
+                e->predicted_target = ras_target;
+
+                /* If memory access requests are submitted to dram
+                 * dispatch queue from fetch stage, remove them from
+                 * dram dispatch queue */
+                if (s->simcpu->mmu->mem_controller->frontend_mem_access_queue
+                        .cur_size)
+                {
+                    mem_controller_flush_stage_queue_entry_from_dram_queue(
+                        &s->simcpu->mmu->mem_controller->dram_dispatch_queue,
+                        &s->simcpu->mmu->mem_controller
+                             ->frontend_mem_access_queue);
+                }
+
+                mem_controller_flush_stage_mem_access_queue(
+                    &s->simcpu->mmu->mem_controller->frontend_mem_access_queue);
+
+                /* Signal the calling stage to flush previous stages */
+                return TRUE;
+            }
+        }
+    }
+
+    /* No flush required because no redirect by RAS */
+    return FALSE;
 }
 
 /* Handles conditional branches with branch prediction enabled, probes the BPU
