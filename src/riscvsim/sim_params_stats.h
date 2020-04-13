@@ -360,7 +360,6 @@ typedef struct SimStats
     /* BPU */
     uint64_t btb_probes;
     uint64_t btb_hits;
-    uint64_t btb_miss_for_branches;
     uint64_t btb_updates;
     uint64_t btb_inserts;
 

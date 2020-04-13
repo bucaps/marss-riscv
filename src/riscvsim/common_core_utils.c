@@ -623,7 +623,6 @@ handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
     {
         bpu_add(s->simcpu->bpu, e->ins.pc, e->ins.branch_type, &e->bpu_resp_pkt,
                 s->priv, e->ins.is_func_ret);
-        ++s->simcpu->stats[s->priv].btb_miss_for_branches;
     }
 
     /* If return address stack is enabled */

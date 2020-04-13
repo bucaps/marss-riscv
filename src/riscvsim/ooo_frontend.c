@@ -243,7 +243,6 @@ oo_core_decode(OOCore *core)
                         bpu_add(core->simcpu->bpu, e->ins.pc,
                                 e->ins.branch_type, &e->bpu_resp_pkt, s->priv,
                                 e->ins.is_func_ret);
-                        ++core->simcpu->stats[s->priv].btb_miss_for_branches;
                     }
 
                     if (core->simcpu->params->ras_size)
