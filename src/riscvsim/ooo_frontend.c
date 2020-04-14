@@ -39,22 +39,20 @@ oo_core_fetch(OOCore *core)
 {
     IMapEntry *e;
     RISCVCPUState *s;
-    RISCVSIMCPUState *simcpu;
 
+    s = core->simcpu->emu_cpu_state;
     if (core->fetch.has_data)
     {
-        s = core->simcpu->emu_cpu_state;
-        simcpu = core->simcpu;
         if (!core->fetch.stage_exec_done)
         {
             /* Calculate current PC*/
-            simcpu->pc
+            s->simcpu->pc
                 = (target_ulong)((uintptr_t)s->code_ptr + s->code_to_pc_addend);
 
-            e = allocate_imap_entry(simcpu->imap);
+            e = allocate_imap_entry(s->simcpu->imap);
 
             /* Setup the allocated imap entry */
-            e->ins.pc = simcpu->pc;
+            e->ins.pc = s->simcpu->pc;
             e->ins.create_str = s->sim_params->create_ins_str;
 
             /* Store IMAP index in the stage and the actual decoded instruction
@@ -62,89 +60,12 @@ oo_core_fetch(OOCore *core)
              * decoded instruction info when instruction flows to next stage */
             core->fetch.imap_index = e->imap_index;
 
-            /* Set default minimum page walk latency. If the page walk does
-             * occur, hw_pg_tb_wlk_latency will be higher than this default
-             * value because it will also include the cache lookup latency for
-             * reading/writing page table entries. Page table entries are looked
-             * up in L1 data cache. */
-            s->hw_pg_tb_wlk_latency = 1;
-            s->hw_pg_tb_wlk_stage_id = FETCH;
-            s->hw_pg_tb_wlk_latency_accounted = 0;
-            s->ins_page_walks_accounted = 0;
-            s->ins_tlb_lookup_accounted = 0;
-            s->ins_tlb_hit_accounted = 0;
-
-            /* current_latency: number of CPU cycles spent by this instruction
-             * in fetch stage so far */
-            e->current_latency = 1;
-
-            /* Fetch instruction from RISCVEMU memory map */
-            if (code_tlb_access_and_ins_fetch(s, e))
-            {
-                /* This instruction has raised a page fault exception during
-                 * fetch */
-                e->ins.exception = TRUE;
-                e->ins.exception_cause = SIM_EXCEPTION;
-
-                /* Hardware page table walk has been done and its latency must
-                 * be simulated */
-                e->max_latency = s->hw_pg_tb_wlk_latency;
-            }
-            else
-            {
-                /* max_latency: Number of CPU cycles required for TLB and Cache
-                 * look-up */
-                e->max_latency
-                    = s->hw_pg_tb_wlk_latency
-                      + mmu_insn_read(simcpu->mmu, s->code_guest_paddr, 4,
-                                      FETCH, s->priv);
-
-                /* Keep track of physical address of this instruction for later use */
-                e->ins.phy_pc = s->code_guest_paddr;
-
-                /* If true, it indicates that some sort of memory access request
-                 * are sent to memory controller for this instruction, so
-                 * request the fast wrap-around read for this address */
-                if (simcpu->mmu->mem_controller->frontend_mem_access_queue
-                        .cur_size)
-                {
-                    mem_controller_req_fast_read_for_addr(
-                        &simcpu->mmu->mem_controller->frontend_mem_access_queue,
-                        e->ins.phy_pc);
-                }
-
-                if (s->sim_params->enable_l1_caches)
-                {
-                    /* L1 caches and TLB are probed in parallel */
-                    e->max_latency
-                        -= min_int(s->hw_pg_tb_wlk_latency,
-                                   simcpu->mmu->icache->read_latency);
-                }
-
-                /* Increment PC for the next instruction */
-                if (3 == (e->ins.binary & 3))
-                {
-                    s->code_ptr = s->code_ptr + 4;
-                    s->code_guest_paddr = s->code_guest_paddr + 4;
-                }
-                else
-                {
-                    /* For compressed */
-                    s->code_ptr = s->code_ptr + 2;
-                    s->code_guest_paddr = s->code_guest_paddr + 2;
-                }
-                ++simcpu->stats[s->priv].ins_fetch;
-            }
-
-            /* Probe the branch predictor front-end */
-            core->simcpu->pfn_branch_frontend_probe_handler(
-                core->simcpu->emu_cpu_state, e);
-
+            do_fetch_stage_exec(s, e);
             core->fetch.stage_exec_done = TRUE;
         }
         else
         {
-            e = &simcpu->imap[core->fetch.imap_index];
+            e = get_imap_entry(s->simcpu->imap, core->fetch.imap_index);
         }
 
         if (e->current_latency == e->max_latency)
@@ -154,7 +75,7 @@ oo_core_fetch(OOCore *core)
 
             /* Check if all the dram accesses, if required for this instruction,
              * are complete */
-            if (!simcpu->mmu->mem_controller->frontend_mem_access_queue
+            if (!s->simcpu->mmu->mem_controller->frontend_mem_access_queue
                      .cur_size)
             {
                 /* Memory controller read logic will install the tag in the cache line with
@@ -164,7 +85,7 @@ oo_core_fetch(OOCore *core)
                  * received. Only then, proceed further. */
                 if (!e->ins.exception
                     && mem_controller_wrap_around_read_pending(
-                           simcpu->mmu->mem_controller, e->ins.phy_pc))
+                           s->simcpu->mmu->mem_controller, e->ins.phy_pc))
                 {
                     return;
                 }
@@ -173,7 +94,7 @@ oo_core_fetch(OOCore *core)
                    stage, else stall fetch */
                 if (!core->decode.has_data)
                 {
-                    simcpu->mmu->mem_controller->frontend_mem_access_queue
+                    s->simcpu->mmu->mem_controller->frontend_mem_access_queue
                         .cur_idx
                         = 0;
 
@@ -192,7 +113,7 @@ oo_core_fetch(OOCore *core)
             }
             else
             {
-                ++simcpu->stats[s->priv].insn_mem_delay;
+                ++s->simcpu->stats[s->priv].insn_mem_delay;
             }
         }
         else
@@ -213,86 +134,27 @@ oo_core_decode(OOCore *core)
 {
     IMapEntry *e;
     RISCVCPUState *s;
-    RISCVSIMCPUState *simcpu;
-    target_ulong ras_target = 0;
 
+    s = core->simcpu->emu_cpu_state;
     if (core->decode.has_data)
     {
-        s = core->simcpu->emu_cpu_state;
-        simcpu = core->simcpu;
-        e = &simcpu->imap[core->decode.imap_index];
+        e = get_imap_entry(s->simcpu->imap, core->decode.imap_index);
 
         if (!core->decode.stage_exec_done)
         {
             if (!e->ins.exception && !e->is_decoded)
             {
-                /* For decoding floating point instructions */
-                e->ins.current_fs = s->fs;
-                e->ins.rm = get_insn_rm(s, e->ins.rm);
-
-                /* Decode the instruction */
-                decode_riscv_binary(&e->ins, e->ins.binary);
-                e->is_decoded = TRUE;
-
-                /* If branch prediction is enabled and this instruction is a
-                 * branch, add BPU entry for this branch if not present */
-                if (s->sim_params->enable_bpu && e->ins.is_branch)
+                do_decode_stage_exec(s, e);
+                if (s->simcpu->pfn_branch_frontend_decode_handler(s, e))
                 {
-                    if (!e->bpu_resp_pkt.bpu_probe_status)
-                    {
-                        bpu_add(core->simcpu->bpu, e->ins.pc,
-                                e->ins.branch_type, &e->bpu_resp_pkt, s->priv,
-                                e->ins.is_func_ret);
-                    }
-
-                    if (core->simcpu->params->ras_size)
-                    {
-                        if (e->ins.is_func_call)
-                        {
-                            ras_push(core->simcpu->bpu->ras, ((e->ins.binary & 3) == 3
-                                                    ? e->ins.pc + 4
-                                                    : e->ins.pc + 2));
-                        }
-
-                        if (e->ins.is_func_ret)
-                        {
-                            ras_target = ras_pop(core->simcpu->bpu->ras);
-
-                            /* Start fetch from address returned by RAS if non-zero */
-                            if (ras_target)
-                            {
-                                s->code_ptr = NULL;
-                                s->code_end = NULL;
-                                s->code_to_pc_addend = ras_target;
-                                e->predicted_target = ras_target;
-
-                                /* If memory access requests are submitted to dram
-                                 * dispatch queue from fetch stage, remove them from
-                                 * dram dispatch queue */
-                                if (core->simcpu->mmu->mem_controller
-                                        ->frontend_mem_access_queue.cur_size)
-                                {
-                                    mem_controller_flush_stage_queue_entry_from_dram_queue(
-                                        &core->simcpu->mmu->mem_controller
-                                             ->dram_dispatch_queue,
-                                        &core->simcpu->mmu->mem_controller
-                                             ->frontend_mem_access_queue);
-                                }
-
-                                mem_controller_flush_stage_mem_access_queue(
-                                    &core->simcpu->mmu->mem_controller
-                                         ->frontend_mem_access_queue);
-
-                                cpu_stage_flush(&core->fetch);
-                                core->fetch.has_data = TRUE;
-                            }
-                        }
-                    }
+                    speculative_cpu_stage_flush(&core->fetch, s->simcpu->imap);
+                    core->fetch.has_data = TRUE;
                 }
+                e->is_decoded = TRUE;
             }
 
-            /* Unsupported opcode exception */
-            if (e->ins.exception)
+            /* Handle exception caused during decoding */
+            if (unlikely(e->ins.exception))
             {
                 cpu_stage_flush(&core->fetch);
             }
@@ -510,13 +372,12 @@ void
 oo_core_dispatch(OOCore *core)
 {
     IMapEntry *e;
-    RISCVSIMCPUState *simcpu;
+    RISCVCPUState *s;
 
+    s = core->simcpu->emu_cpu_state;
     if (core->dispatch.has_data)
     {
-        simcpu = core->simcpu;
-        e = &simcpu->imap[core->dispatch.imap_index];
-
+        e = get_imap_entry(s->simcpu->imap, core->dispatch.imap_index);
         if (!core->dispatch.stage_exec_done)
         {
             /* If this instruction has caused an exception, only create ROB
@@ -585,7 +446,7 @@ oo_core_dispatch(OOCore *core)
                     if (e->ins.is_branch)
                     {
                         if (dispatch_branch_instruction(
-                                core, core->iq_int, simcpu->params->iq_int_size,
+                                core, core->iq_int, s->simcpu->params->iq_int_size,
                                 &core->rob, &core->bis, e))
                         {
                             return;
@@ -598,7 +459,7 @@ oo_core_dispatch(OOCore *core)
                         {
                             if (dispatch_non_mem_instruction(
                                     core, core->iq_int,
-                                    simcpu->params->iq_int_size, &core->rob, e,
+                                    s->simcpu->params->iq_int_size, &core->rob, e,
                                     &core->bis))
                             {
                                 return;
@@ -608,7 +469,7 @@ oo_core_dispatch(OOCore *core)
                         {
                             if (dispatch_non_mem_instruction(
                                     core, core->iq_fp,
-                                    simcpu->params->iq_fp_size, &core->rob, e,
+                                    s->simcpu->params->iq_fp_size, &core->rob, e,
                                     &core->bis))
                             {
                                 return;
@@ -620,7 +481,7 @@ oo_core_dispatch(OOCore *core)
                 {
                     /* Load Stores Atomics Dispatch */
                     if (dispatch_mem_instruction(
-                            core, core->iq_mem, simcpu->params->iq_mem_size,
+                            core, core->iq_mem, s->simcpu->params->iq_mem_size,
                             &core->rob, &core->lsq, e, &core->bis))
                     {
                         return;

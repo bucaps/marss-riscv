@@ -34,23 +34,22 @@ void
 oo_core_lsu(OOCore *core)
 {
     IMapEntry *e;
-    RISCVSIMCPUState *simcpu = core->simcpu;
     RISCVCPUState *s = core->simcpu->emu_cpu_state;
 
     if (core->lsu.has_data)
     {
-        e = &simcpu->imap[core->lsu.imap_index];
+        e = get_imap_entry(s->simcpu->imap, core->lsu.imap_index);
         if (!core->lsu.stage_exec_done)
         {
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = MEMORY;
-            s->hw_pg_tb_wlk_latency_accounted = 0;
-            s->load_tlb_lookup_accounted = 0;
-            s->load_tlb_hit_accounted = 0;
-            s->load_tlb_page_walks_accounted = 0;
-            s->store_tlb_lookup_accounted = 0;
-            s->store_tlb_hit_accounted = 0;
-            s->store_tlb_page_walks_accounted = 0;
+            s->hw_pg_tb_wlk_latency_accounted = FALSE;
+            s->load_tlb_lookup_accounted = FALSE;
+            s->load_tlb_hit_accounted = FALSE;
+            s->load_tlb_page_walks_accounted = FALSE;
+            s->store_tlb_lookup_accounted = FALSE;
+            s->store_tlb_hit_accounted = FALSE;
+            s->store_tlb_page_walks_accounted = FALSE;
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in memory stage so far */
@@ -77,11 +76,11 @@ oo_core_lsu(OOCore *core)
                 /* If true, it indicates that some sort of memory access request
                  * are sent to the memory controller for this instruction, so
                  * request the fast wrap-around read for this address */
-                if (simcpu->mmu->mem_controller->backend_mem_access_queue
+                if (s->simcpu->mmu->mem_controller->backend_mem_access_queue
                         .cur_size)
                 {
                     mem_controller_req_fast_read_for_addr(
-                        &simcpu->mmu->mem_controller
+                        &s->simcpu->mmu->mem_controller
                              ->backend_mem_access_queue,
                         s->data_guest_paddr);
                 }
@@ -93,20 +92,20 @@ oo_core_lsu(OOCore *core)
                     {
                         e->max_latency
                             -= min_int(s->hw_pg_tb_wlk_latency,
-                                       simcpu->mmu->dcache->read_latency);
+                                       s->simcpu->mmu->dcache->read_latency);
                     }
                     if (e->ins.is_store)
                     {
                         e->max_latency
                             -= min_int(s->hw_pg_tb_wlk_latency,
-                                       simcpu->mmu->dcache->write_latency);
+                                       s->simcpu->mmu->dcache->write_latency);
                     }
                     if (e->ins.is_atomic)
                     {
                         e->max_latency -= min_int(
                             s->hw_pg_tb_wlk_latency,
-                            min_int(simcpu->mmu->dcache->read_latency,
-                                    simcpu->mmu->dcache->write_latency));
+                            min_int(s->simcpu->mmu->dcache->read_latency,
+                                    s->simcpu->mmu->dcache->write_latency));
                     }
                 }
             }
@@ -117,7 +116,7 @@ oo_core_lsu(OOCore *core)
         {
             /* Number of CPU cycles spent by this instruction in memory stage
              * equals memory access delay for this instruction */
-            if (!simcpu->mmu->mem_controller->backend_mem_access_queue.cur_size)
+            if (!s->simcpu->mmu->mem_controller->backend_mem_access_queue.cur_size)
             {
 
                 /* Memory controller read logic will install the tag in the cache line with
@@ -126,19 +125,19 @@ oo_core_lsu(OOCore *core)
                  * words. Check the memory controller to see if the word is
                  * received. Only then, proceed further. */
                 if (mem_controller_wrap_around_read_pending(
-                        simcpu->mmu->mem_controller, s->data_guest_paddr))
+                        s->simcpu->mmu->mem_controller, s->data_guest_paddr))
                 {
                     return;
                 }
 
-                simcpu->mmu->mem_controller->backend_mem_access_queue.cur_idx
+                s->simcpu->mmu->mem_controller->backend_mem_access_queue.cur_idx
                     = 0;
                 core->lsq.entries[e->lsq_idx].mem_request_complete = TRUE;
                 cpu_stage_flush(&core->lsu);
             }
             else
             {
-                ++simcpu->stats[s->priv].data_mem_delay;
+                ++s->simcpu->stats[s->priv].data_mem_delay;
             }
         }
         else
