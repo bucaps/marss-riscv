@@ -40,20 +40,19 @@ cq_init(CQ *p, int max_size_val)
 int
 cq_enqueue(CQ *p)
 {
-    if ((p->front == 0 && p->rear == (p->max_size - 1))
-        || (p->rear == (p->front - 1) % (p->max_size - 1)))
+    if (cq_full(p))
     {
         /* Queue full */
         return -1;
     }
-    else if (p->front == -1)
+    else if (cq_empty(p))
     {
         /* Empty Queue, insert first element */
         p->front = 0;
         p->rear = 0;
         return p->front;
     }
-    else if (p->rear == (p->max_size - 1) && p->front != 0)
+    else if ((p->rear == (p->max_size - 1)) && (p->front != 0))
     {
         /* Wrap around */
         p->rear = 0;
@@ -71,7 +70,7 @@ cq_dequeue(CQ *p)
 {
     int old_front;
 
-    if (p->front == -1)
+    if (cq_empty(p))
     {
         /* Empty Queue */
         return -1;
@@ -81,7 +80,7 @@ cq_dequeue(CQ *p)
 
     if (p->front == p->rear)
     {
-        /* Remove last element in the queue */
+        /* Remove the only element in the queue */
         p->front = -1;
         p->rear = -1;
     }
@@ -111,8 +110,9 @@ cq_empty(CQ *p)
 int
 cq_full(CQ *p)
 {
-    if ((p->front == 0 && p->rear == (p->max_size - 1))
-        || (p->rear == (p->front - 1) % (p->max_size - 1)))
+    if ((p->front == 0 && (p->rear == (p->max_size - 1)))
+        || ((p->max_size > 1)
+            && (p->rear == ((p->front - 1) % (p->max_size - 1)))))
     {
         return 1;
     }
