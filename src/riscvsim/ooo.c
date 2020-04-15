@@ -301,6 +301,11 @@ oo_core_run(void *core_type)
         oo_core_writeback(core);
         oo_core_lsq(core);
         oo_core_lsu(core);
+
+        /* Call lsq again to mark ROB entries as complete for memory
+         * instructions which completed in a single cycle */
+        oo_core_lsq(core);
+
         oo_core_execute_all(core);
         oo_core_issue(core);
 
