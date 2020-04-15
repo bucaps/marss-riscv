@@ -962,16 +962,6 @@ static int virt_machine_parse_sim_config(VirtMachineParams *p,
         }
     }
 
-    /**
-     *
-     * NOTE: Currently the out-of-order core doesn't support branch prediction unit.
-     * Hence disable it here for safety.
-     *
-     */
-    if (p->sim_params->core_type == CORE_TYPE_OOCORE) {
-        p->sim_params->enable_bpu = FALSE;
-    }
-
     /* Set RAM size to be used by simulated memory model */
     /**
      *
