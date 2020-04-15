@@ -293,11 +293,6 @@ oo_core_run(void *core_type)
         core->simcpu->mmu->mem_controller->mem_controller_update_internal(
             core->simcpu->mmu->mem_controller);
 
-        if (oo_core_rob_commit(core))
-        {
-            return core->simcpu->emu_cpu_state->sim_exception_cause;
-        }
-
         oo_core_writeback(core);
         oo_core_lsq(core);
         oo_core_lsu(core);
@@ -317,6 +312,13 @@ oo_core_run(void *core_type)
         oo_core_dispatch(core);
         oo_core_decode(core);
         oo_core_fetch(core);
+
+        /* Do this so that the instructions which have completed PRF writeback
+         * in the current cycle, are committed from the ROB in the same cycle */
+        if (oo_core_rob_commit(core))
+        {
+            return core->simcpu->emu_cpu_state->sim_exception_cause;
+        }
 
         /* Advance CPU clock */
         ++core->simcpu->clock;
