@@ -700,10 +700,10 @@ handle_cond_bpu(RISCVCPUState *s, IMapEntry *e)
             /* TODO: Remove this assert, Prediction Success */
             assert(e->predicted_target == e->ins.target);
             e->is_pred_correct = TRUE;
-            e->is_branch_taken = TRUE;
             e->branch_target = e->predicted_target;
             ++simcpu->stats[s->priv].bpu_cond_correct;
         }
+        e->is_branch_taken = TRUE;
     }
     else
     {
@@ -753,7 +753,6 @@ handle_uncond_bpu(RISCVCPUState *s, IMapEntry *e)
     {
         /* Prediction Success */
         e->is_pred_correct = TRUE;
-        e->is_branch_taken = TRUE;
 
         /* Keep track of this branch to resume at this target, in case
            the timeout happens after this branch commits */
@@ -768,6 +767,7 @@ handle_uncond_bpu(RISCVCPUState *s, IMapEntry *e)
         mispredict = TRUE;
     }
 
+    e->is_branch_taken = TRUE;
     return mispredict;
 }
 
