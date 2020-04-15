@@ -545,12 +545,13 @@ in_core_commit(INCore *core)
             ++s->simcpu->stats[s->priv].ins_cond_branch_taken;
         }
 
-#if defined(CONFIG_SIM_TRACE)
-        print_ins_trace(s, s->simcpu->clock, e->ins.pc, e->ins.binary,
-                        e->ins.str, (e->ins.has_dest | e->ins.has_fp_dest),
-                        e->ins.has_dest, e->ins.rd, e->ins.buffer,
-                        e->ins.mem_addr, s->priv, "sim");
-#endif
+        /* Dump commit trace if trace mode enabled */
+        if (s->simcpu->params->do_sim_trace)
+        {
+            s->simcpu->sim_trace_pkt.cycle = s->simcpu->clock;
+            s->simcpu->sim_trace_pkt.e = e;
+            sim_print_ins_trace(s);
+        }
 
         if (s->sim_params->enable_stats_display)
         {

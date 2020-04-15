@@ -227,6 +227,8 @@ sim_params_print(const SimParams *p)
 
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "core_type",
             core_type_str[p->core_type]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "sim_trace",
+            sim_param_status[p->do_sim_trace]);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "sim_trace_file",
             p->sim_trace_file);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "sim_stats_path",

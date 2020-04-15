@@ -853,71 +853,22 @@ copy_cache_stats_to_global_stats(struct RISCVCPUState *s)
 }
 
 void
-print_ins_trace(struct RISCVCPUState *s, uint64_t cycle, target_ulong pc,
-                     uint32_t insn, const char *insn_str, int has_rd, int has_int_rd, int rd,
-                     uint64_t rdvalue, uint64_t mem_addr, int mode,
-                     const char *exception)
+sim_print_ins_trace(struct RISCVCPUState *s)
 {
-    char buf[10], *op;
-
-    fprintf(s->sim_trace, "cycle=%-8" PRIu64 "pc=%-16" PR_target_ulong ": ", cycle,
-    pc);
-
-    if (3 == (insn & 3))
-    {
-        fprintf(s->sim_trace, "insn=%08" PRIx32, insn);
-    }
-    else
-    {
-        fprintf(s->sim_trace, "insn=%04" PRIx32 "    ", (insn & 0xFFFF));
-    }
-
-    if (s->sim_params->create_ins_str)
-    {
-        op = strchrnul(insn_str, ' ');
-
-        if (op - insn_str < 7 && *op == ' ')
-        {
-            strncpy(buf, insn_str, op - insn_str);
-            buf[op - insn_str] = 0;
-            fprintf(s->sim_trace, "  %-8s%-16s", buf, op + 1);
-        }
-        else
-        {
-            fprintf(s->sim_trace, "  %-24s", insn_str);
-        }
-    }
-
-    if(has_rd)
-    {
-        if (has_int_rd)
-        {
-            if (rd)
-            {
-                fprintf(s->sim_trace, " x%-3d=%-16" PRIx64, rd, rdvalue);
-            }
-            else
-            {
-                fprintf(s->sim_trace, "     %-16s", "");
-            }
-        }
-        else
-        {
-            fprintf(s->sim_trace, " f%-3d=%-16" PRIx64, rd, rdvalue);
-        }
-    }
-
-    fprintf(s->sim_trace, " %-6s (%s)", cpu_mode_str[mode], exception);
-
-    if (mem_addr)
-    {
-        fprintf(s->sim_trace, " mem_addr=%-16" PRIx64, mem_addr);
-    }
-    else
-    {
-        fprintf(s->sim_trace, "    %-16s", "");
-    }
-
+    fprintf(s->sim_trace, "cycle=%" TARGET_ULONG_FMT, s->simcpu->clock);
+    fprintf(s->sim_trace, " pc=%" TARGET_ULONG_HEX,
+            s->simcpu->sim_trace_pkt.e->ins.pc);
+    fprintf(s->sim_trace, " insn=%s", s->simcpu->sim_trace_pkt.e->ins.str);
+    fprintf(s->sim_trace, " mode=%s", cpu_mode_str[s->priv]);
     fprintf(s->sim_trace, "\n");
-    fflush(s->sim_trace);
+}
+
+void
+sim_print_exp_trace(struct RISCVCPUState *s)
+{
+    fprintf(s->sim_trace, "cycle=%" TARGET_ULONG_FMT, s->simcpu->clock);
+    fprintf(s->sim_trace, " pc=%" TARGET_ULONG_HEX, s->sim_epc);
+    fprintf(s->sim_trace, " insn=%s", s->sim_epc_str);
+    fprintf(s->sim_trace, " mode=%s", cpu_mode_str[s->priv]);
+    fprintf(s->sim_trace, "\n");
 }

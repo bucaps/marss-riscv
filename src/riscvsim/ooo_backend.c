@@ -601,13 +601,13 @@ oo_core_rob_commit(OOCore *core)
 
                     current_commit_count++;
 
-#if defined(CONFIG_SIM_TRACE)
-                    print_ins_trace(s, core->simcpu->clock, e->ins.pc,
-                                    e->ins.binary, e->ins.str,
-                                    (e->ins.has_dest | e->ins.has_fp_dest),
-                                    e->ins.has_dest, e->ins.rd, core->prf_int[e->ins.pdest].val,
-                                    e->ins.mem_addr, s->priv, "sim-ooo");
-#endif
+                    /* Dump commit trace if trace mode enabled */
+                    if (s->simcpu->params->do_sim_trace)
+                    {
+                        s->simcpu->sim_trace_pkt.cycle = s->simcpu->clock;
+                        s->simcpu->sim_trace_pkt.e = e;
+                        sim_print_ins_trace(s);
+                    }
 
                     if (s->sim_params->enable_stats_display)
                     {

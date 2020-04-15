@@ -54,6 +54,8 @@ typedef struct RISCVSIMCPUState
 
     MMU *mmu;               /* Memory controller */
 
+    SimTracePacket sim_trace_pkt; /* Used to dump simulation trace */
+
     /*----------  Based on core type: in-order or out-of-order  ----------*/
     void* core;
     void (*pfn_core_reset)(void *core);

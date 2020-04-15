@@ -210,10 +210,11 @@ dump_simulation_stats(RISCVCPUState *s)
 
     sim_stats_print(s->simcpu->stats, params->sim_stats_path);
 
-#if defined(CONFIG_SIM_TRACE)
+    if (s->simcpu->params->do_sim_trace)
+    {
         fprintf(stderr, "(marss-riscv): Saved simulation trace in %s\n",
                 s->sim_params->sim_trace_file);
-#endif    
+    }
 }
 
 static void
@@ -246,9 +247,10 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
 
         dump_simulation_stats(s);
 
-#if defined(CONFIG_SIM_TRACE)
-        fclose(s->sim_trace);
-#endif
+        if (s->simcpu->params->do_sim_trace)
+        {
+            fclose(s->sim_trace);
+        }
 
         fprintf(stderr, "(marss-riscv): Switching to emulation mode at pc = "
                         "0x%" PR_target_ulong "\n",

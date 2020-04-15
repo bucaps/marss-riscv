@@ -307,12 +307,13 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
             }
         }
 
-/* Open trace file if running in trace mode */
-#if defined(CONFIG_SIM_TRACE)
-        s->sim_trace = fopen(s->sim_params->sim_trace_file, "w");
-        assert(s->sim_trace);
-        s->sim_params->create_ins_str = 1; // We want to generate instruction strings
-#endif
+        /* Open trace file if running in trace mode */
+        if (s->simcpu->params->do_sim_trace)
+        {
+            s->sim_trace = fopen(s->sim_params->sim_trace_file, "w");
+            assert(s->sim_trace);
+            s->sim_params->create_ins_str = TRUE;
+        }
 
         fprintf(stderr, "(marss-riscv): Switching to full-system simulation "
                         "mode at pc = 0x%" PR_target_ulong "\n",
@@ -344,11 +345,10 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         {
         case SIM_EXCEPTION:
             /* Includes MMU exception, illegal opcode etc. */
-#if defined(CONFIG_SIM_TRACE)
-            print_ins_trace(s, s->simcpu->clock, s->sim_epc,
-                            s->sim_exception_ins, s->sim_epc_str, 0, 0, 0, 0, 0, s->priv,
-                            "exception");
-#endif
+            if (s->simcpu->params->do_sim_trace)
+            {
+                sim_print_exp_trace(s);
+            }
             break;
 
         case SIM_COMPLEX_OPCODE:
@@ -362,23 +362,21 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
              * system instruction to commit in pipeline, we commit them here */
             ++s->simcpu->stats[s->priv].ins_emulated;
 
-            // sleep(1);
-#if defined(CONFIG_SIM_TRACE)
-            print_ins_trace(s, s->simcpu->clock, s->sim_epc,
-                            s->sim_exception_ins, s->sim_epc_str, 0, 0, 0, 0, 0, s->priv,
-                            "emul");
-#endif
+            if (s->simcpu->params->do_sim_trace)
+            {
+                sim_print_exp_trace(s);
+            }
             break;
 
         case SIM_TIMEOUT_EXCEPTION:
             /* We executed all the n_cycles instructions for this interval and now
                we must exit to virt_machine_run() to receive interrupts */
 
-		assert(s->n_cycles == 0);
-#if defined(CONFIG_SIM_TRACE)
-            print_ins_trace(s, s->simcpu->clock, s->sim_epc, 0, "",
-                            0, 0, 0, 0, 0, s->priv, "timeout");
-#endif
+            assert(s->n_cycles == 0);
+            if (s->simcpu->params->do_sim_trace)
+            {
+                sim_print_exp_trace(s);
+            }
             break;
 
         default:

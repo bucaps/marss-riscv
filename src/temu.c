@@ -618,6 +618,7 @@ static struct option options[] = {
     { "mem-model", required_argument },
     { "build-preload", required_argument },
     { "flush-sim-mem", no_argument },
+    { "sim-trace", no_argument },
     { NULL },
 };
 
@@ -636,6 +637,7 @@ void help(void)
            "-stats-display              dump simulation performance stats to a shared memory location, read by stats-display tool\n"
            "-mem-model [base|dramsim2]  type of simulated memory model\n"
            "-flush-sim-mem              Clear simulator memory hierarchy on every new simulation run\n"
+           "-sim-trace                  Generate instruction commit trace during simulation\n"
            "\n"
            "Console keys:\n"
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
@@ -670,6 +672,7 @@ int main(int argc, char **argv)
     int marss_stats_display = 0;
     int marss_mem_model = MEM_MODEL_BASE;
     int marss_flush_mem = FALSE;
+    int marss_do_sim_trace = FALSE;
 
     ram_size = -1;
     allow_ctrlc = FALSE;
@@ -727,6 +730,9 @@ int main(int argc, char **argv)
             case 10: /* flush-sim-mem */
                 marss_flush_mem = TRUE;
                 break;
+            case 11: /* sim-trace */
+                marss_do_sim_trace = TRUE;
+                break;
             default:
                 fprintf(stderr, "unknown option index: %d\n", option_index);
                 exit(1);
@@ -778,6 +784,7 @@ int main(int argc, char **argv)
     p->sim_params->start_in_sim = marss_start_in_sim;
     p->sim_params->enable_stats_display = marss_stats_display;
     p->sim_params->flush_sim_mem = marss_flush_mem;
+    p->sim_params->do_sim_trace = marss_do_sim_trace;
 
     /* open the files & devices */
     for(i = 0; i < p->drive_count; i++) {
