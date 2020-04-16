@@ -54,12 +54,6 @@ typedef struct WbQueueEntry
     IMapEntry *e;
 } WbQueueEntry;
 
-typedef struct WbQueue
-{
-    CQ cq;
-    WbQueueEntry *entries;
-} WbQueue;
-
 typedef struct ROBEntry
 {
     int ready;
@@ -133,8 +127,9 @@ typedef struct OOCore
     CQInt free_pr_int;  /* Free list of INT physical registers */
     CQInt free_pr_fp;   /* Free list of FP physical registers */
 
-    WbQueue prf_int_wb_queue; /* INT Physical register file write-back queue */
-    WbQueue prf_fp_wb_queue;  /* FP Physical register file write-back queue */
+    WbQueueEntry *prf_int_wb_queue; /* INT Physical register file write-back queue */
+    WbQueueEntry *prf_fp_wb_queue;  /* FP Physical register file write-back queue */
+
     ROB rob;                  /* Reorder buffer */
     LSQ lsq;                  /* Load-Store Queue */
     BIS bis;                  /* Branch Index Stack, For future implementation  */
@@ -181,5 +176,5 @@ void iq_reset(IssueQueueEntry *iq_entry, int size);
 int iq_full(IssueQueueEntry *iq, int size);
 int iq_get_free_entry(IssueQueueEntry *iq, int size);
 
-int send_phy_reg_write_request(WbQueue *q, IMapEntry *e);
+int send_phy_reg_write_request(WbQueueEntry *q, int max_size, IMapEntry *e);
 #endif

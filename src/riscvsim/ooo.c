@@ -41,15 +41,13 @@ oo_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
     assert(core);
 
     /* Create physical register write-back queues */
-    cq_init(&core->prf_int_wb_queue.cq, p->prf_int_write_ports);
-    core->prf_int_wb_queue.entries
+    core->prf_int_wb_queue
         = (WbQueueEntry *)calloc(p->prf_int_write_ports, sizeof(WbQueueEntry));
-    assert(core->prf_int_wb_queue.entries);
+    assert(core->prf_int_wb_queue);
 
-    cq_init(&core->prf_fp_wb_queue.cq, p->prf_fp_write_ports);
-    core->prf_fp_wb_queue.entries
+    core->prf_fp_wb_queue
         = (WbQueueEntry *)calloc(p->prf_fp_write_ports, sizeof(WbQueueEntry));
-    assert(core->prf_fp_wb_queue.entries);
+    assert(core->prf_fp_wb_queue);
 
     /* Create ROB */
     cq_init(&core->rob.cq, p->rob_size);
@@ -173,8 +171,11 @@ oo_core_reset(void *core_type)
     }
 
     /* Reset remaining structures */
-    cq_reset(&core->prf_int_wb_queue.cq);
-    cq_reset(&core->prf_fp_wb_queue.cq);
+    memset((void *)core->prf_int_wb_queue, 0,
+           core->simcpu->params->prf_int_write_ports * sizeof(WbQueueEntry));
+    memset((void *)core->prf_fp_wb_queue, 0,
+           core->simcpu->params->prf_fp_write_ports * sizeof(WbQueueEntry));
+
     cq_reset(&core->rob.cq);
     cq_reset(&core->lsq.cq);
     cq_reset(&core->bis.cq);
@@ -254,10 +255,10 @@ oo_core_free(void *core_type)
     core->free_pr_int.entries = NULL;
     free(core->free_pr_fp.entries);
     core->free_pr_fp.entries = NULL;
-    free(core->prf_int_wb_queue.entries);
-    core->prf_int_wb_queue.entries = NULL;
-    free(core->prf_fp_wb_queue.entries);
-    core->prf_fp_wb_queue.entries = NULL;
+    free(core->prf_int_wb_queue);
+    core->prf_int_wb_queue = NULL;
+    free(core->prf_fp_wb_queue);
+    core->prf_fp_wb_queue = NULL;
     free(core->rob.entries);
     core->rob.entries = NULL;
     free(core->lsq.entries);
@@ -326,18 +327,34 @@ oo_core_run(void *core_type)
     }
 }
 
-int
-send_phy_reg_write_request(WbQueue *q, IMapEntry *e)
+static int
+wb_queue_get_free_entry(WbQueueEntry *q, int max_size)
 {
-    int wb_queue_idx;
+    int i, index = -1;
 
-    if (cq_full(&q->cq))
+    for (i = 0; i < max_size; ++i)
+    {
+        if (!q[i].valid)
+        {
+            index = i;
+            return index;
+        }
+    }
+
+    return index;
+}
+
+int
+send_phy_reg_write_request(WbQueueEntry *q, int max_size, IMapEntry *e)
+{
+    int wb_queue_idx = wb_queue_get_free_entry(q, max_size);
+
+    if (wb_queue_idx < 0)
     {
         return -1;
     }
 
-    wb_queue_idx = cq_enqueue(&q->cq);
-    q->entries[wb_queue_idx].e = e;
-    q->entries[wb_queue_idx].valid = TRUE;
+    q[wb_queue_idx].e = e;
+    q[wb_queue_idx].valid = TRUE;
     return 0;
 }

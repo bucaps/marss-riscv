@@ -197,25 +197,28 @@ process_lsq_entry_load(OOCore *core, LSQEntry *lsqe)
                     e->data_fwd_done = TRUE;
                 }
 
-                /* Write request to INT prf */
-                if (e->ins.has_dest)
-                {
-                    if (send_phy_reg_write_request(&core->prf_int_wb_queue, e))
+                    /* Write request to INT prf */
+                    if (e->ins.has_dest)
                     {
-                        /* All write ports occupied */
-                        return 0;
+                        if (send_phy_reg_write_request(
+                                core->prf_int_wb_queue,
+                                core->simcpu->params->prf_int_write_ports, e))
+                        {
+                            /* All write ports occupied */
+                            return 0;
+                        }
                     }
-                }
-
-                /* Write request to FP prf */
-                if (e->ins.has_fp_dest)
-                {
-                    if (send_phy_reg_write_request(&core->prf_fp_wb_queue, e))
+                    else if (e->ins.has_fp_dest)
                     {
-                        /* All write ports occupied */
-                        return 0;
+                        /* Write request to FP prf */
+                        if (send_phy_reg_write_request(
+                                core->prf_fp_wb_queue,
+                                core->simcpu->params->prf_fp_write_ports, e))
+                        {
+                            /* All write ports occupied */
+                            return 0;
+                        }
                     }
-                }
             }
 
             /* Result read from memory is sent to wb queue, it is safe

@@ -347,8 +347,9 @@ oo_core_execute(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
                     /* Write request to INT prf */
                     if (e->ins.has_dest)
                     {
-                        if (send_phy_reg_write_request(&core->prf_int_wb_queue,
-                                                       e))
+                        if (send_phy_reg_write_request(
+                                core->prf_int_wb_queue,
+                                core->simcpu->params->prf_int_write_ports, e))
                         {
                             /* All write ports occupied */
                             return;
@@ -357,8 +358,9 @@ oo_core_execute(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
                     else if (e->ins.has_fp_dest)
                     {
                         /* Write request to FP prf */
-                        if (send_phy_reg_write_request(&core->prf_fp_wb_queue,
-                                                       e))
+                        if (send_phy_reg_write_request(
+                                core->prf_fp_wb_queue,
+                                core->simcpu->params->prf_fp_write_ports, e))
                         {
                             /* All write ports occupied */
                             return;
@@ -440,15 +442,17 @@ oo_core_writeback(OOCore *core)
     IMapEntry *e;
     PRFEntry *pre;
     int wb_queue_idx;
+    WbQueueEntry *wbq_entry;
 
-    /* Process all the write requests to INT PRF */
-    while (!cq_empty(&core->prf_int_wb_queue.cq))
+    for (wb_queue_idx = 0;
+         wb_queue_idx < core->simcpu->params->prf_int_write_ports;
+         ++wb_queue_idx)
     {
-        wb_queue_idx = cq_front(&core->prf_int_wb_queue.cq);
+        wbq_entry = &core->prf_int_wb_queue[wb_queue_idx];
 
-        if (core->prf_int_wb_queue.entries[wb_queue_idx].valid)
+        if (wbq_entry->valid)
         {
-            e = core->prf_int_wb_queue.entries[wb_queue_idx].e;
+            e = wbq_entry->e;
 
             /* Ignore writes to P0, since its always zero */
             if (e->ins.pdest)
@@ -460,19 +464,22 @@ oo_core_writeback(OOCore *core)
 
             /* Inform the ROB that the instruction is ready to commit */
             core->rob.entries[e->rob_idx].ready = TRUE;
-        }
 
-        cq_dequeue(&core->prf_int_wb_queue.cq);
+            /* Deallocate writeback queue entry */
+            wbq_entry->valid = FALSE;
+        }
     }
 
     /* Process all the write requests to FP PRF */
-    while (!cq_empty(&core->prf_fp_wb_queue.cq))
+    for (wb_queue_idx = 0;
+         wb_queue_idx < core->simcpu->params->prf_fp_write_ports;
+         ++wb_queue_idx)
     {
-        wb_queue_idx = cq_front(&core->prf_fp_wb_queue.cq);
+        wbq_entry = &core->prf_fp_wb_queue[wb_queue_idx];
 
-        if (core->prf_fp_wb_queue.entries[wb_queue_idx].valid)
+        if (wbq_entry->valid)
         {
-            e = core->prf_fp_wb_queue.entries[wb_queue_idx].e;
+            e = wbq_entry->e;
 
             pre = &core->prf_fp[e->ins.pdest];
             pre->valid = TRUE;
@@ -496,9 +503,10 @@ oo_core_writeback(OOCore *core)
 
             /* Inform the ROB that the instruction is ready to commit */
             core->rob.entries[e->rob_idx].ready = TRUE;
-        }
 
-        cq_dequeue(&core->prf_fp_wb_queue.cq);
+            /* Deallocate writeback queue entry */
+            wbq_entry->valid = FALSE;
+        }
     }
 }
 
