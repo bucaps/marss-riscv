@@ -225,6 +225,7 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
         m->dram_dispatch_queue.entry[index].valid = 1;
         m->dram_dispatch_queue.entry[index].stage_queue_type = stage;
         m->dram_dispatch_queue.entry[index].stage_queue_index = stage_queue_index;
+        m->dram_dispatch_queue.entry[index].flush = FALSE;
 
         /* Calculate remaining transactions for this access */
         bytes_to_access -= m->dram_burst_size;
@@ -584,6 +585,13 @@ mem_controller_update_base(MemoryController *m)
             e = &m->dram_dispatch_queue
                      .entry[cq_front(&m->dram_dispatch_queue.cq)];
 
+            if (e->flush)
+            {
+                e->valid = 0;
+                cq_dequeue(&m->dram_dispatch_queue.cq);
+                return;
+            }
+
             m->wrap_around_mode = 0;
 
             switch (e->type)
@@ -636,6 +644,14 @@ mem_controller_update_base(MemoryController *m)
     {
         e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
 
+        if (e->flush)
+        {
+            e->valid = 0;
+            m->mem_access_active = 0;
+            cq_dequeue(&m->dram_dispatch_queue.cq);
+            return;
+        }
+
         if (m->wrap_around_mode)
         {
             do_wrap_around_read(m,e);
@@ -682,43 +698,48 @@ mem_controller_flush_dram_queue(MemoryController *m)
     cq_reset(&m->dram_dispatch_queue.cq);
 }
 
+/** Optimize */
 void
 mem_controller_flush_stage_queue_entry_from_dram_queue(
     DRAMDispatchQueue *dram_queue, StageMemAccessQueue *stage_queue)
 {
-    int i;
-    target_ulong first_addr = stage_queue->entry[0].addr;
+    int i, j;
+    target_ulong flush_addr;
 
-    if (!cq_empty(&dram_queue->cq))
+    for (j = 0; j < stage_queue->cur_size; ++j)
     {
-        if (dram_queue->cq.rear >= dram_queue->cq.front)
-        {
-            for (i = dram_queue->cq.front; i <= dram_queue->cq.rear; i++)
-            {
-                if (dram_queue->entry[i].addr == first_addr)
-                {
-                    dram_queue->cq.rear = i;
-                    return;
-                }
-            }
-        }
-        else
-        {
-            for (i = dram_queue->cq.front; i < dram_queue->cq.max_size; i++)
-            {
-                if (dram_queue->entry[i].addr == first_addr)
-                {
-                    dram_queue->cq.rear = i;
-                    return;
-                }
-            }
+        flush_addr = stage_queue->entry[j].addr;
 
-            for (i = 0; i <= dram_queue->cq.rear; i++)
+        /* Set the flush bit in the dram dispatch queue entry for this address
+         */
+        if (!cq_empty(&dram_queue->cq))
+        {
+            if (dram_queue->cq.rear >= dram_queue->cq.front)
             {
-                if (dram_queue->entry[i].addr == first_addr)
+                for (i = dram_queue->cq.front; i <= dram_queue->cq.rear; i++)
                 {
-                    dram_queue->cq.rear = i;
-                    return;
+                    if (dram_queue->entry[i].addr == flush_addr)
+                    {
+                        dram_queue->entry[i].flush = TRUE;
+                    }
+                }
+            }
+            else
+            {
+                for (i = dram_queue->cq.front; i < dram_queue->cq.max_size; i++)
+                {
+                    if (dram_queue->entry[i].addr == flush_addr)
+                    {
+                        dram_queue->entry[i].flush = TRUE;
+                    }
+                }
+
+                for (i = 0; i <= dram_queue->cq.rear; i++)
+                {
+                    if (dram_queue->entry[i].addr == flush_addr)
+                    {
+                        dram_queue->entry[i].flush = TRUE;
+                    }
                 }
             }
         }
