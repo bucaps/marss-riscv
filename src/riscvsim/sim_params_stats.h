@@ -167,20 +167,11 @@ enum MEM_MODEL_TYPE
 #define DEF_tRP 4
 #define DEF_ROW_BUFFER_WRITE_LATENCY 4
 
-#define DEF_PRF_INT_SIZE 64
-#define DEF_PRF_FP_SIZE 64
-#define DEF_IQ_INT_SIZE 16
-#define DEF_IQ_FP_SIZE 16
-#define DEF_IQ_MEM_SIZE 16
-#define DEF_IQ_INT_ISSUE_PORTS 2
-#define DEF_IQ_FP_ISSUE_PORTS 2
-#define DEF_IQ_MEM_ISSUE_PORTS 2
-#define DEF_PRF_INT_WP 3
-#define DEF_PRF_FP_WP 16
+#define DEF_IQ_SIZE 16
+#define DEF_IQ_ISSUE_PORTS 2
 #define DEF_ROB_SIZE 64
 #define DEF_ROB_COMMIT_PORTS 1
 #define DEF_LSQ_SIZE 16
-#define DEF_BIS_SIZE 8
 
 #define DEF_MEM_MODEL MEM_MODEL_BASE
 #define DEF_DRAMSIM_INI_FILE "DRAMSim2/ini/DDR2_micron_16M_8b_x8_sg3E.ini"
@@ -242,20 +233,11 @@ typedef struct SimParams
     int num_cpu_stages;
 
     /* For out-of-order core */
-    int prf_int_size;
-    int prf_fp_size;
-    int iq_int_size;
-    int iq_fp_size;
-    int iq_mem_size;
-    int iq_int_issue_ports;
-    int iq_fp_issue_ports;
-    int iq_mem_issue_ports;
-    int prf_int_write_ports;
-    int prf_fp_write_ports;
+    int iq_size;
+    int iq_issue_ports;
     int rob_size;
     int rob_commit_ports;
     int lsq_size;
-    int bis_size;
 
     /* FU Latencies */
     int num_alu_stages;

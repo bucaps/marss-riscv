@@ -57,7 +57,6 @@ typedef struct InstructionMapEntry
     uint32_t is_pred_correct;
     int max_latency;
     int current_latency;
-    int exec_done;
     int data_fwd_done;
     int read_rs1;
     int read_rs2;
@@ -67,8 +66,6 @@ typedef struct InstructionMapEntry
     int iq_idx;
     int lsq_idx;
     int imap_index;
-    int bis_idx;
-    int bis_tag;
     int branch_processed;
     int stop_flush;
     int mispredict;
@@ -122,4 +119,9 @@ void copy_cache_stats_to_global_stats(struct RISCVCPUState *s);
 void sim_print_ins_trace(struct RISCVCPUState *s);
 void sim_print_exp_trace(struct RISCVCPUState *s);
 
+void update_arch_reg_int(struct RISCVCPUState *s, IMapEntry *e);
+void update_arch_reg_fp(struct RISCVCPUState *s, IMapEntry *e);
+void update_insn_commit_stats(struct RISCVCPUState *s, IMapEntry *e);
+void setup_sim_trace_pkt(struct RISCVCPUState *s, IMapEntry *e);
+void write_stats_to_stats_display_shm(struct RISCVCPUState *s);
 #endif

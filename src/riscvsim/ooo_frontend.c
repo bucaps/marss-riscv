@@ -213,159 +213,135 @@ lsq_entry_create(LSQ *lsq, IMapEntry *e)
     lsq->entries[lsq_idx].e = e;
 }
 
-/**
- *
- * Branch Index Stack:
- * This is for future implementation and currently is not fully implemented
- *
- */
-#if 0
 static void
-bis_entry_create(BIS *bis, IMapEntry *e)
-{
-    int bis_idx;
-
-    bis_idx = cq_enqueue(&bis->cq);
-    assert(bis_idx >= 0);
-    e->bis_idx = bis_idx;
-    bis->entries[bis_idx].e = e;
-}
-#endif
-
-static int
-no_free_phy_reg(OOCore *core, IMapEntry *e)
-{
-    if (e->ins.has_dest && e->ins.rd)
-    {
-        return cq_empty(&core->free_pr_int.cq);
-    }
-    else if (e->ins.has_fp_dest)
-    {
-        return cq_empty(&core->free_pr_fp.cq);
-    }
-    else
-    {
-        return FALSE;
-    }
-}
-
-static void
-allocate_physical_register(CQInt *free_list, int *rename_table, PRFEntry *prf,
-                           IMapEntry *e)
-{
-    int free_pdest_idx;
-
-    /* Allocate free physical register */
-    free_pdest_idx = cq_dequeue(&free_list->cq);
-
-    e->ins.pdest = free_list->entries[free_pdest_idx];
-
-    /* Save previous physical destination for this architectural
-     * destination  This will be freed when this instruction
-     * commits. */
-    e->ins.old_pdest = rename_table[e->ins.rd];
-
-    /* Update rename table mappings for destination */
-    rename_table[e->ins.rd] = e->ins.pdest;
-
-    /* Setup prf entry */
-    prf[e->ins.pdest].valid = FALSE;
-}
-
-static void
-allocate_destination(OOCore *core, IMapEntry *e)
+update_rd_rat_mapping(OOCore *core, IMapEntry *e)
 {
     /* INT destination */
     if (e->ins.has_dest)
     {
         if (e->ins.rd)
         {
-            allocate_physical_register(&core->free_pr_int, core->spec_rat_int,
-                                       core->prf_int, e);
-        }
-        else
-        {
-            /* P0 is always zero */
-            e->ins.pdest = 0;
+            e->ins.old_pdest = core->int_rat[e->ins.rd].rob_idx;
+            core->int_rat[e->ins.rd].read_from_rob = TRUE;
+            core->int_rat[e->ins.rd].rob_idx = e->rob_idx;
+            assert(e->ins.old_pdest != core->int_rat[e->ins.rd].rob_idx);
         }
     }
     else if (e->ins.has_fp_dest)
     {
-        allocate_physical_register(&core->free_pr_fp, core->spec_rat_fp,
-                                   core->prf_fp, e);
+        e->ins.old_pdest = core->fp_rat[e->ins.rd].rob_idx;
+        core->fp_rat[e->ins.rd].read_from_rob = TRUE;
+        core->fp_rat[e->ins.rd].rob_idx = e->rob_idx;
+        assert(e->ins.old_pdest != core->fp_rat[e->ins.rd].rob_idx);
     }
 }
 
 static int
-dispatch_non_mem_instruction(OOCore *core, IssueQueueEntry *iq, int iq_size,
-                             ROB *rob, IMapEntry *e, BIS *bis)
-{
-    if (cq_full(&rob->cq) || iq_full(iq, iq_size) || no_free_phy_reg(core, e))
-    {
-        return -1;
-    }
-
-    /* Tag this instruction with the BIS index of the earliest preceding branch
-     */
-    // e->bis_tag = cq_rear(&bis->cq);
-    rob_entry_create(rob, e, FALSE);
-    iq_entry_create(iq, iq_size, e);
-    allocate_destination(core, e);
-    return 0;
-}
-
-static int
-dispatch_mem_instruction(OOCore *core, IssueQueueEntry *iq, int iq_size,
-                         ROB *rob, LSQ *lsq, IMapEntry *e, BIS *bis)
+stall_insn_dispatch(OOCore *core, IMapEntry *e)
 {
     /* Before dispatching atomic instruction, make sure that all the prior
      * instructions are committed */
-    if (e->ins.is_atomic && !cq_empty(&rob->cq))
+    if (e->ins.is_atomic && !cq_empty(&core->rob.cq))
     {
-        return -1;
+        return TRUE;
     }
 
-    if (cq_full(&rob->cq) || iq_full(iq, iq_size) || cq_full(&lsq->cq)
-        || no_free_phy_reg(core, e))
+    if (cq_full(&core->rob.cq) || iq_full(core->iq, core->simcpu->params->iq_size)
+        || ((e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
+            && cq_full(&core->lsq.cq)))
     {
-        return -1;
+        return TRUE;
     }
 
-    /* Tag this instruction with the BIS index of the earliest preceding branch
-     */
-    // e->bis_tag = cq_rear(&bis->cq);
-    rob_entry_create(rob, e, FALSE);
-    iq_entry_create(iq, iq_size, e);
-    lsq_entry_create(lsq, e);
-    allocate_destination(core, e);
-    return 0;
+    /* Ready to dispatch */
+    return FALSE;
 }
 
-static int
-dispatch_branch_instruction(OOCore *core, IssueQueueEntry *iq, int iq_size,
-                            ROB *rob, BIS *bis, IMapEntry *e)
+static void
+do_insn_rename_and_read_reg_file(OOCore *core, IMapEntry *e)
 {
-#if 0
-    if (cq_full(&rob->cq) || iq_full(iq, iq_size) || cq_full(&bis->cq)
-        || no_free_phy_reg(core, e))
+    if (e->ins.has_src1)
     {
-        return -1;
+        if (core->int_rat[e->ins.rs1].read_from_rob)
+        {
+            e->ins.prs1 = core->int_rat[e->ins.rs1].rob_idx;
+            assert(e->ins.prs1 != -1);
+        }
+        else
+        {
+            e->ins.rs1_val = core->simcpu->emu_cpu_state->reg[e->ins.rs1];
+            e->read_rs1 = TRUE;
+        }
     }
-#endif
-
-    if (cq_full(&rob->cq) || iq_full(iq, iq_size) || no_free_phy_reg(core, e))
+    else if (e->ins.has_fp_src1)
     {
-        return -1;
+        if (core->fp_rat[e->ins.rs1].read_from_rob)
+        {
+            e->ins.prs1 = core->fp_rat[e->ins.rs1].rob_idx;
+            assert(e->ins.prs1 != -1);
+        }
+        else
+        {
+            e->ins.rs1_val = core->simcpu->emu_cpu_state->fp_reg[e->ins.rs1];
+            e->read_rs1 = TRUE;
+        }
+    }
+    else
+    {
+        /* Do this, so that this instruction won't wait for rs1,
+         * while in IQ */
+        e->read_rs1 = TRUE;
     }
 
-    /* Tag this instruction with the BIS index of the earliest preceding branch
-     */
-    // e->bis_tag = cq_rear(&bis->cq);
-    rob_entry_create(rob, e, FALSE);
-    iq_entry_create(iq, iq_size, e);
-    // bis_entry_create(bis, e);
-    allocate_destination(core, e);
-    return 0;
+    if (e->ins.has_src2)
+    {
+        if (core->int_rat[e->ins.rs2].read_from_rob)
+        {
+            e->ins.prs2 = core->int_rat[e->ins.rs2].rob_idx;
+            assert(e->ins.prs2 != -1);
+        }
+        else
+        {
+            e->ins.rs2_val = core->simcpu->emu_cpu_state->reg[e->ins.rs2];
+            e->read_rs2 = TRUE;
+        }
+    }
+    else if (e->ins.has_fp_src2)
+    {
+        if (core->fp_rat[e->ins.rs2].read_from_rob)
+        {
+            e->ins.prs2 = core->fp_rat[e->ins.rs2].rob_idx;
+            assert(e->ins.prs2 != -1);
+        }
+        else
+        {
+            e->ins.rs2_val = core->simcpu->emu_cpu_state->fp_reg[e->ins.rs2];
+            e->read_rs2 = TRUE;
+        }
+    }
+    else
+    {
+        e->read_rs2 = TRUE;
+    }
+
+    /* Only FP-FMA instructions have rs3 */
+    if (e->ins.has_fp_src3)
+    {
+        if (core->fp_rat[e->ins.rs3].read_from_rob)
+        {
+            e->ins.prs3 = core->fp_rat[e->ins.rs3].rob_idx;
+            assert(e->ins.prs3 != -1);
+        }
+        else
+        {
+            e->ins.rs3_val = core->simcpu->emu_cpu_state->fp_reg[e->ins.rs3];
+            e->read_rs3 = TRUE;
+        }
+    }
+    else
+    {
+        e->read_rs3 = TRUE;
+    }
 }
 
 void
@@ -390,104 +366,26 @@ oo_core_dispatch(OOCore *core)
                     return;
                 }
 
-                /* Make ROB entry valid so that its processed immediately once it becomes
-                 * ROB top */
+                /* Mark ROB entry valid so that its processed immediately once
+                 * it becomes ROB top */
                 rob_entry_create(&core->rob, e, TRUE);
             }
             else
             {
-                if (!e->renamed)
+                if (stall_insn_dispatch(core, e))
                 {
-                    /* No exception, proceed with renaming */
-                    /* Rename the sources */
-                    if (e->ins.has_src1)
-                    {
-                        e->ins.prs1 = core->spec_rat_int[e->ins.rs1];
-                    }
-                    else if (e->ins.has_fp_src1)
-                    {
-                        e->ins.prs1 = core->spec_rat_fp[e->ins.rs1];
-                    }
-                    else
-                    {
-                        /* Do this, so that this instruction won't wait for rs1,
-                         * while in IQ */
-                        e->read_rs1 = TRUE;
-                    }
-
-                    if (e->ins.has_src2)
-                    {
-                        e->ins.prs2 = core->spec_rat_int[e->ins.rs2];
-                    }
-                    else if (e->ins.has_fp_src2)
-                    {
-                        e->ins.prs2 = core->spec_rat_fp[e->ins.rs2];
-                    }
-                    else
-                    {
-                        e->read_rs2 = TRUE;
-                    }
-
-                    /* Only FP-FMA instructions have rs3 */
-                    if (e->ins.has_fp_src3)
-                    {
-                        e->ins.prs3 = core->spec_rat_fp[e->ins.rs3];
-                    }
-                    else
-                    {
-                        e->read_rs3 = TRUE;
-                    }
-
-                    e->renamed = TRUE;
+                    return;
                 }
-
-                if (!(e->ins.is_load || e->ins.is_store || e->ins.is_atomic))
+                do_insn_rename_and_read_reg_file(core, e);
+                rob_entry_create(&core->rob, e, FALSE);
+                iq_entry_create(core->iq, s->simcpu->params->iq_size, e);
+                if (e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
                 {
-                    if (e->ins.is_branch)
-                    {
-                        if (dispatch_branch_instruction(
-                                core, core->iq_int, s->simcpu->params->iq_int_size,
-                                &core->rob, &core->bis, e))
-                        {
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        /* Operate instructions */
-                        if (e->ins.data_class == INS_CLASS_INT)
-                        {
-                            if (dispatch_non_mem_instruction(
-                                    core, core->iq_int,
-                                    s->simcpu->params->iq_int_size, &core->rob, e,
-                                    &core->bis))
-                            {
-                                return;
-                            }
-                        }
-                        else if (e->ins.data_class == INS_CLASS_FP)
-                        {
-                            if (dispatch_non_mem_instruction(
-                                    core, core->iq_fp,
-                                    s->simcpu->params->iq_fp_size, &core->rob, e,
-                                    &core->bis))
-                            {
-                                return;
-                            }
-                        }
-                    }
+                    lsq_entry_create(&core->lsq, e);
                 }
-                else
-                {
-                    /* Load Stores Atomics Dispatch */
-                    if (dispatch_mem_instruction(
-                            core, core->iq_mem, s->simcpu->params->iq_mem_size,
-                            &core->rob, &core->lsq, e, &core->bis))
-                    {
-                        return;
-                    }
-                }
+                update_rd_rat_mapping(core, e);
             }
+            e->ins_dispatch_id = core->ins_dispatch_id++;
             cpu_stage_flush(&core->dispatch);
         }
     }

@@ -167,19 +167,10 @@ sim_params_init()
     p->tRP = DEF_tRP;
     p->row_buffer_write_latency = DEF_ROW_BUFFER_WRITE_LATENCY;
 
-    p->prf_int_size = DEF_PRF_INT_SIZE;
-    p->prf_fp_size = DEF_PRF_FP_SIZE;
-    p->iq_int_size = DEF_IQ_INT_SIZE;
-    p->iq_fp_size = DEF_IQ_FP_SIZE;
-    p->iq_mem_size = DEF_IQ_MEM_SIZE;
-    p->iq_int_issue_ports = DEF_IQ_INT_ISSUE_PORTS;
-    p->iq_fp_issue_ports = DEF_IQ_FP_ISSUE_PORTS;
-    p->iq_mem_issue_ports = DEF_IQ_MEM_ISSUE_PORTS;
-    p->prf_int_write_ports = DEF_PRF_INT_WP;
-    p->prf_fp_write_ports = DEF_PRF_FP_WP;
+    p->iq_size = DEF_IQ_SIZE;
+    p->iq_issue_ports = DEF_IQ_ISSUE_PORTS;
     p->rob_size = DEF_ROB_SIZE;
     p->lsq_size = DEF_LSQ_SIZE;
-    p->bis_size = DEF_BIS_SIZE;
 
     p->mem_model_type = DEF_MEM_MODEL;
     p->dramsim_ini_file = strdup(DEF_DRAMSIM_INI_FILE);
@@ -242,26 +233,10 @@ sim_params_print(const SimParams *p)
     }
     else if (p->core_type == CORE_TYPE_OOCORE)
     {
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "prf_int_size",
-                p->prf_int_size);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "prf_fp_size",
-                p->prf_fp_size);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "iq_int_size",
-                p->iq_int_size);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "iq_fp_size",
-                p->iq_fp_size);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "iq_mem_size",
-                p->iq_mem_size);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "iq_int_issue_ports",
-                p->iq_int_issue_ports);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "iq_fp_issue_ports",
-                p->iq_fp_issue_ports);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "iq_mem_issue_ports",
-                p->iq_mem_issue_ports);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "prf_int_write_ports",
-                p->prf_int_write_ports);
-        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "prf_fp_write_ports",
-                p->prf_fp_write_ports);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "iq_size",
+                p->iq_size);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "iq_issue_ports",
+                p->iq_issue_ports);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "rob_size",
                 p->rob_size);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "rob_commit_ports",
@@ -517,14 +492,8 @@ sim_params_validate(const SimParams *p)
     }
     else if (strcmp(p->core_name, "oocore") == 0)
     {
-        validate_param("prf_int_size", 0, 33, 2048, p->prf_int_size);
-        validate_param("prf_fp_size", 0, 33, 2048, p->prf_fp_size);
-        validate_param("iq_int_size", 0, 1, 2048, p->iq_int_size);
-        validate_param("iq_fp_size", 0, 1, 2048, p->iq_fp_size);
-        validate_param("iq_mem_size", 0, 1, 2048, p->iq_mem_size);
-        validate_param("prf_int_write_ports", 0, 1, 2048,
-                       p->prf_int_write_ports);
-        validate_param("prf_fp_write_ports", 0, 1, 2048, p->prf_fp_write_ports);
+        validate_param("iq_size", 0, 1, 2048, p->iq_size);
+        validate_param("iq_issue_ports", 0, 1, 2048, p->iq_issue_ports);
         validate_param("rob_size", 0, 1, 2048, p->rob_size);
         validate_param("lsq_size", 0, 1, 2048, p->lsq_size);
     }

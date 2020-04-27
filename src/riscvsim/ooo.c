@@ -40,15 +40,6 @@ oo_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
     core = calloc(1, sizeof(OOCore));
     assert(core);
 
-    /* Create physical register write-back queues */
-    core->prf_int_wb_queue
-        = (WbQueueEntry *)calloc(p->prf_int_write_ports, sizeof(WbQueueEntry));
-    assert(core->prf_int_wb_queue);
-
-    core->prf_fp_wb_queue
-        = (WbQueueEntry *)calloc(p->prf_fp_write_ports, sizeof(WbQueueEntry));
-    assert(core->prf_fp_wb_queue);
-
     /* Create ROB */
     cq_init(&core->rob.cq, p->rob_size);
     core->rob.entries = (ROBEntry *)calloc(p->rob_size, sizeof(ROBEntry));
@@ -59,36 +50,15 @@ oo_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
     core->lsq.entries = (LSQEntry *)calloc(p->lsq_size, sizeof(LSQEntry));
     assert(core->lsq.entries);
 
-    /* Create BIS */
-    cq_init(&core->bis.cq, p->bis_size);
-    core->bis.entries = (BISEntry *)calloc(p->bis_size, sizeof(BISEntry));
-    assert(core->bis.entries);
+    /* Create Rename tables */
+    core->int_rat
+        = (RenameTableEntry *)calloc(NUM_INT_REG, sizeof(RenameTableEntry));
+    core->fp_rat
+        = (RenameTableEntry *)calloc(NUM_FP_REG, sizeof(RenameTableEntry));
 
-    /* Create physical register files */
-    core->prf_int = (PRFEntry *)calloc(p->prf_int_size, sizeof(PRFEntry));
-    assert(core->prf_int);
-    core->prf_fp = (PRFEntry *)calloc(p->prf_fp_size, sizeof(PRFEntry));
-    assert(core->prf_fp);
-
-    /* Create physical register free-lists */
-    cq_init(&core->free_pr_int.cq, p->prf_int_size);
-    core->free_pr_int.entries = (int *)calloc(p->prf_int_size, sizeof(int));
-    assert(core->free_pr_int.entries);
-
-    cq_init(&core->free_pr_fp.cq, p->prf_fp_size);
-    core->free_pr_fp.entries = (int *)calloc(p->prf_fp_size, sizeof(int));
-    assert(core->free_pr_fp.entries);
-
-    /* Create issue-queues */
-    core->iq_int
-        = (IssueQueueEntry *)calloc(p->iq_int_size, sizeof(IssueQueueEntry));
-    assert(core->iq_int);
-    core->iq_fp
-        = (IssueQueueEntry *)calloc(p->iq_fp_size, sizeof(IssueQueueEntry));
-    assert(core->iq_fp);
-    core->iq_mem
-        = (IssueQueueEntry *)calloc(p->iq_mem_size, sizeof(IssueQueueEntry));
-    assert(core->iq_mem);
+    /* Create IQ */
+    core->iq
+        = (IssueQueueEntry *)calloc(p->iq_size, sizeof(IssueQueueEntry));
 
     /* Create execution units */
     core->ialu = (CPUStage *)calloc(p->num_alu_stages, sizeof(CPUStage));
@@ -113,11 +83,12 @@ oo_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
 void
 oo_core_reset(void *core_type)
 {
-    int i, index;
+    int i;
     OOCore *core;
-    int last_phy_reg_id;
 
     core = (OOCore *)core_type;
+
+    core->ins_dispatch_id = 0;
 
     /* Reset front-end stages */
     cpu_stage_flush(&core->fetch);
@@ -130,59 +101,22 @@ oo_core_reset(void *core_type)
     /* To start fetching */
     core->fetch.has_data = TRUE;
 
-    /* Reset INT and FP rename tables such that Xi maps to Pi */
+    /* Reset rename tables */
     for (i = 0; i < NUM_INT_REG; ++i)
     {
-        core->spec_rat_int[i] = i;
-        core->commit_rat_int[i] = i;
-        core->prf_int[i].valid = TRUE;
-        core->prf_int[i].val = core->simcpu->emu_cpu_state->reg[i];
+        core->int_rat[i].rob_idx = -1;
+        core->int_rat[i].read_from_rob = FALSE;
     }
 
     for (i = 0; i < NUM_FP_REG; ++i)
     {
-        core->spec_rat_fp[i] = i;
-        core->commit_rat_fp[i] = i;
-        core->prf_fp[i].valid = TRUE;
-        core->prf_fp[i].val = core->simcpu->emu_cpu_state->fp_reg[i];
+        core->fp_rat[i].rob_idx = -1;
+        core->fp_rat[i].read_from_rob = FALSE;
     }
-
-    /* Rest of the physical registers are added to
-     * the free list. */
-    cq_reset(&core->free_pr_int.cq);
-    cq_reset(&core->free_pr_fp.cq);
-
-    last_phy_reg_id
-        = NUM_INT_REG + (core->simcpu->params->prf_int_size - NUM_INT_REG);
-    for (i = NUM_INT_REG; i < last_phy_reg_id; ++i)
-    {
-        index = cq_enqueue(&core->free_pr_int.cq);
-        core->free_pr_int.entries[index] = i;
-        core->prf_int[i].valid = FALSE;
-    }
-
-    last_phy_reg_id
-        = NUM_FP_REG + (core->simcpu->params->prf_fp_size - NUM_FP_REG);
-    for (i = NUM_FP_REG; i < last_phy_reg_id; ++i)
-    {
-        index = cq_enqueue(&core->free_pr_fp.cq);
-        core->free_pr_fp.entries[index] = i;
-        core->prf_fp[i].valid = FALSE;
-    }
-
-    /* Reset remaining structures */
-    memset((void *)core->prf_int_wb_queue, 0,
-           core->simcpu->params->prf_int_write_ports * sizeof(WbQueueEntry));
-    memset((void *)core->prf_fp_wb_queue, 0,
-           core->simcpu->params->prf_fp_write_ports * sizeof(WbQueueEntry));
 
     cq_reset(&core->rob.cq);
     cq_reset(&core->lsq.cq);
-    cq_reset(&core->bis.cq);
-
-    iq_reset(core->iq_int, core->simcpu->params->iq_int_size);
-    iq_reset(core->iq_fp, core->simcpu->params->iq_fp_size);
-    iq_reset(core->iq_mem, core->simcpu->params->iq_mem_size);
+    iq_reset(core->iq, core->simcpu->params->iq_size);
 
     /* Reset execution units */
     exec_unit_flush(core->ialu, core->simcpu->params->num_alu_stages);
@@ -190,9 +124,6 @@ oo_core_reset(void *core_type)
     exec_unit_flush(core->idiv, core->simcpu->params->num_div_stages);
     exec_unit_flush(core->fpu_alu, core->simcpu->params->num_fpu_alu_stages);
     exec_unit_flush(core->fpu_fma, core->simcpu->params->num_fpu_fma_stages);
-
-    /* Reset Data FWD latches */
-    memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
 }
 
 void
@@ -247,28 +178,16 @@ oo_core_free(void *core_type)
     OOCore *core;
 
     core = (OOCore *)(*((OOCore **)core_type));
-    free(core->prf_int);
-    core->prf_int = NULL;
-    free(core->prf_fp);
-    core->prf_fp = NULL;
-    free(core->free_pr_int.entries);
-    core->free_pr_int.entries = NULL;
-    free(core->free_pr_fp.entries);
-    core->free_pr_fp.entries = NULL;
-    free(core->prf_int_wb_queue);
-    core->prf_int_wb_queue = NULL;
-    free(core->prf_fp_wb_queue);
-    core->prf_fp_wb_queue = NULL;
+    free(core->int_rat);
+    core->int_rat = NULL;
+    free(core->fp_rat);
+    core->fp_rat = NULL;
     free(core->rob.entries);
     core->rob.entries = NULL;
     free(core->lsq.entries);
     core->lsq.entries = NULL;
-    free(core->iq_int);
-    core->iq_int = NULL;
-    free(core->iq_fp);
-    core->iq_fp = NULL;
-    free(core->iq_mem);
-    core->iq_mem = NULL;
+    free(core->iq);
+    core->iq = NULL;
     free(core->ialu);
     core->ialu = NULL;
     free(core->imul);
@@ -294,7 +213,11 @@ oo_core_run(void *core_type)
         core->simcpu->mmu->mem_controller->mem_controller_update_internal(
             core->simcpu->mmu->mem_controller);
 
-        oo_core_writeback(core);
+        if (oo_core_rob_commit(core))
+        {
+            return core->simcpu->emu_cpu_state->sim_exception_cause;
+        }
+
         oo_core_lsq(core);
         oo_core_lsu(core);
 
@@ -304,22 +227,9 @@ oo_core_run(void *core_type)
 
         oo_core_execute_all(core);
         oo_core_issue(core);
-
-        /* After the instructions in IQs reads forwarded value, clear
-         * forwarding latches. This keeps the data on forwarding latches valid
-         * for exactly one cycle */
-        memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
-
         oo_core_dispatch(core);
         oo_core_decode(core);
         oo_core_fetch(core);
-
-        /* Do this so that the instructions which have completed PRF writeback
-         * in the current cycle, are committed from the ROB in the same cycle */
-        if (oo_core_rob_commit(core))
-        {
-            return core->simcpu->emu_cpu_state->sim_exception_cause;
-        }
 
         /* Advance CPU clock */
         ++core->simcpu->clock;
@@ -327,34 +237,90 @@ oo_core_run(void *core_type)
     }
 }
 
-static int
-wb_queue_get_free_entry(WbQueueEntry *q, int max_size)
+/** Optimize */
+/** When trying to read operand from ROB index, this checks whether the given
+ * ROB index is already committed  */
+int
+rob_entry_committed(ROB *rob, int src_idx, int current_idx)
 {
-    int i, index = -1;
-
-    for (i = 0; i < max_size; ++i)
+    if (rob->cq.rear >= rob->cq.front)
     {
-        if (!q[i].valid)
+        if ((src_idx >= rob->cq.front) && (src_idx < current_idx))
         {
-            index = i;
-            return index;
+            return FALSE;
         }
     }
-
-    return index;
+    else
+    {
+        if ((current_idx >= rob->cq.front) && (current_idx < rob->cq.max_size)
+            && (src_idx >= rob->cq.front) && (src_idx < rob->cq.max_size) && (src_idx < current_idx))
+        {
+            return FALSE;
+        }
+        if ((current_idx >= 0) && (current_idx <= rob->cq.rear)
+            && (((src_idx >= rob->cq.front) && (src_idx < rob->cq.max_size))
+                || (src_idx < current_idx)))
+        {
+            return FALSE;
+        }
+    }
+    return TRUE;
 }
 
-int
-send_phy_reg_write_request(WbQueueEntry *q, int max_size, IMapEntry *e)
+void
+read_int_operand_from_rob_slot(OOCore *core, IMapEntry *e, int arch_src,
+                               int src_rob_idx, int current_rob_idx,
+                               uint64_t *buffer, int *read_flag)
 {
-    int wb_queue_idx = wb_queue_get_free_entry(q, max_size);
+    ROBEntry *rbe;
 
-    if (wb_queue_idx < 0)
+    assert(src_rob_idx != current_rob_idx);
+
+    if (rob_entry_committed(&core->rob, src_rob_idx, current_rob_idx))
     {
-        return -1;
+        /* ROB entry we are trying to read from is committed, so read value from
+         * register file */
+        *buffer = core->simcpu->emu_cpu_state->reg[arch_src];
+        *read_flag = TRUE;
     }
+    else
+    {
+        /* ROB entry we are trying to read from is not yet committed*/
+        rbe = &core->rob.entries[src_rob_idx];
+        if (rbe->ready && !rbe->e->ins.exception && rbe->e->ins.has_dest
+            && (rbe->e->ins.rd == arch_src))
+        {
+            *buffer = rbe->e->ins.buffer;
+            *read_flag = TRUE;
+        }
+    }
+}
 
-    q[wb_queue_idx].e = e;
-    q[wb_queue_idx].valid = TRUE;
-    return 0;
+void
+read_fp_operand_from_rob_slot(OOCore *core, IMapEntry *e, int arch_src,
+                               int src_rob_idx, int current_rob_idx,
+                               uint64_t *buffer, int *read_flag)
+{
+    ROBEntry *rbe;
+
+    assert(src_rob_idx != current_rob_idx);
+
+    if (rob_entry_committed(&core->rob, src_rob_idx, current_rob_idx))
+    {
+        /* ROB entry we are trying to read from is committed, so read value from
+         * register file */
+        *buffer = core->simcpu->emu_cpu_state->fp_reg[arch_src];
+        *read_flag = TRUE;
+    }
+    else
+    {
+        /* ROB entry we are trying to read from is not yet committed*/
+        rbe = &core->rob.entries[src_rob_idx];
+        if (rbe->ready & !rbe->e->ins.exception && rbe->e->ins.has_fp_dest
+            && (rbe->e->ins.rd == arch_src))
+        {
+            *buffer = rbe->e->ins.buffer;
+            *read_flag = TRUE;
+        }
+    }
 }

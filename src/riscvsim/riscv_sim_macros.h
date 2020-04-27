@@ -96,7 +96,7 @@
 /* NOTE: IMAP size must always be greater than ROB size */
 #define NUM_IMAP_ENTRY 128
 #define IMAP_ENTRY_STATUS_FREE 0
-#define IMAP_ENTRY_STATUS_STATUS_ALLOCATED 1
+#define IMAP_ENTRY_STATUS_ALLOCATED 1
 
 /* Used to check pipeline drain status in case of exception inside simulator */
 #define PIPELINE_NOT_DRAINED 0

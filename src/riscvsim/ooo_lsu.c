@@ -147,7 +147,7 @@ oo_core_lsu(OOCore *core)
     }
 }
 
-static int
+static void
 process_lsq_entry_load(OOCore *core, LSQEntry *lsqe)
 {
     IMapEntry *e;
@@ -181,58 +181,17 @@ process_lsq_entry_load(OOCore *core, LSQEntry *lsqe)
             }
             else
             {
-                /* Push the data read by loads/atomics on forwarding bus */
-                if (!e->data_fwd_done
-                    && ((e->ins.has_dest && e->ins.rd != 0)
-                          || e->ins.has_fp_dest))
+                if (e->ins.has_dest || e->ins.has_fp_dest)
                 {
-                    /* (NUM_FWD_BUS - 1) is the ID of memory to IQ forwarding
-                     * path */
-                    core->fwd_latch[NUM_FWD_BUS - 1].rd = e->ins.pdest;
-                    core->fwd_latch[NUM_FWD_BUS - 1].buffer = e->ins.buffer;
-                    core->fwd_latch[NUM_FWD_BUS - 1].int_dest = e->ins.has_dest;
-                    core->fwd_latch[NUM_FWD_BUS - 1].fp_dest
-                        = e->ins.has_fp_dest;
-                    core->fwd_latch[NUM_FWD_BUS - 1].valid = TRUE;
-                    e->data_fwd_done = TRUE;
+                    core->rob.entries[e->rob_idx].ready = TRUE;
                 }
-
-                    /* Write request to INT prf */
-                    if (e->ins.has_dest)
-                    {
-                        if (send_phy_reg_write_request(
-                                core->prf_int_wb_queue,
-                                core->simcpu->params->prf_int_write_ports, e))
-                        {
-                            /* All write ports occupied */
-                            return 0;
-                        }
-                    }
-                    else if (e->ins.has_fp_dest)
-                    {
-                        /* Write request to FP prf */
-                        if (send_phy_reg_write_request(
-                                core->prf_fp_wb_queue,
-                                core->simcpu->params->prf_fp_write_ports, e))
-                        {
-                            /* All write ports occupied */
-                            return 0;
-                        }
-                    }
             }
-
-            /* Result read from memory is sent to wb queue, it is safe
-             * to remove LSQ entry*/
             cq_dequeue(&core->lsq.cq);
-            return 1;
         }
     }
-
-    /* ROB entry for load stalls */
-    return 0;
 }
 
-static int
+static void
 process_lsq_entry_store(OOCore *core, LSQEntry *lsqe)
 {
     IMapEntry *e;
@@ -275,13 +234,9 @@ process_lsq_entry_store(OOCore *core, LSQEntry *lsqe)
 
                 /* Mark ROB entry valid */
                 core->rob.entries[e->rob_idx].ready = TRUE;
-                return 1;
             }
         }
     }
-
-    /* Rob commit for store stalls */
-    return 0;
 }
 
 void
@@ -299,19 +254,11 @@ oo_core_lsq(OOCore *core)
         {
             if (e->ins.is_load || e->ins.is_atomic)
             {
-                if (!process_lsq_entry_load(core, lsqe))
-                {
-                    /* Active load */
-                    return;
-                }
+                process_lsq_entry_load(core, lsqe);
             }
             else if (e->ins.is_store)
             {
-                if (!process_lsq_entry_store(core, lsqe))
-                {
-                    /* Active Store */
-                    return;
-                }
+                process_lsq_entry_store(core, lsqe);
             }
         }
     }

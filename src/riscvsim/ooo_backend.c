@@ -1,5 +1,5 @@
 /**
- * Out of order core back-end stages : issue, execute, write-back, rob-commit
+ * Out of order core back-end stages : issue, execute, rob-commit
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
@@ -87,65 +87,26 @@ issue_ins_to_exec_unit(OOCore *core, IMapEntry *e)
 }
 
 static void
-read_int_operand(OOCore *core, int has_src, int *read_src, int src,
-                 uint64_t *buffer, PRFEntry *prf)
+read_int_operand(OOCore *core, int has_src, int *read_src, int arch_src,
+                 int phy_src, int current_rob_idx, uint64_t *buffer,
+                 IMapEntry *e)
 {
-    int i;
-    PRFEntry *pre;
-
     if (has_src && !(*read_src))
     {
-        pre = &prf[src];
-        if (!pre->valid)
-        {
-            for (i = 0; i < NUM_FWD_BUS; ++i)
-            {
-                if (core->fwd_latch[i].valid && core->fwd_latch[i].int_dest
-                    && (core->fwd_latch[i].rd == src))
-                {
-                    *buffer = (target_ulong)core->fwd_latch[i].buffer;
-                    *read_src = TRUE;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            *buffer = (target_ulong)pre->val;
-            *read_src = TRUE;
-        }
+        read_int_operand_from_rob_slot(core, e, arch_src, phy_src,
+                                       current_rob_idx, buffer, read_src);
     }
 }
 
 static void
-read_fp_operand(OOCore *core, int has_src, int *read_src, int src,
-                uint64_t *buffer, PRFEntry *prf)
+read_fp_operand(OOCore *core, int has_src, int *read_src, int arch_src,
+                int phy_src, int current_rob_idx, uint64_t *buffer,
+                IMapEntry *e)
 {
-    int i;
-    PRFEntry *pre;
-
     if (has_src && !(*read_src))
     {
-        pre = &prf[src];
-        if (!pre->valid)
-        {
-            /* Floating point execution units start from ID 3 onwards */
-            for (i = 3; i < NUM_FWD_BUS; ++i)
-            {
-                if (core->fwd_latch[i].valid && core->fwd_latch[i].fp_dest
-                    && (core->fwd_latch[i].rd == src))
-                {
-                    *buffer = core->fwd_latch[i].buffer;
-                    *read_src = TRUE;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            *buffer = pre->val;
-            *read_src = TRUE;
-        }
+        read_fp_operand_from_rob_slot(core, e, arch_src, phy_src,
+                                      current_rob_idx, buffer, read_src);
     }
 }
 
@@ -194,15 +155,20 @@ process_iq(OOCore *core, IssueQueueEntry *iq, int iq_size, int max_issue_ports)
             {
                 /* IQ entry not ready, try to read sources */
                 read_int_operand(core, e->ins.has_src1, &e->read_rs1,
-                                 e->ins.prs1, &e->ins.rs1_val, core->prf_int);
+                                 e->ins.rs1, e->ins.prs1, e->rob_idx,
+                                 &e->ins.rs1_val, e);
                 read_int_operand(core, e->ins.has_src2, &e->read_rs2,
-                                 e->ins.prs2, &e->ins.rs2_val, core->prf_int);
+                                 e->ins.rs2, e->ins.prs2, e->rob_idx,
+                                 &e->ins.rs2_val, e);
                 read_fp_operand(core, e->ins.has_fp_src1, &e->read_rs1,
-                                e->ins.prs1, &e->ins.rs1_val, core->prf_fp);
+                                e->ins.rs1, e->ins.prs1, e->rob_idx,
+                                &e->ins.rs1_val, e);
                 read_fp_operand(core, e->ins.has_fp_src2, &e->read_rs2,
-                                e->ins.prs2, &e->ins.rs2_val, core->prf_fp);
+                                e->ins.rs2, e->ins.prs2, e->rob_idx,
+                                &e->ins.rs2_val, e);
                 read_fp_operand(core, e->ins.has_fp_src3, &e->read_rs3,
-                                e->ins.prs3, &e->ins.rs3_val, core->prf_fp);
+                                e->ins.rs3, e->ins.prs3, e->rob_idx,
+                                &e->ins.rs3_val, e);
 
                 if (e->read_rs1 && e->read_rs2 && e->read_rs3)
                 {
@@ -226,12 +192,8 @@ process_iq(OOCore *core, IssueQueueEntry *iq, int iq_size, int max_issue_ports)
 void
 oo_core_issue(OOCore *core)
 {
-    process_iq(core, core->iq_int, core->simcpu->params->iq_int_size,
-               core->simcpu->params->iq_int_issue_ports);
-    process_iq(core, core->iq_fp, core->simcpu->params->iq_fp_size,
-               core->simcpu->params->iq_fp_issue_ports);
-    process_iq(core, core->iq_mem, core->simcpu->params->iq_mem_size,
-               core->simcpu->params->iq_mem_issue_ports);
+    process_iq(core, core->iq, core->simcpu->params->iq_size,
+               core->simcpu->params->iq_issue_ports);
 }
 
 /*=====  End of Instruction Issue Stage  ======*/
@@ -275,31 +237,23 @@ get_next_exec_stage(OOCore *core, int cur_stage_id, int fu_type)
     return stage;
 }
 
-/**
-
-    TODO:
-    - Optimize
-
- */
 void
 oo_core_execute(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
                 int max_latency, int max_stage_id)
 {
     IMapEntry *e;
     CPUStage *next;
-    RISCVSIMCPUState *simcpu = core->simcpu;
+    RISCVCPUState *s = core->simcpu->emu_cpu_state;
 
     if (stage->has_data)
     {
-        e = &simcpu->imap[stage->imap_index];
+        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
         if (!stage->stage_exec_done)
         {
-            execute_riscv_instruction(&e->ins,
-                                      &core->simcpu->emu_cpu_state->fflags);
+            execute_riscv_instruction(&e->ins, &s->fflags);
 
             /* Update FU stats */
-            ++core->simcpu->stats[core->simcpu->emu_cpu_state->priv]
-                  .fu_access[fu_type];
+            ++s->simcpu->stats[s->priv].fu_access[fu_type];
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in execute stage so far */
@@ -321,21 +275,6 @@ oo_core_execute(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
                 }
                 else
                 {
-                    /* Push out the result and the register address on the
-                     * forwarding bus for this FU for all the operate
-                     * instructions */
-                    if (!e->data_fwd_done
-                        && ((e->ins.has_dest && e->ins.rd != 0)
-                            || e->ins.has_fp_dest))
-                    {
-                        core->fwd_latch[fu_type].rd = e->ins.pdest;
-                        core->fwd_latch[fu_type].buffer = e->ins.buffer;
-                        core->fwd_latch[fu_type].int_dest = e->ins.has_dest;
-                        core->fwd_latch[fu_type].fp_dest = e->ins.has_fp_dest;
-                        core->fwd_latch[fu_type].valid = TRUE;
-                        e->data_fwd_done = TRUE;
-                    }
-
                     if (e->ins.is_branch)
                     {
                         if (!e->branch_processed)
@@ -344,34 +283,15 @@ oo_core_execute(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
                         }
                     }
 
-                    /* Write request to INT prf */
-                    if (e->ins.has_dest)
+                    if (e->ins.has_dest || e->ins.has_fp_dest)
                     {
-                        if (send_phy_reg_write_request(
-                                core->prf_int_wb_queue,
-                                core->simcpu->params->prf_int_write_ports, e))
-                        {
-                            /* All write ports occupied */
-                            return;
-                        }
-                    }
-                    else if (e->ins.has_fp_dest)
-                    {
-                        /* Write request to FP prf */
-                        if (send_phy_reg_write_request(
-                                core->prf_fp_wb_queue,
-                                core->simcpu->params->prf_fp_write_ports, e))
-                        {
-                            /* All write ports occupied */
-                            return;
-                        }
+                        core->rob.entries[e->rob_idx].ready = TRUE;
                     }
                 }
 
                 /* Execution complete */
                 e->max_latency = 0;
                 e->current_latency = 0;
-                e->data_fwd_done = FALSE;
                 cpu_stage_flush(stage);
             }
             else
@@ -432,98 +352,19 @@ oo_core_execute_all(OOCore *core)
 
 /*=====  End of Instruction Execution Stage  ======*/
 
-/*==========================================================
-=            Physical Register Write-back Stage            =
-==========================================================*/
-
-void
-oo_core_writeback(OOCore *core)
-{
-    IMapEntry *e;
-    PRFEntry *pre;
-    int wb_queue_idx;
-    WbQueueEntry *wbq_entry;
-
-    for (wb_queue_idx = 0;
-         wb_queue_idx < core->simcpu->params->prf_int_write_ports;
-         ++wb_queue_idx)
-    {
-        wbq_entry = &core->prf_int_wb_queue[wb_queue_idx];
-
-        if (wbq_entry->valid)
-        {
-            e = wbq_entry->e;
-
-            /* Ignore writes to P0, since its always zero */
-            if (e->ins.pdest)
-            {
-                pre = &core->prf_int[e->ins.pdest];
-                pre->valid = TRUE;
-                pre->val = (target_ulong)e->ins.buffer;
-            }
-
-            /* Inform the ROB that the instruction is ready to commit */
-            core->rob.entries[e->rob_idx].ready = TRUE;
-
-            /* Deallocate writeback queue entry */
-            wbq_entry->valid = FALSE;
-        }
-    }
-
-    /* Process all the write requests to FP PRF */
-    for (wb_queue_idx = 0;
-         wb_queue_idx < core->simcpu->params->prf_fp_write_ports;
-         ++wb_queue_idx)
-    {
-        wbq_entry = &core->prf_fp_wb_queue[wb_queue_idx];
-
-        if (wbq_entry->valid)
-        {
-            e = wbq_entry->e;
-
-            pre = &core->prf_fp[e->ins.pdest];
-            pre->valid = TRUE;
-
-            /* Add mask to result if needed */
-            if (e->ins.f32_mask)
-            {
-                e->ins.buffer |= F32_HIGH;
-            }
-            else if (e->ins.f64_mask)
-            {
-                e->ins.buffer |= F64_HIGH;
-            }
-
-            if (e->ins.set_fs)
-            {
-                core->simcpu->emu_cpu_state->fs = 3;
-            }
-
-            pre->val = e->ins.buffer;
-
-            /* Inform the ROB that the instruction is ready to commit */
-            core->rob.entries[e->rob_idx].ready = TRUE;
-
-            /* Deallocate writeback queue entry */
-            wbq_entry->valid = FALSE;
-        }
-    }
-}
-
-/*=====  End of Physical Register Write-back Stage  ======*/
-
 /*========================================
 =            ROB Commit Stage            =
 ========================================*/
 
-static void
-phy_reg_deallocate(CQInt *free_list, int preg, PRFEntry *prf)
+static int
+rob_can_commit(ROB *rob)
 {
-    int idx;
+    if (!cq_empty(&rob->cq) && (rob->entries[cq_front(&rob->cq)].ready))
+    {
+        return TRUE;
+    }
 
-    idx = cq_enqueue(&free_list->cq);
-    free_list->entries[idx] = preg;
-    prf[preg].valid = FALSE;
+    return FALSE;
 }
 
 int
@@ -532,128 +373,85 @@ oo_core_rob_commit(OOCore *core)
     IMapEntry *e;
     ROBEntry *rbe;
     RISCVCPUState *s;
-    int current_commit_count = 0;
-    int commmit_success = TRUE;
+    int commits = 0;
 
-    while (commmit_success
-           && (current_commit_count < core->simcpu->params->rob_commit_ports))
+    s = core->simcpu->emu_cpu_state;
+    while (rob_can_commit(&core->rob))
     {
-        if (!cq_empty(&core->rob.cq))
+        rbe = &core->rob.entries[cq_front(&core->rob.cq)];
+        e = rbe->e;
+        assert(rbe->ready);
+        if (e->ins.exception)
         {
-            rbe = &core->rob.entries[cq_front(&core->rob.cq)];
-            s = core->simcpu->emu_cpu_state;
-            e = rbe->e;
-            if (rbe->ready == TRUE)
-            {
-                if (e->ins.exception)
-                {
-                    set_exception_state(s, e);
-                    return -1;
-                }
-                else
-                {
-                    if (e->ins.has_dest)
-                    {
-                        /* Update commit RAT mapping */
-                        core->commit_rat_int[e->ins.rd] = e->ins.pdest;
-
-                        /* Update arch register, NOTE: Performance hack */
-                        if (e->ins.rd)
-                        {
-                            s->reg[e->ins.rd] = core->prf_int[e->ins.pdest].val;
-                        }
-
-                        /* Free up the previous physical destination */
-                        if (e->ins.old_pdest)
-                        {
-                            phy_reg_deallocate(&core->free_pr_int,
-                                               e->ins.old_pdest, core->prf_int);
-                        }
-                    }
-                    else if (e->ins.has_fp_dest)
-                    {
-                        /* Update commit RAT mapping */
-                        core->commit_rat_fp[e->ins.rd] = e->ins.pdest;
-
-                        /* Free up the previous physical destination */
-                        phy_reg_deallocate(&core->free_pr_fp, e->ins.old_pdest,
-                                           core->prf_fp);
-
-                        /* Update FP arch register, NOTE: Performance hack */
-                        s->fp_reg[e->ins.rd] = core->prf_fp[e->ins.pdest].val;
-                    }
-
-                    if (e->ins.is_branch && e->mispredict)
-                    {
-                        riscv_sim_cpu_reset(core->simcpu);
-                        s->code_ptr = NULL;
-                        s->code_end = NULL;
-                        s->code_to_pc_addend = (target_ulong)e->branch_target;
-                        core->fetch.has_data = TRUE;
-                    }
-
-                    ++core->simcpu->stats[s->priv].ins_simulated;
-                    ++core->simcpu->stats[s->priv].ins_type[e->ins.type];
-
-                    if ((e->ins.type == INS_TYPE_COND_BRANCH)
-                        && e->is_branch_taken)
-                    {
-                        ++core->simcpu->stats[s->priv].ins_cond_branch_taken;
-                    }
-
-                    /* Free up imap entry */
-                    e->status = IMAP_ENTRY_STATUS_FREE;
-
-                    /* Deallocate ROB entry */
-                    cq_dequeue(&core->rob.cq);
-
-                    current_commit_count++;
-
-                    /* Dump commit trace if trace mode enabled */
-                    if (s->simcpu->params->do_sim_trace)
-                    {
-                        s->simcpu->sim_trace_pkt.cycle = s->simcpu->clock;
-                        s->simcpu->sim_trace_pkt.e = e;
-                        sim_print_ins_trace(s);
-                    }
-
-                    if (s->sim_params->enable_stats_display)
-                    {
-                        if ((s->simcpu->clock
-                             % REALTIME_STATS_CLOCK_CYCLES_INTERVAL)
-                            == 0)
-                        {
-                            /* Since cache stats are stored separately inside
-                             * the Cache
-                             * structure, they have to be copied to SimStats,
-                             * before writing
-                             * stats to shared memory. */
-                            copy_cache_stats_to_global_stats(s);
-                            memcpy(s->stats_shm_ptr, s->simcpu->stats,
-                                   NUM_MAX_PRV_LEVELS * sizeof(SimStats));
-                        }
-                    }
-
-                    /* Check for timeout */
-                    if ((--s->sim_n_cycles) == 0)
-                    {
-                        set_timer_exception_state(s, e);
-                        return -1;
-                    }
-                }
-            }
-            else
-            {
-                /* ROB top not yet ready to commit, so stop commits */
-                commmit_success = FALSE;
-            }
+            set_exception_state(s, e);
+            return -1;
         }
         else
         {
-            /* ROB is empty */
-            commmit_success = FALSE;
+            if (e->ins.has_dest)
+            {
+                if (e->ins.rd)
+                {
+                    update_arch_reg_int(s, e);
+                    assert(core->int_rat[e->ins.rd].read_from_rob == TRUE);
+
+                    if (core->int_rat[e->ins.rd].rob_idx == e->rob_idx)
+                    {
+                        core->int_rat[e->ins.rd].read_from_rob = FALSE;
+                        core->int_rat[e->ins.rd].rob_idx = -1;
+                    }
+                }
+            }
+            else if (e->ins.has_fp_dest)
+            {
+                update_arch_reg_fp(s, e);
+                assert(core->fp_rat[e->ins.rd].read_from_rob == TRUE);
+
+                if (core->fp_rat[e->ins.rd].rob_idx == e->rob_idx)
+                {
+                    core->fp_rat[e->ins.rd].read_from_rob = FALSE;
+                    core->fp_rat[e->ins.rd].rob_idx = -1;
+                }
+            }
+
+            update_insn_commit_stats(s, e);
+
+            /* Dump commit trace if trace mode enabled */
+            if (s->simcpu->params->do_sim_trace)
+            {
+                setup_sim_trace_pkt(s, e);
+            }
+
+            if (s->sim_params->enable_stats_display)
+            {
+                write_stats_to_stats_display_shm(s);
+            }
+
+            /* Free up imap entry */
+            e->status = IMAP_ENTRY_STATUS_FREE;
+
+            /* All the dependent instructions will have to lookup ARF for
+             * operand value */
+            rbe->ready = FALSE;
+
+            /* Deallocate ROB entry */
+            cq_dequeue(&core->rob.cq);
+
+            /* Check for timeout */
+            if ((--s->sim_n_cycles) == 0)
+            {
+                set_timer_exception_state(s, e);
+                return -1;
+            }
+
+            commits++;
+            if (commits == core->simcpu->params->rob_commit_ports)
+            {
+                break;
+            }
         }
     }
+
     return 0;
 }
 /*=====  End of ROB Commit Stage  ======*/

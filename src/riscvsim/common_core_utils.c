@@ -104,7 +104,7 @@ allocate_imap_entry(IMapEntry *imap)
     assert(imap_index != -1);
     e = &imap[imap_index];
     memset((void *)e, 0, sizeof(IMapEntry));
-    e->status = IMAP_ENTRY_STATUS_STATUS_ALLOCATED;
+    e->status = IMAP_ENTRY_STATUS_ALLOCATED;
     e->imap_index = imap_index;
     return e;
 }
@@ -207,6 +207,7 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
     /* current_latency: number of CPU cycles spent by this instruction
      * in fetch stage so far */
     e->current_latency = 1;
+    s->simcpu->mmu->mem_controller->frontend_mem_access_queue.cur_size = 0;
 
     /* Fetch instruction from TinyEMU memory map */
     if (code_tlb_access_and_ins_fetch(s, e))
@@ -861,6 +862,7 @@ sim_print_ins_trace(struct RISCVCPUState *s)
     fprintf(s->sim_trace, " insn=%s", s->simcpu->sim_trace_pkt.e->ins.str);
     fprintf(s->sim_trace, " mode=%s", cpu_mode_str[s->priv]);
     fprintf(s->sim_trace, "\n");
+    fflush(s->sim_trace);
 }
 
 void
@@ -871,4 +873,68 @@ sim_print_exp_trace(struct RISCVCPUState *s)
     fprintf(s->sim_trace, " insn=%s", s->sim_epc_str);
     fprintf(s->sim_trace, " mode=%s", cpu_mode_str[s->priv]);
     fprintf(s->sim_trace, "\n");
+    fflush(s->sim_trace);
+}
+
+void
+update_arch_reg_int(RISCVCPUState *s, IMapEntry *e)
+{
+    if (e->ins.rd)
+    {
+        s->reg[e->ins.rd] = e->ins.buffer;
+        ++s->simcpu->stats[s->priv].int_regfile_writes;
+    }
+}
+
+void
+update_arch_reg_fp(RISCVCPUState *s, IMapEntry *e)
+{
+    if (e->ins.f32_mask)
+    {
+        e->ins.buffer |= F32_HIGH;
+    }
+    else if (e->ins.f64_mask)
+    {
+        e->ins.buffer |= F64_HIGH;
+    }
+    s->fp_reg[e->ins.rd] = e->ins.buffer;
+    if (e->ins.set_fs)
+    {
+        s->fs = 3;
+    }
+    ++s->simcpu->stats[s->priv].fp_regfile_writes;
+}
+
+void
+update_insn_commit_stats(RISCVCPUState *s, IMapEntry *e)
+{
+    ++s->simcpu->stats[s->priv].ins_simulated;
+    ++s->simcpu->stats[s->priv].ins_type[e->ins.type];
+
+    if ((e->ins.type == INS_TYPE_COND_BRANCH) && e->is_branch_taken)
+    {
+        ++s->simcpu->stats[s->priv].ins_cond_branch_taken;
+    }
+}
+
+void
+setup_sim_trace_pkt(RISCVCPUState *s, IMapEntry *e)
+{
+    s->simcpu->sim_trace_pkt.cycle = s->simcpu->clock;
+    s->simcpu->sim_trace_pkt.e = e;
+    sim_print_ins_trace(s);
+}
+
+void
+write_stats_to_stats_display_shm(RISCVCPUState *s)
+{
+    if ((s->simcpu->clock % REALTIME_STATS_CLOCK_CYCLES_INTERVAL) == 0)
+    {
+        /* Since cache stats are stored separately inside the Cache structure,
+         * they have to be copied to global stats structure before writing stats
+         * to shared memory. */
+        copy_cache_stats_to_global_stats(s);
+        memcpy(s->stats_shm_ptr, s->simcpu->stats,
+               NUM_MAX_PRV_LEVELS * sizeof(SimStats));
+    }
 }

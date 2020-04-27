@@ -352,64 +352,16 @@ static int virt_machine_parse_sim_config(VirtMachineParams *p,
                     tag_name, p->sim_params->num_cpu_stages);
         }
     } else if (p->sim_params->core_type == CORE_TYPE_OOCORE) {
-        tag_name = "prf_int_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->prf_int_size) < 0) {
+        tag_name = "iq_size";
+        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_size) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->prf_int_size);
+                    tag_name, p->sim_params->iq_size);
         }
 
-        tag_name = "prf_fp_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->prf_fp_size) < 0) {
+        tag_name = "iq_issue_ports";
+        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_issue_ports) < 0) {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->prf_fp_size);
-        }
-
-        tag_name = "iq_int_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_int_size) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->iq_int_size);
-        }
-
-        tag_name = "iq_int_issue_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_int_issue_ports) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->iq_int_issue_ports);
-        }
-
-        tag_name = "iq_fp_issue_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_fp_issue_ports) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->iq_fp_issue_ports);
-        }
-
-        tag_name = "iq_mem_issue_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_mem_issue_ports) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->iq_mem_issue_ports);
-        }
-
-        tag_name = "iq_fp_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_fp_size) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->iq_fp_size);
-        }
-
-        tag_name = "iq_mem_size";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->iq_mem_size) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->iq_mem_size);
-        }
-
-        tag_name = "prf_int_write_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->prf_int_write_ports) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->prf_int_write_ports);
-        }
-
-        tag_name = "prf_fp_write_ports";
-        if (vm_get_int(cfg, tag_name, &p->sim_params->prf_fp_write_ports) < 0) {
-            fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->sim_params->prf_fp_write_ports);
+                    tag_name, p->sim_params->iq_issue_ports);
         }
 
         tag_name = "rob_size";

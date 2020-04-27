@@ -58,11 +58,11 @@ typedef struct RVInstruction
     uint32_t rs3;
 
     /* Physical register addresses */
-    uint32_t old_pdest;
-    uint32_t pdest;
-    uint32_t prs1;
-    uint32_t prs2;
-    uint32_t prs3;
+    int old_pdest;
+    int pdest;
+    int prs1;
+    int prs2;
+    int prs3;
 
     /* Decoded sign extended immediate values */
     int32_t imm;

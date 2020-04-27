@@ -34,25 +34,12 @@
 /* Forward declare */
 struct RISCVSIMCPUState;
 
-typedef struct PhysicalRegFileEntry
-{
-    int valid;
-    int busy;
-    uint64_t val;
-} PRFEntry;
-
 typedef struct IssueQueueEntry
 {
     int valid;
     int ready;
     IMapEntry *e;
 } IssueQueueEntry;
-
-typedef struct WbQueueEntry
-{
-    int valid;
-    IMapEntry *e;
-} WbQueueEntry;
 
 typedef struct ROBEntry
 {
@@ -80,30 +67,11 @@ typedef struct LSQ
     LSQEntry *entries;
 } LSQ;
 
-/* Simple int circular queue */
-typedef struct CircularQueueInt
+typedef struct RenameTableEntry
 {
-    CQ cq;
-    int *entries;
-} CQInt;
-
-/**
-
-    TODO:
-    - Branch index stack (BIS) based speculative execution rollback will be
-      implemented in future
-
- */
-typedef struct BranchIndexStackEntry
-{
-    IMapEntry *e;
-} BISEntry;
-
-typedef struct BranchIndexStack
-{
-    CQ cq;
-    BISEntry *entries;
-} BIS;
+    int read_from_rob;
+    int rob_idx;
+} RenameTableEntry;
 
 typedef struct OOCore
 {
@@ -112,32 +80,15 @@ typedef struct OOCore
     CPUStage decode;
     CPUStage dispatch;
 
-    /*----------  Forwarding buses  ----------*/
-    DataFWDLatch fwd_latch[NUM_FWD_BUS];
-
     /*----------  Rename Tables  ----------*/
-    int spec_rat_int[NUM_INT_REG];      /* Speculative rename table for INT register file */
-    int spec_rat_fp[NUM_FP_REG];        /* Speculative rename table for FP register file */
-    int commit_rat_int[NUM_INT_REG];    /* Commit rename table for INT register file */
-    int commit_rat_fp[NUM_FP_REG];      /* Commit rename table for FP register file */
-
-    /*----------  Physical Register Files  ----------*/
-    PRFEntry *prf_int;  /* Physical register file for INT */
-    PRFEntry *prf_fp;   /* Physical register file for FP */
-    CQInt free_pr_int;  /* Free list of INT physical registers */
-    CQInt free_pr_fp;   /* Free list of FP physical registers */
-
-    WbQueueEntry *prf_int_wb_queue; /* INT Physical register file write-back queue */
-    WbQueueEntry *prf_fp_wb_queue;  /* FP Physical register file write-back queue */
+    RenameTableEntry *int_rat;
+    RenameTableEntry *fp_rat;
 
     ROB rob;                  /* Reorder buffer */
     LSQ lsq;                  /* Load-Store Queue */
-    BIS bis;                  /* Branch Index Stack, For future implementation  */
 
     /*----------  Issue Queues  ----------*/
-    IssueQueueEntry *iq_int; /* Issue Queue for INT instructions */
-    IssueQueueEntry *iq_fp;  /* Issue Queue for FP instructions */
-    IssueQueueEntry *iq_mem; /* Issue Queue for Memory instructions */
+    IssueQueueEntry *iq;
 
     /*----------  Execution units  ----------*/
     CPUStage *ialu;    /* INT ALU */
@@ -148,6 +99,9 @@ typedef struct OOCore
 
     /*----------  Memory Stage  ----------*/
     CPUStage lsu; /* Load-Store Unit unit, works with LSQ */
+
+    /* Dispatch ID for instruction */
+    uint64_t ins_dispatch_id; /* Support for speculative execution */
 
     struct RISCVSIMCPUState *simcpu; /* Pointer to parent */
 } OOCore;
@@ -160,7 +114,6 @@ int oo_core_run(void *core_type);
 
 /*----------  Out of order stages  ----------*/
 int oo_core_rob_commit(OOCore *core);
-void oo_core_writeback(OOCore *core);
 void oo_core_lsq(OOCore *core);
 void oo_core_lsu(OOCore *core);
 void oo_core_execute_all(OOCore *core);
@@ -175,6 +128,11 @@ void oo_process_branch(OOCore *core, IMapEntry *e);
 void iq_reset(IssueQueueEntry *iq_entry, int size);
 int iq_full(IssueQueueEntry *iq, int size);
 int iq_get_free_entry(IssueQueueEntry *iq, int size);
-
-int send_phy_reg_write_request(WbQueueEntry *q, int max_size, IMapEntry *e);
+void read_int_operand_from_rob_slot(OOCore *core, IMapEntry *e, int asrc,
+                                    int psrc, int current_rob_idx,
+                                    uint64_t *buffer, int *read_flag);
+void read_fp_operand_from_rob_slot(OOCore *core, IMapEntry *e, int asrc,
+                                   int psrc, int current_rob_idx,
+                                   uint64_t *buffer, int *read_flag);
+int rob_entry_committed(ROB *rob, int src_idx, int current_idx);
 #endif
