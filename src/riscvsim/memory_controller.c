@@ -612,8 +612,22 @@ mem_controller_update_base(MemoryController *m)
                 {
                     if (wraparound_access_required(m, e, &req_addr))
                     {
-                        m->wrap_around_mode = 1;
-                        calculate_wraparound_delays(m, e, req_addr);
+                        /* When mis-prediction is detected by the pipeline, the
+                         * memory transactions on the false path are flushed
+                         * from the fetch and memory stage queue , and may be
+                         * replaced with the transactions on correct path  This
+                         * basically stops any active transaction on the false
+                         * path. */
+                        if ((req_addr >= e->addr)
+                            && (req_addr < (e->addr + e->bytes_to_access)))
+                        {
+                            m->wrap_around_mode = 1;
+                            calculate_wraparound_delays(m, e, req_addr);
+                        }
+                        else
+                        {
+                            e->flush = TRUE;
+                        }
                     }
                     else
                     {
