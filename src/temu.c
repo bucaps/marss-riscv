@@ -662,7 +662,6 @@ static BOOL net_poll_cb(void *arg)
 int main(int argc, char **argv)
 {
     VirtMachine *s;
-    char *sim_config_file;
     const char *path, *cmdline, *build_preload_file;
     int c, option_index, i, ram_size, accel_enable;
     BOOL allow_ctrlc;
@@ -753,10 +752,6 @@ int main(int argc, char **argv)
         help();
     }
 
-    /* First read simulator config file */
-    sim_config_file = strdup(argv[optind++]);
-
-    /* Then read TinyEMU config file */
     path = argv[optind++];
 
     virt_machine_set_defaults(p);
@@ -764,14 +759,13 @@ int main(int argc, char **argv)
 #ifdef CONFIG_FS_NET
     fs_wget_init();
 #endif
-    virt_machine_load_config_file(p, path, NULL, NULL, sim_config_file);
+    virt_machine_load_config_file(p, path, NULL, NULL);
 #ifdef CONFIG_FS_NET
     fs_net_event_loop(NULL, NULL);
 #endif
 
-    free(sim_config_file);
-
     /* override some config parameters */
+
     if (ram_size > 0) {
         p->ram_size = (uint64_t)ram_size << 20;
     }
