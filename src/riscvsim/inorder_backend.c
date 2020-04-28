@@ -503,67 +503,33 @@ in_core_commit(INCore *core)
             /* Update the integer register if rd is not x0 */
             if (e->ins.rd)
             {
-                s->reg[e->ins.rd] = e->ins.buffer;
+                update_arch_reg_int(s, e);
                 if (!e->keep_dest_busy)
                 {
                     core->int_reg_status[e->ins.rd] = TRUE;
                 }
-                ++s->simcpu->stats[s->priv].int_regfile_writes;
             }
         }
         else if (e->ins.has_fp_dest)
         {
-            /* Update the fp register */
-
-            /* Add mask to result if needed */
-            if (e->ins.f32_mask)
-            {
-                e->ins.buffer |= F32_HIGH;
-            }
-            else if (e->ins.f64_mask)
-            {
-                e->ins.buffer |= F64_HIGH;
-            }
-            s->fp_reg[e->ins.rd] = e->ins.buffer;
+            update_arch_reg_fp(s, e);
             if (!e->keep_dest_busy)
             {
                 core->fp_reg_status[e->ins.rd] = TRUE;
             }
-            if (e->ins.set_fs)
-            {
-                s->fs = 3;
-            }
-            ++s->simcpu->stats[s->priv].fp_regfile_writes;
         }
 
-        /* Update stats */
-        ++s->simcpu->stats[s->priv].ins_simulated;
-        ++s->simcpu->stats[s->priv].ins_type[e->ins.type];
-
-        if ((e->ins.type == INS_TYPE_COND_BRANCH) && e->is_branch_taken)
-        {
-            ++s->simcpu->stats[s->priv].ins_cond_branch_taken;
-        }
+        update_insn_commit_stats(s, e);
 
         /* Dump commit trace if trace mode enabled */
         if (s->simcpu->params->do_sim_trace)
         {
-            s->simcpu->sim_trace_pkt.cycle = s->simcpu->clock;
-            s->simcpu->sim_trace_pkt.e = e;
-            sim_print_ins_trace(s);
+            setup_sim_trace_pkt(s, e);
         }
 
         if (s->sim_params->enable_stats_display)
         {
-            if ((s->simcpu->clock % REALTIME_STATS_CLOCK_CYCLES_INTERVAL) == 0)
-            {
-                /* Since cache stats are stored separately inside the Cache
-                 * structure, they have to be copied to SimStats, before writing
-                 * stats to shared memory. */
-                copy_cache_stats_to_global_stats(s);
-                memcpy(s->stats_shm_ptr, s->simcpu->stats,
-                       NUM_MAX_PRV_LEVELS * sizeof(SimStats));
-            }
+            write_stats_to_stats_display_shm(s);
         }
 
         /* Commit success */
