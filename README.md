@@ -1,10 +1,11 @@
+
 ## MARSS-RISCV: Micro-Architectural System Simulator for RISC-V
 
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/bucaps/marss-riscv/blob/master/src/MIT-LICENSE.txt) [![GitHub issues](https://img.shields.io/github/issues/Naereen/StrapDown.js.svg)](https://github.com/bucaps/marss-riscv/issues/)
 
-MARSS-RISCV (Micro-ARchitectural System Simulator - RISCV) is a open source, **cycle-accurate single core full-system (Linux) micro-architectural simulator** for the [RISC-V](https://riscv.org/specifications/) ISA built upon [TinyEMU emulator (https://bellard.org/tinyemu)](https://bellard.org/tinyemu) by Fabrice Bellard and uses its code for all the device emulation and configuration. It consists of detailed cycle accurate models of a modern RISC-V In-order and Out-of-order processor with branch prediction unit and a complete memory hierarchy including TLBs, caches and DRAM. It comes integrated with [DRAMSim2](https://github.com/umd-memsys/DRAMSim2), a cycle accurate memory system simulator. It is currently being developed and maintained by [CAPS](https://github.com/bucaps/) (Computer Architecture and Power Aware Systems Research Group) at the State University of New York at Binghamton. Being a true full system simulator, MARSS-RISCV can simulate all of the system in a cycle accurate fashion including OS code, libraries, interrupt handlers etc.
+MARSS-RISCV (Micro-ARchitectural System Simulator - RISCV) is a **open source, cycle-accurate single core full-system (Linux) micro-architectural simulator** for the [RISC-V](https://riscv.org/specifications/) ISA built upon [TinyEMU emulator (https://bellard.org/tinyemu)](https://bellard.org/tinyemu) by Fabrice Bellard and uses its code for all the device emulation and configuration. It consists of detailed cycle accurate models of a modern RISC-V In-order and Out-of-order processor with branch prediction unit and a complete memory hierarchy including TLBs, caches and DRAM. It comes integrated with [DRAMSim2](https://github.com/umd-memsys/DRAMSim2), a cycle accurate memory system simulator. It is currently being developed and maintained by [CAPS](https://github.com/bucaps/) (Computer Architecture and Power Aware Systems Research Group) at the State University of New York at Binghamton. Being a true full system simulator, MARSS-RISCV can simulate all of the system in a cycle accurate fashion including OS code, libraries, interrupt handlers etc.
 
-Currently, our simulator is in alpha status as we are validating the cycle accuracy using various development boards. The simulated in-order core is tested and operational, however, the simulated out-of-order core is in micro-architectural testing phase.
+Currently, our simulator is in alpha status as we are validating the cycle accuracy using various development boards.
 
 ## Table of contents
 - [Features](#features)
@@ -24,12 +25,13 @@ Currently, our simulator is in alpha status as we are validating the cycle accur
 - Multiple execution units with configurable latencies (execution units can be configured to be pipelined)
 - 2-level cache hierarchy with various allocation and miss handling policies
 - 2 DRAM memory models: Simple DIMM based basic DRAM model that simulates row-buffer (open-page) hits and [DRAMSim2](https://github.com/umd-memsys/DRAMSim2)
-- Bi-modal and 2-level adaptive (Gshare, Gselect, GAg, GAp, PAg, PAp) branch prediction support
+- Bi-modal and 2-level adaptive (Gshare, Gselect, GAg, GAp, PAg, PAp) branch prediction support along with a Return address stack (RAS)
 - Supports `RV32GC` and `RV64GC` (user level ISA version `2.2`, privileged architecture version `1.10`)
 - VirtIO console, network, block device, input and 9P filesystem
 - JSON configuration file
 - Easy to install, use and modify
 - Support for separate RISC-V BIOS and kernel
+- 16550A UART support
 
 For internal micro-architectural details, see [MARSS-RISCV Micro-architecture Documentation](https://marss-riscv-docs.readthedocs.io/en/latest/).
 
@@ -38,7 +40,7 @@ For internal micro-architectural details, see [MARSS-RISCV Micro-architecture Do
 ### System requirements
 * 32-bit or 64-bit Linux machine
 * Libcurl, OpenSSL and SDL Libraries
-* Standard C compiler
+* Standard C and C++ compiler
 
 ### Installing the dependencies
 Make sure that you have all the dependencies (`ssl`, `sdl`, and `curl` libraries) installed on the system. For Debian-based (including Ubuntu) systems, the packages are: `build-essential`, `libssl-dev`, `libsdl1.2-dev`, `libcurl4-openssl-dev`. 
@@ -49,7 +51,6 @@ $ sudo apt-get install libssl-dev
 $ sudo apt-get install libsdl1.2-dev
 $ sudo apt-get install libcurl4-openssl-dev
 ```
-
 ### Compiling the simulator
 
 First, clone the simulator repository:
@@ -73,11 +74,7 @@ $ make
 
 ### Preparing the bootloader, kernel and userland image
 
-Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built images are located in the [marss-riscv-images](https://github.com/bucaps/marss-riscv-images) repository. To clone it, make sure you have [Git LFS](https://git-lfs.github.com/) installed on your system, and type:
-
-```console
-$ git clone https://github.com/bucaps/marss-riscv-images
-```
+Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built 32-bit and 64-bit RISC-V images are located [here](http://cs.binghamton.edu/~marss-riscv/).
 
 The userland image needs to be decompressed before running the simulator:
 
@@ -89,14 +86,14 @@ $ xz -d -k -T 0 riscv32.img.xz
 When decompression finishes, launch the simulator with:
 
 ```console
-$ ../../marss-riscv -mem-model base simulator.cfg riscvemu.cfg
+$ ../../marss-riscv -mem-model base config.cfg
 ```
 
-Simulation parameters can be configured using `riscvemu.cfg`, RISCVEMU JSON configuration file. 
+Simulation parameters can be configured using `config.cfg`, TinyEMU JSON configuration file.
 
-By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. MARSS-RISCV comes with 2 DRAM memory models: Basic and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `riscvemu.cfg` file.
+By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. MARSS-RISCV comes with 2 DRAM memory models: Basic and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `config.cfg` file.
 
-It may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found [here](https://github.com/bucaps/marss-riscv-images#how-to-use).
+It may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found in the `readme.txt` file which comes with the images.
 
 By default, guest boots in emulation mode. To start in simulation mode run with `-simstart` command line option.
 
@@ -107,17 +104,11 @@ Once the guest boots, we need to initialize the environment. Normally, this shou
 # env-update
 ```
 
-The system is ready for use. It has a working GCC compiler, ssh, git, and [more](https://github.com/bucaps/marss-riscv-images/blob/master/riscv32-unknown-linux-gnu/PACKAGES). It has a virtual network interface. However, there's no host-to-guest routing, so it's not possible to ssh into the guest.
+The system is ready for use. It has a working GCC compiler, ssh, git, and more. It has a virtual network interface. However, there's no host-to-guest routing, so it's not possible to ssh into the guest.
 
 By default, `Ctrl-C` will not kill the simulator. The command `halt` will cleanly shutdown the guest. Alternatively, you can pass the `-ctrlc` command line argument to the simulator, which will allow it to be killed using `Ctrl-C`.
 
 Once you have access to the guest machine terminal, see next section for running simulations.
-
-The images provided at [marss-riscv-images](https://github.com/bucaps/marss-riscv-images) repository have the kernel compiled into the bios. Hence, you don't have specify separate kernel in the configuration file. However, since the current version of MARSS-RISCV allows support for seperate RISC-V bios and kernel, you can use the native RISC-V boot loader, Linux kernel,  filesystem with busybox and buildroot version with separate kernel option which comes with TinyEMU distribution [here](https://bellard.org/tinyemu/). In such case run using:
-
-```console
-$ ../../temu -has-kernel -mem-model base riscvemu.cfg
-```
 
 ## Running full system simulations
 
@@ -156,52 +147,37 @@ $ ./stats-display
 Then launch the simulator on a different terminal with `-stats-display` command-line option.
 
 ## Generating simulation trace
-To generate instruction commit trace of the programs running in the simulation mode, add `CONFIG_SIM_TRACE` flag to the CFLAGS variable in the makefile and recompile. Generated trace is saved in the file `sim_trace_file` as configured in the simulator configuration file.
+To generate instruction commit trace of the programs running in the simulation mode, run MARSS-RISCV with `-sim-trace` command-line option. Generated trace is saved in the file `sim_trace_file` appended by the current timestamp, as configured in the simulator configuration file.
 
-Sample trace is shown below:
+Sample trace generated is shown below:
 ```bash
-cycle = 112  pc = 0x6aaaadf8  insn = 0x85be863a  c.mv a2,a4    mode = PRV_U  status = simulated
-cycle = 113  pc = 0x6aaaadfa  insn = 0x250385be  c.mv a1,a5    mode = PRV_U  status = simulated
-cycle = 115  pc = 0x6aaaadfc  insn = 0xfa842503  lw a0,s0,-88  mode = PRV_U  status = simulated
+cycle=112 pc=0x6aaaadf8 insn=0x85be863a c.mv a2,a4 mode=PRV_U
+cycle=113 pc=0x6aaaadfa insn=0x250385be c.mv a1,a5 mode=PRV_U
+cycle=115 pc=0x6aaaadfc insn=0xfa842503 lw a0,s0,-88 mode=PRV_U
 
 ```
 
 ## Future Work
 * Support for 3-stage in-order pipeline
-* Support for return address stack
-* Support for branch prediction unit, speculative execution and age-ordered instruction issue logic in the out-of-order core
 * Cycle accuracy validation using various RISC-V development boards
 
 ## Technical notes
 
 ### Floating point emulation
 
-The floating point emulation is bit exact and supports all the
-specified instructions for 32 and 64 bit floating point numbers. It
-uses the new SoftFP library.
+The floating point emulation is bit exact and supports all the specified instructions for 32 and 64 bit floating point numbers. It uses the new SoftFP library.
 
 ### HTIF console
 
-The standard HTIF console uses registers at variable addresses which
-are deduced by loading specific ELF symbols. TinyEMU does not rely on
-an ELF loader, so it is much simpler to use registers at fixed
-addresses (0x40008000). A small modification was made in the
-"riscv-pk" boot loader to support it. The HTIF console is only used to
-display boot messages and to power off the virtual system. The OS
-should use the VirtIO console.
+The standard HTIF console uses registers at variable addresses which are deduced by loading specific ELF symbols. TinyEMU does not rely on an ELF loader, so it is much simpler to use registers at fixed addresses (0x40008000). A small modification was made in the "riscv-pk" boot loader to support it. The HTIF console is only used to display boot messages and to power off the virtual system. The OS should use the VirtIO console.
 
 ### Network usage
 
-The easiest way is to use the "user" mode network driver. No specific
-configuration is necessary.
+The easiest way is to use the "user" mode network driver. No specific configuration is necessary.
 
-MARSS-RISCV also supports a "tap" network driver to redirect the network
-traffic from a VirtIO network adapter.
+MARSS-RISCV also supports a "tap" network driver to redirect the network traffic from a VirtIO network adapter.
 
-You can look at the netinit.sh script to create the tap network
-interface and to redirect the virtual traffic to Internet thru a
-NAT. The exact configuration may depend on the Linux distribution and
-local firewall configuration.
+You can look at the netinit.sh script to create the tap network interface and to redirect the virtual traffic to Internet thru a NAT. The exact configuration may depend on the Linux distribution and local firewall configuration.
 
 The VM configuration file must include:
 
@@ -214,23 +190,15 @@ route add -net 0.0.0.0 gw 192.168.3.1 eth0
 
 ### Network filesystem
 
-MARSS-RISCV supports the VirtIO 9P filesystem to access local or remote
-filesystems. For remote filesystems, it does HTTP requests to download
-the files. The protocol is compatible with the vfsync utility. In the
-"mount" command, "/dev/rootN" must be used as device name where N is
-the index of the filesystem. When N=0 it is omitted.
+MARSS-RISCV supports the VirtIO 9P filesystem to access local or remote filesystems. For remote filesystems, it does HTTP requests to download the files. The protocol is compatible with the vfsync utility. In the "mount" command, "/dev/rootN" must be used as device name where N is the index of the filesystem. When N=0 it is omitted.
 
-The build_filelist tool builds the file list from a root directory. A
-simple web server is enough to serve the files.
+The build_filelist tool builds the file list from a root directory. A simple web server is enough to serve the files.
 
-The '.preload' file gives a list of files to preload when opening a
-given file.
+The '.preload' file gives a list of files to preload when opening a given file.
 
 ### Network block device
 
-MARSS-RISCV supports an HTTP block device. The disk image is split into
-small files. Use the 'splitimg' utility to generate images. The URL of
-the JSON blk.txt file must be provided as disk image filename.
+MARSS-RISCV supports an HTTP block device. The disk image is split into small files. Use the 'splitimg' utility to generate images. The URL of the JSON blk.txt file must be provided as disk image filename.
 
 ## Authors
 * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
@@ -242,8 +210,7 @@ This work was supported in part by DARPA through an award from the SSITH program
 For DRAMSim2, see [here](https://github.com/umd-memsys/DRAMSim2).
 
 ## License
-This project is licensed under the MIT License - see the
-src/MIT-LICENSE.txt file for details.
+This project is licensed under the MIT License - see the src/MIT-LICENSE.txt file for details.
 
 The SLIRP library has its own license (two clause BSD license).
 DRAMSim2 has its own license (two clause BSD license).
