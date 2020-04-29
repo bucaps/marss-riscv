@@ -859,7 +859,8 @@ sim_print_ins_trace(struct RISCVCPUState *s)
     fprintf(s->sim_trace, "cycle=%" TARGET_ULONG_FMT, s->simcpu->clock);
     fprintf(s->sim_trace, " pc=%" TARGET_ULONG_HEX,
             s->simcpu->sim_trace_pkt.e->ins.pc);
-    fprintf(s->sim_trace, " insn=%s", s->simcpu->sim_trace_pkt.e->ins.str);
+    fprintf(s->sim_trace, " insn=%" PRIx32, s->simcpu->sim_trace_pkt.e->ins.binary);
+    fprintf(s->sim_trace, " %s", s->simcpu->sim_trace_pkt.e->ins.str);
     fprintf(s->sim_trace, " mode=%s", cpu_mode_str[s->priv]);
     fprintf(s->sim_trace, "\n");
 }
@@ -869,7 +870,8 @@ sim_print_exp_trace(struct RISCVCPUState *s)
 {
     fprintf(s->sim_trace, "cycle=%" TARGET_ULONG_FMT, s->simcpu->clock);
     fprintf(s->sim_trace, " pc=%" TARGET_ULONG_HEX, s->sim_epc);
-    fprintf(s->sim_trace, " insn=%s", s->sim_epc_str);
+    fprintf(s->sim_trace, " insn=%" PRIx32, s->sim_exception_ins);
+    fprintf(s->sim_trace, " %s", s->sim_epc_str);
     fprintf(s->sim_trace, " mode=%s", cpu_mode_str[s->priv]);
     fprintf(s->sim_trace, "\n");
 }
