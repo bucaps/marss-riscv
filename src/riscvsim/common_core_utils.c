@@ -862,7 +862,6 @@ sim_print_ins_trace(struct RISCVCPUState *s)
     fprintf(s->sim_trace, " insn=%s", s->simcpu->sim_trace_pkt.e->ins.str);
     fprintf(s->sim_trace, " mode=%s", cpu_mode_str[s->priv]);
     fprintf(s->sim_trace, "\n");
-    fflush(s->sim_trace);
 }
 
 void
@@ -873,7 +872,6 @@ sim_print_exp_trace(struct RISCVCPUState *s)
     fprintf(s->sim_trace, " insn=%s", s->sim_epc_str);
     fprintf(s->sim_trace, " mode=%s", cpu_mode_str[s->priv]);
     fprintf(s->sim_trace, "\n");
-    fflush(s->sim_trace);
 }
 
 void
