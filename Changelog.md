@@ -10,6 +10,7 @@
 	 - Distinct configurable read-hit and write-hit latency for all the caches
 	 - Return address stack (RAS)
 	 - Branch prediction and speculative execution support for out of order core
+	 - Print performance counters on terminal when the simulation completes
 	 - More performance counters:
 		 - Instruction types
 		 - ecall
