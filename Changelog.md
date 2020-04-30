@@ -4,7 +4,6 @@
 
  - Added
 	 - Support for separate RISC-V Bios and Kernel
-	 - Wrap-around cache line read logic in memory controller for base memory model
 	 - Command line option `flush-sim-mem` to flush simulator memory hierarchy on every fresh simulation run
 	 - Command line option `sim-trace` to generate instruction commit trace during simulation
 	 - Distinct configurable read-hit and write-hit latency for all the caches

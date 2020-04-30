@@ -36,7 +36,6 @@
 typedef struct RVInstruction
 {
     target_ulong pc;
-    target_ulong phy_pc;
 
     /* 32-bit or 16-bit instruction */
     uint32_t binary;

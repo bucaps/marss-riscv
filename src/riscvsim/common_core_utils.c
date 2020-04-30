@@ -229,19 +229,6 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
                          + mmu_insn_read(s->simcpu->mmu, s->code_guest_paddr, 4,
                                          FETCH, s->priv);
 
-        /* Keep track of physical address of this instruction for later use */
-        e->ins.phy_pc = s->code_guest_paddr;
-
-        /* If true, it indicates that some sort of memory access request
-         * are sent to memory controller for this instruction, so
-         * request the fast wrap-around read for this address */
-        if (s->simcpu->mmu->mem_controller->frontend_mem_access_queue.cur_size)
-        {
-            mem_controller_req_fast_read_for_addr(
-                &s->simcpu->mmu->mem_controller->frontend_mem_access_queue,
-                e->ins.phy_pc);
-        }
-
         if (s->sim_params->enable_l1_caches)
         {
             /* L1 caches and TLB are probed in parallel */

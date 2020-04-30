@@ -123,18 +123,6 @@ in_core_fetch(INCore *core)
             if (!s->simcpu->mmu->mem_controller->frontend_mem_access_queue
                      .cur_size)
             {
-                /* Memory controller read logic will install the tag in the cache line with
-                 * the first word read, while the remaining words are still
-                 * being fetched. This may cause a false hit on the following
-                 * words. Check the memory controller to see if the word is
-                 * received. Only then, proceed further. */
-                if (!e->ins.exception
-                    && mem_controller_wrap_around_read_pending(
-                           s->simcpu->mmu->mem_controller, e->ins.phy_pc))
-                {
-                    return;
-                }
-
                 /* Stop fetching new instructions on a MMU exception */
                 if (e->ins.exception)
                 {

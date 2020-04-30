@@ -110,10 +110,6 @@ mmu_init(const SimParams *p)
             mmu->mem_controller);
     }
 
-    /* Creates memory bus bit-vector based on cache-line size. NOTE: This is for
-     * the wrap around read logic */
-    mem_controller_create_wrap_around_bit_vec(mmu->mem_controller);
-
     return mmu;
 }
 

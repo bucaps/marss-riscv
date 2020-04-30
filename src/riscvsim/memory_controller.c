@@ -129,10 +129,6 @@ mem_controller_free(MemoryController **m)
     (*m)->backend_mem_access_queue.entry = NULL;
     free((*m)->frontend_mem_access_queue.entry);
     (*m)->frontend_mem_access_queue.entry = NULL;
-    free((*m)->latency_array);
-    (*m)->latency_array = NULL;
-    free((*m)->latency_status_bv);
-    (*m)->latency_status_bv = NULL;
     free(*m);
     *m = NULL;
 }
@@ -141,6 +137,7 @@ void
 mem_controller_reset(MemoryController *m)
 {
     m->current_latency = 0;
+    m->max_latency = 0;
     m->mem_access_active = 0;
 
     mem_controller_flush_stage_mem_access_queue(&m->frontend_mem_access_queue);
@@ -148,7 +145,6 @@ mem_controller_reset(MemoryController *m)
 
     cq_reset(&m->dram_dispatch_queue.cq);
 }
-
 
 void
 mem_controller_set_dram_burst_size(MemoryController *m, int dram_burst_size)
@@ -161,9 +157,7 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
            MemAccessType type, void *p_mem_access_info)
 {
     int index, stage;
-    int stage_queue_index;
     target_ulong start_offset;
-    int max_bytes_to_access = bytes_to_access;
 
     /* Get stage id which has generated this access, 0 for fetch, 1 for memory */
     stage = *(int *)p_mem_access_info;
@@ -186,12 +180,6 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
             m->frontend_mem_access_queue.entry[m->frontend_mem_access_queue.cur_idx].addr = paddr;
             m->frontend_mem_access_queue.entry[m->frontend_mem_access_queue.cur_idx].type = type;
             m->frontend_mem_access_queue.entry[m->frontend_mem_access_queue.cur_idx].valid = 1;
-            m->frontend_mem_access_queue
-                .entry[m->frontend_mem_access_queue.cur_idx]
-                .max_bytes_to_access
-                = max_bytes_to_access;
-            m->frontend_mem_access_queue.entry[m->frontend_mem_access_queue.cur_idx].req_addr = 0;
-            stage_queue_index = m->frontend_mem_access_queue.cur_idx;
             ++m->frontend_mem_access_queue.cur_idx;
             ++m->frontend_mem_access_queue.cur_size;
         }
@@ -200,12 +188,6 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
             m->backend_mem_access_queue.entry[m->backend_mem_access_queue.cur_idx].addr = paddr;
             m->backend_mem_access_queue.entry[m->backend_mem_access_queue.cur_idx].type = type;
             m->backend_mem_access_queue.entry[m->backend_mem_access_queue.cur_idx].valid = 1;
-            m->backend_mem_access_queue
-                .entry[m->backend_mem_access_queue.cur_idx]
-                .max_bytes_to_access
-                = max_bytes_to_access;
-            m->backend_mem_access_queue.entry[m->backend_mem_access_queue.cur_idx].req_addr = 0;
-            stage_queue_index = m->backend_mem_access_queue.cur_idx;
             ++m->backend_mem_access_queue.cur_idx;
             ++m->backend_mem_access_queue.cur_size;
         }
@@ -223,8 +205,6 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
         m->dram_dispatch_queue.entry[index].type = type;
         m->dram_dispatch_queue.entry[index].bytes_to_access = m->dram_burst_size;
         m->dram_dispatch_queue.entry[index].valid = 1;
-        m->dram_dispatch_queue.entry[index].stage_queue_type = stage;
-        m->dram_dispatch_queue.entry[index].stage_queue_index = stage_queue_index;
         m->dram_dispatch_queue.entry[index].flush = FALSE;
 
         /* Calculate remaining transactions for this access */
@@ -297,293 +277,17 @@ write_complete(MemoryController *m, target_ulong addr)
     }
 }
 
-/**
- * Entire cache line is read mem_bus_width_bytes at a time.
- * This creates a bit-vector to indicate latency and read status for each
- * of the mem_bus_width_bytes size chunk of cache line.
- */
-void
-mem_controller_create_wrap_around_bit_vec(MemoryController *m)
-{
-    m->max_bus_blks = (int )(m->dram_burst_size / m->dram->mem_bus_width_bytes);
-    m->latency_array = calloc(m->max_bus_blks, sizeof(int));
-    assert(m->latency_array);
-    m->latency_status_bv = calloc(m->max_bus_blks, sizeof(int));
-    assert(m->latency_status_bv);
-}
-
-/* Determine if wrap-around access is needed to read this cache-line. NOTE: In
- * case of cache eviction, wrap-around access is not needed. Entire line has to
- * be fetched. */
-static int
-wraparound_access_required(MemoryController *m, PendingMemAccessEntry *e,
-                           target_ulong *req_addr)
-{
-    *req_addr = 0;
-
-    switch (e->stage_queue_type)
-    {
-        case FETCH:
-        {
-
-            *req_addr = m->frontend_mem_access_queue.entry[e->stage_queue_index]
-                            .req_addr;
-            break;
-        }
-        case MEMORY:
-        {
-            *req_addr = m->backend_mem_access_queue.entry[e->stage_queue_index]
-                            .req_addr;
-            break;
-        }
-    }
-
-    if (*req_addr)
-    {
-        return 1;
-    }
-
-    return 0;
-}
-
-/* Determine the mem_bus_width_bytes chunk address (also the location in the
- * bit-vector) from the required physical address */
-static int
-get_bit_vec_id_from_phy_addr(MemoryController *m, target_ulong cur_addr,
-                             target_ulong start_addr)
-{
-    return (int)((cur_addr % start_addr) / m->dram->mem_bus_width_bytes);
-}
-
-static void
-reset_bit_vec_for_cache_line_read(MemoryController *m)
-{
-    memset((void *)m->latency_status_bv, 0, sizeof(int) * m->max_bus_blks);
-    memset((void *)m->latency_array, 0, sizeof(int) * m->max_bus_blks);
-}
-
-static void
-calculate_wraparound_delays(MemoryController *m, PendingMemAccessEntry *e,
-                     target_ulong req_addr)
-{
-    int bit_vec_id, cur_latency;
-    target_ulong wpr_start_addr, next_paddr, max_addr;
-
-    /* Reset bit vector and latency for all the chunks of cache line to be read
-     * at the granularity of bus width. NOTE: can be removed */
-    reset_bit_vec_for_cache_line_read(m);
-
-    /* Address of the last bit plus 1 in the cache line */
-    max_addr = e->addr + e->bytes_to_access;
-
-    /* Calculate wrap around read start address and align the address to the
-     * nearest low order mem_bus_width_byte */
-    wpr_start_addr = req_addr - (req_addr % m->dram->mem_bus_width_bytes);
-
-    /* Query DRAM latency for wrap around start address */
-    bit_vec_id = get_bit_vec_id_from_phy_addr(m, wpr_start_addr, e->addr);
-    m->latency_array[bit_vec_id]
-        = dram_get_latency(m->dram, wpr_start_addr, e->type);
-
-    /* Read starts from here */
-    m->cur_bit_vec_id = bit_vec_id;
-    m->wpr_bit_vec_start_id = bit_vec_id;
-
-    /* Calculate delays for the second half of the cache line */
-    next_paddr = wpr_start_addr + m->dram->mem_bus_width_bytes;
-
-    while (next_paddr < max_addr)
-    {
-        cur_latency = dram_get_latency(m->dram, next_paddr, e->type);
-        bit_vec_id = get_bit_vec_id_from_phy_addr(m, next_paddr, e->addr);
-        m->latency_array[bit_vec_id] = cur_latency;
-        next_paddr += m->dram->mem_bus_width_bytes;
-    }
-
-    /* Calculate delays for the first half of the cache line */
-    next_paddr = e->addr;
-    while (next_paddr < wpr_start_addr)
-    {
-        cur_latency = dram_get_latency(m->dram, next_paddr, e->type);
-        bit_vec_id = get_bit_vec_id_from_phy_addr(m, next_paddr, e->addr);
-        m->latency_array[bit_vec_id] = cur_latency;
-        next_paddr += m->dram->mem_bus_width_bytes;
-    }
-}
-
-static void
-calculate_seq_access_delays(MemoryController *m, PendingMemAccessEntry *e)
-{
-    int bit_vec_id, cur_latency;
-    target_ulong next_paddr, max_addr;
-
-    /* Reset bit vector and latency for all the chunks of cache line to be read
-     * at the granularity of bus width. NOTE: can be removed */
-    reset_bit_vec_for_cache_line_read(m);
-
-    /* Address of the last bit plus 1 in cache line */
-    max_addr = e->addr + e->bytes_to_access;
-
-    next_paddr = e->addr;
-    while (next_paddr < max_addr)
-    {
-        cur_latency = dram_get_latency(m->dram, next_paddr, e->type);
-        bit_vec_id = get_bit_vec_id_from_phy_addr(m, next_paddr, e->addr);
-        assert((bit_vec_id >= 0) && (bit_vec_id < m->max_bus_blks));
-        m->latency_array[bit_vec_id] = cur_latency;
-        next_paddr += m->dram->mem_bus_width_bytes;
-    }
-}
-
-static void
-do_wrap_around_read(MemoryController *m, PendingMemAccessEntry *e)
-{
-    if (m->cur_bit_vec_id <= m->last_bit_vec_id)
-    {
-        if (m->current_latency == m->latency_array[m->cur_bit_vec_id])
-        {
-            /* Latency for current blk is simulated */
-            m->latency_status_bv[m->cur_bit_vec_id] = 1;
-
-            /* Check if we read wrap-around start address and fire the read
-             * callback to the waiting stage */
-            if (m->cur_bit_vec_id == m->wpr_bit_vec_start_id)
-            {
-                if (e->type == Read)
-                {
-                    read_complete(m, e->addr);
-                }
-            }
-
-            /* For next blk */
-            m->cur_bit_vec_id++;
-            m->current_latency = 0;
-            m->num_bit_vec_read++;
-        }
-
-        if (m->cur_bit_vec_id > m->last_bit_vec_id)
-        {
-            /* All the blks in cache line are fetched */
-            if (m->num_bit_vec_read >= m->max_bus_blks)
-            {
-                m->mem_access_active = 0;
-                m->wrap_around_mode = 0;
-
-                /* Remove the entry */
-                e->valid = 0;
-                cq_dequeue(&m->dram_dispatch_queue.cq);
-            }
-            else
-            {
-                /* Read the first half now */
-                m->current_latency = 0;
-                m->cur_bit_vec_id = 0;
-                m->last_bit_vec_id = m->wpr_bit_vec_start_id - 1;
-            }
-        }
-        else
-        {
-            m->current_latency++;
-        }
-    }
-}
-
-static void
-do_seq_read(MemoryController *m, PendingMemAccessEntry *e)
-{
-    if (m->cur_bit_vec_id <= m->last_bit_vec_id)
-    {
-        if (m->current_latency == m->latency_array[m->cur_bit_vec_id])
-        {
-            /* Latency for current blk is simulated */
-            m->latency_status_bv[m->cur_bit_vec_id] = 1;
-
-            /* For next blk */
-            m->cur_bit_vec_id++;
-            m->current_latency = 0;
-        }
-
-        if (m->cur_bit_vec_id > m->last_bit_vec_id)
-        {
-            /* All the blks in cache line are fetched */
-            m->mem_access_active = 0;
-
-            /* Fire read callback */
-            if (e->type == Read)
-            {
-                read_complete(m, e->addr);
-            }
-
-            /* Remove the entry */
-            e->valid = 0;
-            cq_dequeue(&m->dram_dispatch_queue.cq);
-        }
-        else
-        {
-            m->current_latency++;
-        }
-    }
-}
-
-int
-mem_controller_wrap_around_read_pending(MemoryController *m, target_ulong addr)
-{
-    int bit_vec_id;
-    PendingMemAccessEntry *e;
-    target_ulong start_byte_addr;
-
-    if (m->mem_access_active)
-    {
-        e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
-        if ((addr >= e->addr) && (addr < (e->addr + e->bytes_to_access)))
-        {
-            /* Cache line containing the word is being fetched */
-            start_byte_addr = addr - (addr % m->dram->mem_bus_width_bytes);
-            bit_vec_id
-                = get_bit_vec_id_from_phy_addr(m, start_byte_addr, e->addr);
-            if (!m->latency_status_bv[bit_vec_id])
-            {
-                /* bit vector for word is not received */
-                return 1;
-            }
-        }
-    }
-
-    return 0;
-}
-
-void
-mem_controller_req_fast_read_for_addr(StageMemAccessQueue *q, target_ulong addr)
-{
-    int i;
-
-    for (i = 0; i < q->cur_size; ++i)
-    {
-        PendingMemAccessEntry *e = &q->entry[i];
-        if (e->valid)
-        {
-            if ((addr >= e->addr)
-                && (addr < (e->addr + e->max_bytes_to_access)))
-            {
-                e->req_addr = addr;
-                break;
-            }
-        }
-    }
-}
-
 void
 mem_controller_update_base(MemoryController *m)
 {
     PendingMemAccessEntry *e;
-    target_ulong req_addr = 0;
+    int bytes_accessed;
 
     if (!m->mem_access_active)
     {
         if (!cq_empty(&m->dram_dispatch_queue.cq))
         {
-            e = &m->dram_dispatch_queue
-                     .entry[cq_front(&m->dram_dispatch_queue.cq)];
+            e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
 
             if (e->flush)
             {
@@ -592,65 +296,23 @@ mem_controller_update_base(MemoryController *m)
                 return;
             }
 
-            m->wrap_around_mode = 0;
-
-            switch (e->type)
+            /* Don't stall the pipeline stage for write request once submitted
+             * to DRAM */
+            if (e->type == Write)
             {
-                case Write:
-                {
-                    /* Immediately fire write callback to the waiting pipeline
-                     * stage, don't stall the requesting pipeline stage for
-                     * writes, but simulate the delay asynchronously */
-
-                    /* Since the pipeline stage never stalls on writes, no need
-                     * for wrap around accesses for writes */
-                    write_complete(m, e->addr);
-                    calculate_seq_access_delays(m, e);
-                    break;
-                }
-                case Read:
-                {
-                    if (wraparound_access_required(m, e, &req_addr))
-                    {
-                        /* When mis-prediction is detected by the pipeline, the
-                         * memory transactions on the false path are flushed
-                         * from the fetch and memory stage queue , and may be
-                         * replaced with the transactions on correct path  This
-                         * basically stops any active transaction on the false
-                         * path. */
-                        if ((req_addr >= e->addr)
-                            && (req_addr < (e->addr + e->bytes_to_access)))
-                        {
-                            m->wrap_around_mode = 1;
-                            calculate_wraparound_delays(m, e, req_addr);
-                        }
-                        else
-                        {
-                            e->flush = TRUE;
-                        }
-                    }
-                    else
-                    {
-                        calculate_seq_access_delays(m, e);
-                    }
-                    break;
-                }
+                write_complete(m, e->addr);
             }
 
-            if (m->wrap_around_mode)
+            bytes_accessed = 0;
+            while (bytes_accessed < e->bytes_to_access)
             {
-                /* Since we don't read in sequence, this becomes our terminating
-                 * condition */
-                m->num_bit_vec_read = 0;
-            }
-            else
-            {
-                m->cur_bit_vec_id = 0;
+                m->max_latency += dram_get_latency(
+                    m->dram, e->addr + bytes_accessed, e->type);
+                bytes_accessed += m->dram->mem_bus_width_bytes;
             }
 
-            m->last_bit_vec_id = m->max_bus_blks - 1;
-            m->current_latency = 1;
             m->mem_access_active = 1;
+            m->current_latency = 1;
         }
     }
 
@@ -666,13 +328,23 @@ mem_controller_update_base(MemoryController *m)
             return;
         }
 
-        if (m->wrap_around_mode)
+        if (m->current_latency == m->max_latency)
         {
-            do_wrap_around_read(m,e);
+            m->mem_access_active = 0;
+            m->max_latency = 0;
+            m->current_latency = 0;
+            if (e->type == Read)
+            {
+                read_complete(m, e->addr);
+            }
+
+            /* Remove the entry */
+            e->valid = 0;
+            cq_dequeue(&m->dram_dispatch_queue.cq);
         }
         else
         {
-            do_seq_read(m,e);
+            m->current_latency++;
         }
     }
 }
