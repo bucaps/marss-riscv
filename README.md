@@ -74,11 +74,12 @@ $ make
 
 ### Preparing the bootloader, kernel and userland image
 
-Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built 32-bit and 64-bit RISC-V images are located [here](http://cs.binghamton.edu/~marss-riscv/).
+Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built 32-bit and 64-bit RISC-V images are available here: [marss-riscv-images.tar.gz](http://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz).
 
 The userland image needs to be decompressed before running the simulator:
 
 ```console
+$ tar -xvzf marss-riscv-images.tar.gz
 $ cd marss-riscv-images/riscv32-unknown-linux-gnu/
 $ xz -d -k -T 0 riscv32.img.xz
 ```
@@ -93,7 +94,7 @@ Simulation parameters can be configured using `config.cfg`, TinyEMU JSON configu
 
 By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. MARSS-RISCV comes with 2 DRAM memory models: Basic and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `config.cfg` file.
 
-It may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found in the `readme.txt` file which comes with the images.
+It may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found in the `readme.txt` file which comes with the [images archive](http://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz).
 
 By default, guest boots in emulation mode. To start in simulation mode run with `-simstart` command line option.
 
@@ -147,7 +148,7 @@ $ ./stats-display
 Then launch the simulator on a different terminal with `-stats-display` command-line option.
 
 ## Generating simulation trace
-To generate instruction commit trace of the programs running in the simulation mode, run MARSS-RISCV with `-sim-trace` command-line option. Generated trace is saved in the file `sim_trace_file` appended by the current timestamp, as configured in the simulator configuration file.
+To generate instruction commit trace of the programs running in the simulation mode, run MARSS-RISCV with `-sim-trace` command-line option. Generated trace is saved in the file `sim_trace_file`, as configured in the simulator configuration file.
 
 Sample trace generated is shown below:
 ```bash
