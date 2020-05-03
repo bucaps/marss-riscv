@@ -74,20 +74,21 @@ $ make
 
 ### Preparing the bootloader, kernel and userland image
 
-Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built 32-bit and 64-bit RISC-V images are available here: [marss-riscv-images.tar.gz](http://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz).
+Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built 32-bit and 64-bit RISC-V images are available here: [marss-riscv-images.tar.gz](http://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz)
 
 The userland image needs to be decompressed before running the simulator:
 
 ```console
+$ wget http://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz
 $ tar -xvzf marss-riscv-images.tar.gz
 $ cd marss-riscv-images/riscv32-unknown-linux-gnu/
 $ xz -d -k -T 0 riscv32.img.xz
 ```
 
-When decompression finishes, launch the simulator with:
+When decompression finishes, jump to the marss-riscv `src` folder and launch the simulator with:
 
 ```console
-$ ../../marss-riscv -mem-model base config.cfg
+$ ./marss-riscv -mem-model base marss-riscv-images/config.cfg
 ```
 
 Simulation parameters can be configured using `config.cfg`, TinyEMU JSON configuration file.
@@ -211,7 +212,8 @@ This work was supported in part by DARPA through an award from the SSITH program
 For DRAMSim2, see [here](https://github.com/umd-memsys/DRAMSim2).
 
 ## License
-This project is licensed under the MIT License - see the src/MIT-LICENSE.txt file for details.
+This project is licensed under the MIT License - see the src/MIT-LICENSE.txt file for details. 
 
 The SLIRP library has its own license (two clause BSD license).
+
 DRAMSim2 has its own license (two clause BSD license).
