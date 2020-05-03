@@ -26,7 +26,6 @@
 	 - Correctly calculated the rounding mode for floating pointing instruction decoding
 	 - Converted `c.addiw` result buffer into `int32_t` on 64-bit simulation
 	 - Set the data type to `unint64_t` for 64-bit simulation, for the buffer which holds the memory address for atomic instructions
-	 - Pass the correct physical address to check the status of wrap-around read completion during instruction fetch
 	 - Issue #13 and #14 (thanks to Okhotnikov Grigory)
 
 # Version 2.0a
