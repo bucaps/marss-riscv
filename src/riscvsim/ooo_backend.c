@@ -393,7 +393,6 @@ oo_core_rob_commit(OOCore *core)
                 if (e->ins.rd)
                 {
                     update_arch_reg_int(s, e);
-                    assert(core->int_rat[e->ins.rd].read_from_rob == TRUE);
 
                     if (core->int_rat[e->ins.rd].rob_idx == e->rob_idx)
                     {
@@ -405,7 +404,6 @@ oo_core_rob_commit(OOCore *core)
             else if (e->ins.has_fp_dest)
             {
                 update_arch_reg_fp(s, e);
-                assert(core->fp_rat[e->ins.rd].read_from_rob == TRUE);
 
                 if (core->fp_rat[e->ins.rd].rob_idx == e->rob_idx)
                 {
