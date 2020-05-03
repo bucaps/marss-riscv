@@ -76,6 +76,4 @@ int mem_controller_access_dram(MemoryController *m, target_ulong paddr,
                                int bytes_to_access, MemAccessType op_type,
                                void *p_mem_access_info);
 void mem_controller_flush_dram_queue(MemoryController *m);
-void mem_controller_flush_stage_queue_entry_from_dram_queue(
-    DRAMDispatchQueue *dram_queue, StageMemAccessQueue *stage_queue);
 #endif

@@ -42,16 +42,6 @@ restore_cpu_frontend(OOCore *core, IMapEntry *e)
     speculative_cpu_stage_flush(&core->decode, s->simcpu->imap);
     speculative_cpu_stage_flush(&core->dispatch, s->simcpu->imap);
 
-    /* If memory access requests are submitted to dram
-     * dispatch queue from fetch stage, remove them from
-     * dram dispatch queue */
-    if (s->simcpu->mmu->mem_controller->frontend_mem_access_queue.cur_size)
-    {
-        mem_controller_flush_stage_queue_entry_from_dram_queue(
-            &s->simcpu->mmu->mem_controller->dram_dispatch_queue,
-            &s->simcpu->mmu->mem_controller->frontend_mem_access_queue);
-    }
-
     /* Flush the memory transactions added by fetch stage */
     mem_controller_flush_stage_mem_access_queue(
         &s->simcpu->mmu->mem_controller->frontend_mem_access_queue);
@@ -193,20 +183,6 @@ restore_lsu(OOCore *core, uint64_t tag)
         e = &core->simcpu->imap[core->lsu.imap_index];
         if (e->ins_dispatch_id > tag)
         {
-            /* If memory access requests are submitted to dram
-             * dispatch queue from LSU, remove them from
-             * dram dispatch queue */
-            if (core->simcpu->mmu->mem_controller->backend_mem_access_queue
-                    .cur_size)
-            {
-                mem_controller_flush_stage_queue_entry_from_dram_queue(
-                    &core->simcpu->mmu->mem_controller->dram_dispatch_queue,
-                    &core->simcpu->mmu->mem_controller->backend_mem_access_queue);
-            }
-
-            mem_controller_flush_stage_mem_access_queue(
-                &core->simcpu->mmu->mem_controller->backend_mem_access_queue);
-
             speculative_cpu_stage_flush(&core->lsu, core->simcpu->imap);
 
             /* Flush memory controller queues on flush */

@@ -635,18 +635,6 @@ handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
                 s->code_to_pc_addend = ras_target;
                 e->predicted_target = ras_target;
 
-                /* If memory access requests are submitted to dram
-                 * dispatch queue from fetch stage, remove them from
-                 * dram dispatch queue */
-                if (s->simcpu->mmu->mem_controller->frontend_mem_access_queue
-                        .cur_size)
-                {
-                    mem_controller_flush_stage_queue_entry_from_dram_queue(
-                        &s->simcpu->mmu->mem_controller->dram_dispatch_queue,
-                        &s->simcpu->mmu->mem_controller
-                             ->frontend_mem_access_queue);
-                }
-
                 mem_controller_flush_stage_mem_access_queue(
                     &s->simcpu->mmu->mem_controller->frontend_mem_access_queue);
 
