@@ -205,7 +205,6 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
         m->dram_dispatch_queue.entry[index].type = type;
         m->dram_dispatch_queue.entry[index].bytes_to_access = m->dram_burst_size;
         m->dram_dispatch_queue.entry[index].valid = 1;
-        m->dram_dispatch_queue.entry[index].flush = FALSE;
 
         /* Calculate remaining transactions for this access */
         bytes_to_access -= m->dram_burst_size;
@@ -289,13 +288,6 @@ mem_controller_update_base(MemoryController *m)
         {
             e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
 
-            if (e->flush)
-            {
-                e->valid = 0;
-                cq_dequeue(&m->dram_dispatch_queue.cq);
-                return;
-            }
-
             /* Don't stall the pipeline stage for write request once submitted
              * to DRAM */
             if (e->type == Write)
@@ -319,14 +311,6 @@ mem_controller_update_base(MemoryController *m)
     if (m->mem_access_active)
     {
         e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
-
-        if (e->flush)
-        {
-            e->valid = 0;
-            m->mem_access_active = 0;
-            cq_dequeue(&m->dram_dispatch_queue.cq);
-            return;
-        }
 
         if (m->current_latency == m->max_latency)
         {
