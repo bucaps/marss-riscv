@@ -74,12 +74,12 @@ $ make
 
 ### Preparing the bootloader, kernel and userland image
 
-Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built 32-bit and 64-bit RISC-V images are available here: [marss-riscv-images.tar.gz](http://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz)
+Using pre-built bootloader, kernel and userland images is the easiest way to start. The pre-built 32-bit and 64-bit RISC-V images are available here: [marss-riscv-images.tar.gz](https://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz)
 
 The userland image needs to be decompressed before running the simulator:
 
 ```console
-$ wget http://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz
+$ wget https://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz
 $ tar -xvzf marss-riscv-images.tar.gz
 $ cd marss-riscv-images/riscv32-unknown-linux-gnu/
 $ xz -d -k -T 0 riscv32.img.xz
@@ -95,7 +95,7 @@ Simulation parameters can be configured using `config.cfg`, TinyEMU JSON configu
 
 By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command line argument to the simulator. MARSS-RISCV comes with 2 DRAM memory models: Basic and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `config.cfg` file.
 
-It may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found in the `readme.txt` file which comes with the [images archive](http://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz).
+It may also be desirable to grow the userland image (has roughly 200MB of available free space by default). More information about how to grow it can be found in the `readme.txt` file which comes with the [images archive](https://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz).
 
 By default, guest boots in emulation mode. To start in simulation mode run with `-simstart` command line option.
 
