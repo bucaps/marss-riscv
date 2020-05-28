@@ -468,6 +468,23 @@ static int virt_machine_parse_config(VirtMachineParams *p,
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->sim_params->num_cpu_stages);
         }
+
+        tag_name = "enable_parallel_fu";
+        if (vm_get_str(cfg, tag_name, &str) < 0) {
+            fprintf(stderr, "%s not found, selecting default value %s\n", tag_name,
+                    sim_param_status[p->sim_params->enable_parallel_fu]);
+        }
+        else {
+            if (strcmp(str, "false") == 0) {
+                p->sim_params->enable_parallel_fu = DISABLE;
+            } else if (strcmp(str, "true") == 0) {
+                p->sim_params->enable_parallel_fu = ENABLE;
+            } else {
+                fprintf(stderr, "error: option %s has invalid value\n", tag_name);
+                exit(1);
+            }
+        }
+
     } else if (p->sim_params->core_type == CORE_TYPE_OOCORE) {
         tag_name = "iq_size";
         if (vm_get_int(cfg, tag_name, &p->sim_params->iq_size) < 0) {

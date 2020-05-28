@@ -108,6 +108,7 @@ enum MEM_MODEL_TYPE
 #define DEF_CORE_NAME "default-riscv-core"
 #define DEF_CORE_TYPE CORE_TYPE_INCORE
 #define DEF_NUM_STAGES 6
+#define DEF_ENABLE_PARALLEL_FU DISABLE
 #define DEF_START_SIM 0
 #define DEF_STATS_DISPLAY 0
 #define DEF_DO_SIM_TRACE DISABLE
@@ -227,6 +228,7 @@ typedef struct SimParams
 
     /* For in-order core */
     int num_cpu_stages;
+    int enable_parallel_fu;
 
     /* For out-of-order core */
     int iq_size;

@@ -255,6 +255,102 @@ set_waw_lock_fp_dest(RISCVCPUState *s, CPUStage *stage, int rd)
     }
 }
 
+static int
+execute_stage_busy(INCore *core, int* busy_stage_id)
+{
+    int i;
+
+    for (i = 0; i < core->simcpu->params->num_alu_stages; ++i)
+    {
+        if (core->ialu[i].has_data)
+        {
+            *busy_stage_id = FU_ALU;
+            return TRUE;
+        }
+    }
+
+    for (i = 0; i < core->simcpu->params->num_mul_stages; ++i)
+    {
+        if (core->imul[i].has_data)
+        {
+            *busy_stage_id = FU_MUL;
+            return TRUE;
+        }
+    }
+
+    for (i = 0; i < core->simcpu->params->num_div_stages; ++i)
+    {
+        if (core->idiv[i].has_data)
+        {
+            *busy_stage_id = FU_DIV;
+            return TRUE;
+        }
+    }
+
+    for (i = 0; i < core->simcpu->params->num_fpu_alu_stages; ++i)
+    {
+        if (core->fpu_alu[i].has_data)
+        {
+            *busy_stage_id = FU_FPU_ALU;
+            return TRUE;
+        }
+    }
+
+    for (i = 0; i < core->simcpu->params->num_fpu_fma_stages; ++i)
+    {
+        if (core->fpu_fma[i].has_data)
+        {
+            *busy_stage_id = FU_FPU_FMA;
+            return TRUE;
+        }
+    }
+
+    /* All the functional units are free */
+    return FALSE;
+}
+
+static int
+target_fu_pipelined(INCore *core, int fu_type)
+{
+    int num_stages = 1;
+
+    switch (fu_type)
+    {
+        case FU_ALU:
+        {
+            num_stages = core->simcpu->params->num_alu_stages;
+            break;
+        }
+        case FU_MUL:
+        {
+            num_stages = core->simcpu->params->num_mul_stages;
+            break;
+        }
+        case FU_DIV:
+        {
+            num_stages = core->simcpu->params->num_div_stages;
+            break;
+        }
+        case FU_FPU_ALU:
+        {
+            num_stages = core->simcpu->params->num_fpu_alu_stages;
+            break;
+        }
+        case FU_FPU_FMA:
+        {
+            num_stages = core->simcpu->params->num_fpu_fma_stages;
+            break;
+        }
+    }
+
+    if (num_stages > 1)
+    {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 void
 in_core_decode(INCore *core)
 {
@@ -262,6 +358,7 @@ in_core_decode(INCore *core)
     IMapEntry *e;
     RISCVCPUState *s;
     int ins_issue_index;
+    int busy_stage_id = -1;
     int read_int_rf = 0;
     int read_fp_rf = 0;
 
@@ -372,6 +469,16 @@ in_core_decode(INCore *core)
             }
 
             core->decode.stage_exec_done = TRUE;
+        }
+
+        if (!core->simcpu->params->enable_parallel_fu
+            && execute_stage_busy(core, &busy_stage_id))
+        {
+            if (!(target_fu_pipelined(core, e->ins.fu_type)
+                  && (e->ins.fu_type == busy_stage_id)))
+            {
+                goto exit_decode;
+            }
         }
 
         /* Decoding is complete and all the resources are acquired. If the

@@ -68,6 +68,7 @@ sim_params_init()
     assert(p->sim_trace_file);
 
     p->num_cpu_stages = DEF_NUM_STAGES;
+    p->enable_parallel_fu = DEF_ENABLE_PARALLEL_FU;
     p->start_in_sim = DEF_START_SIM;
     p->enable_stats_display = DEF_STATS_DISPLAY;
     p->create_ins_str = DEF_CREATE_INS_STR;
@@ -226,6 +227,8 @@ sim_params_print(const SimParams *p)
     {
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "num_cpu_stages",
                 p->num_cpu_stages);
+        fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "enable_parallel_fu",
+                sim_param_status[p->enable_parallel_fu]);
     }
     else if (p->core_type == CORE_TYPE_OOCORE)
     {
@@ -480,6 +483,7 @@ sim_params_validate(const SimParams *p)
                     "(marss): error - num_cpu_stages must be either 5 or 6\n");
             abort();
         }
+        validate_param("enable_parallel_fu", 1, 0, 1, p->enable_parallel_fu);
     }
     else if (strcmp(p->core_name, "oocore") == 0)
     {
