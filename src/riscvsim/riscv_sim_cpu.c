@@ -136,4 +136,6 @@ riscv_sim_cpu_free(RISCVSIMCPUState **simcpu)
     }
 
     (*simcpu)->pfn_core_free(&(*simcpu)->core);
+
+    free(*simcpu);
 }

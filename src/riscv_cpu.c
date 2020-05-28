@@ -1634,9 +1634,9 @@ static RISCVCPUState *glue(riscv_cpu_init, MAX_XLEN)(PhysMemoryMap *mem_map, con
 
 static void glue(riscv_cpu_end, MAX_XLEN)(RISCVCPUState *s)
 {
-    assert(s->tlb_code);
-    assert(s->tlb_read);
-    assert(s->tlb_write);
+    free(s->tlb_code);
+    free(s->tlb_read);
+    free(s->tlb_write);
     riscv_sim_cpu_free(&s->simcpu);
     free(s);
 }

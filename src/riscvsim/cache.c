@@ -654,6 +654,8 @@ delete_cache(Cache **c)
     (*c)->blk = NULL;
     free((*c)->status_bits);
     (*c)->status_bits = NULL;
+    free((*c)->stats);
+    (*c)->stats = NULL;
     free(*c);
     *c = NULL;
 }

@@ -1256,8 +1256,8 @@ static void riscv_machine_end(VirtMachine *s1)
     RISCVMachine *s = (RISCVMachine *)s1;
     /* XXX: stop all */
 
-    sim_params_free(s->common.virt_machine_params->sim_params);
     riscv_cpu_end(s->cpu_state);
+    sim_params_free(s->common.virt_machine_params->sim_params);
     phys_mem_map_end(s->mem_map);
     free(s);
 }
