@@ -161,11 +161,7 @@ enum MEM_MODEL_TYPE
 
 #define DEF_TLB_SIZE 32
 #define DEF_DRAM_BURST_SIZE 32
-#define DEF_MEM_BUS_ACCESS_RTT_LATENCY 1
-#define DEF_tCL 7
-#define DEF_tRCD 4
-#define DEF_tRP 4
-#define DEF_ROW_BUFFER_WRITE_LATENCY 4
+#define DEF_MEM_ACCESS_LATENCY 1
 
 #define DEF_IQ_SIZE 16
 #define DEF_IQ_ISSUE_PORTS 2
@@ -298,11 +294,7 @@ typedef struct SimParams
     uint64_t guest_ram_size;
     int tlb_size;
     uint32_t dram_burst_size;
-    int mem_bus_access_rtt_latency;
-    int tCL;
-    int tRCD;
-    int tRP;
-    int row_buffer_write_latency;
+    int mem_access_latency;
 
     /* DRAMSim2 params */
     int mem_model_type;

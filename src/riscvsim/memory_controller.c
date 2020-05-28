@@ -45,6 +45,7 @@ mem_controller_init(const SimParams *p)
     assert(m);
     m->dram_burst_size = p->dram_burst_size;
     m->mem_model_type = p->mem_model_type;
+    m->mem_access_latency = p->mem_access_latency;
 
     m->frontend_mem_access_queue.max_size = FRONTEND_MEM_ACCESS_QUEUE_SIZE;
     m->frontend_mem_access_queue.entry = (PendingMemAccessEntry *)calloc(
@@ -67,8 +68,6 @@ mem_controller_init(const SimParams *p)
         case MEM_MODEL_BASE:
         {
             PRINT_INIT_MSG("Setting up base dram model");
-            m->dram = dram_init(p, p->guest_ram_size, DRAM_NUM_DIMMS, DRAM_NUM_BANKS,
-                                DRAM_MEM_BUS_WIDTH, DRAM_BANK_COL_SIZE);
             m->mem_controller_update_internal = &mem_controller_update_base;
             mem_controller_set_dram_burst_size(m, p->dram_burst_size);
             break;
@@ -111,7 +110,6 @@ mem_controller_free(MemoryController **m)
     {
         case MEM_MODEL_BASE:
         {
-            dram_free(&(*m)->dram);
             break;
         }
         case MEM_MODEL_DRAMSIM:
@@ -139,6 +137,7 @@ mem_controller_reset(MemoryController *m)
     m->current_latency = 0;
     m->max_latency = 0;
     m->mem_access_active = 0;
+    m->last_accessed_page_num = 0;
 
     mem_controller_flush_stage_mem_access_queue(&m->frontend_mem_access_queue);
     mem_controller_flush_stage_mem_access_queue(&m->backend_mem_access_queue);
@@ -279,8 +278,8 @@ write_complete(MemoryController *m, target_ulong addr)
 void
 mem_controller_update_base(MemoryController *m)
 {
+    uint64_t current_page_num;
     PendingMemAccessEntry *e;
-    int bytes_accessed;
 
     if (!m->mem_access_active)
     {
@@ -288,19 +287,19 @@ mem_controller_update_base(MemoryController *m)
         {
             e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
 
-            /* Don't stall the pipeline stage for write request once submitted
-             * to DRAM */
-            if (e->type == Write)
-            {
-                write_complete(m, e->addr);
-            }
+            /* Remove page offset to get current page number */
+            current_page_num = e->addr >> 12;
 
-            bytes_accessed = 0;
-            while (bytes_accessed < e->bytes_to_access)
+            if (m->last_accessed_page_num == current_page_num)
             {
-                m->max_latency += dram_get_latency(
-                    m->dram, e->addr + bytes_accessed, e->type);
-                bytes_accessed += m->dram->mem_bus_width_bytes;
+                /* Page hit */
+                m->max_latency = m->mem_access_latency;
+            }
+            else
+            {
+                /* Page misses */
+                m->last_accessed_page_num = current_page_num;
+                m->max_latency = m->mem_access_latency;
             }
 
             m->mem_access_active = 1;
@@ -317,9 +316,15 @@ mem_controller_update_base(MemoryController *m)
             m->mem_access_active = 0;
             m->max_latency = 0;
             m->current_latency = 0;
+
             if (e->type == Read)
             {
                 read_complete(m, e->addr);
+            }
+
+            if (e->type == Write)
+            {
+                write_complete(m, e->addr);
             }
 
             /* Remove the entry */

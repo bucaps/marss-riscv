@@ -287,10 +287,6 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         {
             case MEM_MODEL_BASE:
             {
-                if (s->sim_params->flush_sim_mem)
-                {
-                    dram_flush(s->simcpu->mmu->mem_controller->dram);
-                }
                 break;
             }
             case MEM_MODEL_DRAMSIM:

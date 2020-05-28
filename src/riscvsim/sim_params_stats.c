@@ -161,11 +161,7 @@ sim_params_init()
 
     /* DRAM params */
     p->dram_burst_size = DEF_DRAM_BURST_SIZE;
-    p->mem_bus_access_rtt_latency = DEF_MEM_BUS_ACCESS_RTT_LATENCY;
-    p->tCL = DEF_tCL;
-    p->tRCD = DEF_tRCD;
-    p->tRP = DEF_tRP;
-    p->row_buffer_write_latency = DEF_ROW_BUFFER_WRITE_LATENCY;
+    p->mem_access_latency = DEF_MEM_ACCESS_LATENCY;
 
     p->iq_size = DEF_IQ_SIZE;
     p->iq_issue_ports = DEF_IQ_ISSUE_PORTS;
@@ -377,13 +373,8 @@ sim_params_print(const SimParams *p)
         case MEM_MODEL_BASE:
         {
             fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n",
-                    "mem_bus_access_rtt_latency",
-                    p->mem_bus_access_rtt_latency);
-            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tCL", p->tCL);
-            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRCD", p->tRCD);
-            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n", "tRP", p->tRP);
-            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n",
-                    "row_buffer_write_latency", p->row_buffer_write_latency);
+                    "mem_access_latency",
+                    p->mem_access_latency);
             break;
         }
         case MEM_MODEL_DRAMSIM:
@@ -633,13 +624,8 @@ sim_params_validate(const SimParams *p)
 
     // TODO: Data bus transaction size must be power of 2
     validate_param("dram_burst_size", 0, 1, 2048, (int)p->dram_burst_size);
-    validate_param("mem_bus_access_rtt_latency", 0, 0, 2048,
-                   p->mem_bus_access_rtt_latency);
-    validate_param("tCL", 0, 1, 2048, p->tCL);
-    validate_param("tRCD", 0, 1, 2048, p->tRCD);
-    validate_param("tRP", 0, 1, 2048, p->tRP);
-    validate_param("row_buffer_write_latency", 0, 1, 2048,
-                   p->row_buffer_write_latency);
+    validate_param("mem_access_latency", 0, 1, 2048,
+                   p->mem_access_latency);
 }
 
 void
