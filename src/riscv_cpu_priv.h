@@ -129,13 +129,6 @@
 #define GET_SIM_TIMER_DIFF(start, end)                                             \
   (1000000000L * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec)
 
-#define REALTIME_STATS_CLOCK_CYCLES_INTERVAL 500000
-
-/* see sim_exception_cause field inside RISCVCPUState */
-#define SIM_EXCEPTION 1
-#define SIM_COMPLEX_OPCODE 2
-#define SIM_TIMEOUT_EXCEPTION 3
-
 typedef struct {
     target_ulong vaddr;
     uintptr_t mem_addend;
@@ -220,21 +213,10 @@ typedef struct RISCVCPUState {
     target_ulong data_guest_paddr; /* Keep track of the physical address of the current load-store memory access */
     int is_device_io;              /* keep track whether the current data memory access was a device IO or RAM IO */
 
-    int hw_pg_tb_wlk_latency_accounted;
     int hw_pg_tb_wlk_latency;   /* latency for reading/writing page table entries during page walk */
     int hw_pg_tb_wlk_stage_id;  /* id of the stage (FETCH, MEMORY) which initiated page table walk */
-    int ins_page_faults_accounted;
-    int ins_page_walks_accounted;
     int ins_tlb_lookup_accounted;
     int ins_tlb_hit_accounted;
-    int load_page_faults_accounted;
-    int store_page_faults_accounted;
-    int load_tlb_lookup_accounted;
-    int load_tlb_hit_accounted;
-    int load_tlb_page_walks_accounted;
-    int store_tlb_lookup_accounted;
-    int store_tlb_hit_accounted;
-    int store_tlb_page_walks_accounted;
 
     /* simulated RISC-V core*/
     RISCVSIMCPUState *simcpu;
@@ -292,20 +274,18 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
                                                                                \
         s->is_device_io = 0;                                                   \
         tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);                         \
-        if (s->simulation && !s->load_tlb_lookup_accounted)                    \
+        if (s->simulation)                                                     \
         {                                                                      \
             ++s->simcpu->stats[s->priv].load_tlb_lookups;                      \
-            s->load_tlb_lookup_accounted = 1;                                  \
         }                                                                      \
         if (likely(s->tlb_read[tlb_idx].vaddr                                  \
                    == (addr & ~(PG_MASK & ~((size / 8) - 1)))))                \
         {                                                                      \
             *pval = *(uint_type *)(s->tlb_read[tlb_idx].mem_addend             \
                                    + (uintptr_t)addr);                         \
-            if (s->simulation && !s->load_tlb_hit_accounted)                   \
+            if (s->simulation)                                                 \
             {                                                                  \
                 ++s->simcpu->stats[s->priv].load_tlb_hits;                     \
-                s->load_tlb_hit_accounted = 1;                                 \
             }                                                                  \
         }                                                                      \
         else                                                                   \
@@ -333,20 +313,18 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
                                                                                \
         s->is_device_io = 0;                                                   \
         tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);                         \
-        if (s->simulation && !s->store_tlb_lookup_accounted)                   \
+        if (s->simulation)                                                     \
         {                                                                      \
             ++s->simcpu->stats[s->priv].store_tlb_lookups;                     \
-            s->store_tlb_lookup_accounted = 1;                                 \
         }                                                                      \
         if (likely(s->tlb_write[tlb_idx].vaddr                                 \
                    == (addr & ~(PG_MASK & ~((size / 8) - 1)))))                \
         {                                                                      \
             *(uint_type *)(s->tlb_write[tlb_idx].mem_addend + (uintptr_t)addr) \
                 = val;                                                         \
-            if (s->simulation && !s->store_tlb_hit_accounted)                  \
+            if (s->simulation)                                                 \
             {                                                                  \
                 ++s->simcpu->stats[s->priv].store_tlb_hits;                    \
-                s->store_tlb_hit_accounted = 1;                                \
             }                                                                  \
         }                                                                      \
         else                                                                   \

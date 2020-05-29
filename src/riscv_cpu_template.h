@@ -336,48 +336,69 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         code_to_pc_addend = s->sim_epc;
         // s->pc = s->sim_epc;
 
-        /* Process exception and replay the instruction in the emulator */
+        /* Process exception and replay the instruction in the emulator (only
+         * the complex opcodes, illegal opcodes and timer) */
         switch (sim_exit_status)
         {
-        case SIM_EXCEPTION:
-            /* Includes MMU exception, illegal opcode etc. */
-            if (s->simcpu->params->do_sim_trace)
+            case SIM_ILLEGAL_OPCODE:
             {
-                sim_print_exp_trace(s);
+                /* Illegal opcode */
+                if (s->simcpu->params->do_sim_trace)
+                {
+                    sim_print_exp_trace(s);
+                }
+                goto illegal_insn;
+                break;
             }
-            break;
 
-        case SIM_COMPLEX_OPCODE:
-            /* Includes SYSTEM opcode instructions (eg ecall,ebreak) which we
-               don't simulate. */
-            s->return_to_sim = 1;
-            ++s->simcpu->stats[s->priv].ins_simulated;
-
-            /* Just for counting system opcode instructions, because stats for
-             * instruction types are updated in commit stage and we don't allow
-             * system instruction to commit in pipeline, we commit them here */
-            ++s->simcpu->stats[s->priv].ins_emulated;
-
-            if (s->simcpu->params->do_sim_trace)
+            case SIM_COMPLEX_OPCODE:
             {
-                sim_print_exp_trace(s);
+                /* Includes SYSTEM opcode instructions (eg, ecall,ebreak) which
+                 * we simulate.in a single cycle  */
+                s->return_to_sim = 1;
+                ++s->simcpu->stats[s->priv].ins_simulated;
+
+                /* For counting system opcode instructions, because stats for
+                 * instruction types are updated in commit stage and we don't
+                 * allow system instruction to commit in pipeline, we commit
+                 * them here */
+                ++s->simcpu->stats[s->priv].ins_emulated;
+
+                if (s->simcpu->params->do_sim_trace)
+                {
+                    sim_print_exp_trace(s);
+                }
+                break;
             }
-            break;
 
-        case SIM_TIMEOUT_EXCEPTION:
-            /* We executed all the n_cycles instructions for this interval and now
-               we must exit to virt_machine_run() to receive interrupts */
-
-            assert(s->n_cycles == 0);
-            if (s->simcpu->params->do_sim_trace)
+            case SIM_TIMEOUT_EXCEPTION:
             {
-                sim_print_exp_trace(s);
+                /* We executed all the n_cycles instructions for this interval,
+                 * and now we must exit to virt_machine_run() to receive
+                 * interrupts. */
+                assert(s->n_cycles == 0);
+                if (s->simcpu->params->do_sim_trace)
+                {
+                    sim_print_exp_trace(s);
+                }
+                break;
             }
-            break;
 
-        default:
-            fprintf(stderr, "%s\n", "Invalid exception cause");
-            exit(1);
+            case SIM_MMU_EXCEPTION:
+            {
+                if (s->simcpu->params->do_sim_trace)
+                {
+                    sim_print_exp_trace(s);
+                }
+                /* Directly go to mmu_exception as TLB lookup is finished on
+                 * simulation side and the relevant exception cause (page fault,
+                 * invalid access) has already been set */
+                goto mmu_exception;
+                break;
+            }
+            default:
+                fprintf(stderr, "%s\n", "Invalid exception cause");
+                exit(1);
         }
     }
 

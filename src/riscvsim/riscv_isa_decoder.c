@@ -92,8 +92,6 @@ decode_compressed_q0(struct RVInstruction *ins)
             ins->type = INS_TYPE_FP_LOAD;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
         }
         break;
 #endif
@@ -107,8 +105,6 @@ decode_compressed_q0(struct RVInstruction *ins)
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
         }
         break;
 #if defined(RV64)
@@ -121,8 +117,6 @@ decode_compressed_q0(struct RVInstruction *ins)
             ins->type = INS_TYPE_LOAD;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
         }
         break;
 #elif SIM_FLEN >= 32
@@ -138,8 +132,6 @@ decode_compressed_q0(struct RVInstruction *ins)
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
         }
         break;
 #endif
@@ -152,8 +144,6 @@ decode_compressed_q0(struct RVInstruction *ins)
             ins->type = INS_TYPE_FP_STORE;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
 #endif
         case 6: /* c.sw */
@@ -165,8 +155,6 @@ decode_compressed_q0(struct RVInstruction *ins)
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
 #if defined(RV64)
         case 7: /* c.sd */
@@ -177,8 +165,6 @@ decode_compressed_q0(struct RVInstruction *ins)
             ins->type = INS_TYPE_STORE;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
 #elif SIM_FLEN >= 32
         case 7: /* c.fsw */
@@ -190,8 +176,6 @@ decode_compressed_q0(struct RVInstruction *ins)
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
 #endif
         default:
@@ -206,7 +190,7 @@ decode_compressed_q0(struct RVInstruction *ins)
     return;
 illegal_insn:
     ins->exception = 1;
-    ins->exception_cause = 1;
+    ins->exception_cause = SIM_ILLEGAL_OPCODE;
 }
 
 static void
@@ -242,8 +226,6 @@ decode_compressed_q1(struct RVInstruction *ins)
                     | cget_field1(insn, 3, 1, 3) | cget_field1(insn, 2, 5, 5),
                 12);
             ins->is_func_call = 1;
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
 #elif defined(RV64)
         case 1: /* c.addiw */
@@ -337,8 +319,6 @@ decode_compressed_q1(struct RVInstruction *ins)
                     | cget_field1(insn, 7, 6, 6) | cget_field1(insn, 6, 7, 7)
                     | cget_field1(insn, 3, 1, 3) | cget_field1(insn, 2, 5, 5),
                 12);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
         case 6: /* c.beqz */
             ins->is_branch = 1;
@@ -352,8 +332,6 @@ decode_compressed_q1(struct RVInstruction *ins)
                     | cget_field1(insn, 5, 6, 7) | cget_field1(insn, 3, 1, 2)
                     | cget_field1(insn, 2, 5, 5),
                 9);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
         case 7: /* c.bnez */
             ins->is_branch = 1;
@@ -367,8 +345,6 @@ decode_compressed_q1(struct RVInstruction *ins)
                     | cget_field1(insn, 5, 6, 7) | cget_field1(insn, 3, 1, 2)
                     | cget_field1(insn, 2, 5, 5),
                 9);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
         default:
             goto illegal_insn;
@@ -384,7 +360,7 @@ decode_compressed_q1(struct RVInstruction *ins)
     return;
 illegal_insn:
     ins->exception = 1;
-    ins->exception_cause = 1;
+    ins->exception_cause = SIM_ILLEGAL_OPCODE;
 }
 
 static void
@@ -424,8 +400,6 @@ decode_compressed_q2(struct RVInstruction *ins)
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (3 << 3))
                   | cget_field1(insn, 2, 6, 8);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
         }
         break;
 #endif
@@ -439,8 +413,6 @@ decode_compressed_q2(struct RVInstruction *ins)
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (7 << 2))
                   | cget_field1(insn, 2, 6, 7);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
         }
         break;
 #if defined(RV64)
@@ -454,8 +426,6 @@ decode_compressed_q2(struct RVInstruction *ins)
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (3 << 3))
                   | cget_field1(insn, 2, 6, 8);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
         }
         break;
 #elif SIM_FLEN >= 32
@@ -471,8 +441,6 @@ decode_compressed_q2(struct RVInstruction *ins)
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (7 << 2))
                   | cget_field1(insn, 2, 6, 7);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
         }
         break;
 #endif
@@ -492,8 +460,6 @@ decode_compressed_q2(struct RVInstruction *ins)
                     {
                         ins->is_func_ret = 1;
                     }
-                    // ins->exception = 1;
-                    // ins->exception_cause = 2;
                 }
                 else
                 {
@@ -510,7 +476,7 @@ decode_compressed_q2(struct RVInstruction *ins)
                     {
                         /* c.ebreak */
                         ins->exception = 1;
-                        ins->exception_cause = 2;
+                        ins->exception_cause = SIM_COMPLEX_OPCODE;
                         ins->type = INS_TYPE_SYSTEM;
                     }
                     else
@@ -523,8 +489,6 @@ decode_compressed_q2(struct RVInstruction *ins)
                         ins->has_src1 = 1;
                         rd = 1;
                         ins->is_func_call = 1;
-                        // ins->exception = 1;
-                        // ins->exception_cause = 2;
                     }
                 }
                 else
@@ -545,8 +509,6 @@ decode_compressed_q2(struct RVInstruction *ins)
             ins->type = INS_TYPE_FP_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 7, 6, 8);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
 #endif
         case 6: /* c.swsp */
@@ -557,8 +519,6 @@ decode_compressed_q2(struct RVInstruction *ins)
             ins->type = INS_TYPE_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 9, 2, 5) | cget_field1(insn, 7, 6, 7);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
 #if defined(RV64)
         case 7: /* c.sdsp */
@@ -569,8 +529,6 @@ decode_compressed_q2(struct RVInstruction *ins)
             ins->type = INS_TYPE_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 7, 6, 8);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
 #elif SIM_FLEN >= 32
         case 7: /* c.fswsp */
@@ -581,8 +539,6 @@ decode_compressed_q2(struct RVInstruction *ins)
             ins->type = INS_TYPE_FP_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 9, 2, 5) | cget_field1(insn, 7, 6, 7);
-            // ins->exception = 1;
-            // ins->exception_cause = 2;
             break;
 #endif
         default:
@@ -597,7 +553,7 @@ decode_compressed_q2(struct RVInstruction *ins)
     return;
 illegal_insn:
     ins->exception = 1;
-    ins->exception_cause = 1;
+    ins->exception_cause = SIM_ILLEGAL_OPCODE;
 }
 
 static void
@@ -614,15 +570,11 @@ decode_compressed_type(struct RVInstruction *ins)
         case 1:
         {
             decode_compressed_q1(ins);
-        //             ins->exception = 1;
-        // ins->exception_cause = 2;
             break;
         }
         case 2:
         {
             decode_compressed_q2(ins);
-        //             ins->exception = 1;
-        // ins->exception_cause = 2;
             break;
         }
         default:
@@ -713,8 +665,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
     {
         /* Compressed Instruction */
         decode_compressed_type(ins);
-        // ins->exception = 1;
-        // ins->exception_cause = 2;
     }
     else
     {
@@ -734,8 +684,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_dest = 1;
                 ins->imm = (int32_t)insn >> 20;
                 ins->type = INS_TYPE_LOAD;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 switch (ins->funct3)
                 {
                     case 0x0: /* lb */
@@ -802,8 +750,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_src1 = 1;
                 ins->has_dest = 1;
                 ins->imm = (int32_t)insn >> 20;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case OP_MASK:
@@ -819,8 +765,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_dest = 1;
                 /* set the functional units for mul and div */
                 set_op_fu(ins);
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case LUI_MASK:
@@ -828,8 +772,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
             {
                 ins->has_dest = 1;
                 ins->imm = (int32_t)(insn & 0xfffff000);
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case STORE_MASK:
@@ -840,8 +782,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->imm = ins->rd | ((insn >> (25 - 5)) & 0xfe0);
                 ins->imm = (ins->imm << 20) >> 20;
                 ins->type = INS_TYPE_STORE;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 switch (ins->funct3)
                 {
                     case 0x0: /* sb */
@@ -876,7 +816,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->type = INS_TYPE_SYSTEM;
 
                 /* Complex Opcode */
-                ins->exception_cause = 2;
+                ins->exception_cause = SIM_COMPLEX_OPCODE;
                 break;
             }
             case FENCE_MASK:
@@ -886,7 +826,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->type = INS_TYPE_SYSTEM;
 
                 /* Complex Opcode */
-                ins->exception_cause = 2;
+                ins->exception_cause = SIM_COMPLEX_OPCODE;
                 break;
             }
 
@@ -905,8 +845,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 {
                     ins->is_func_call = 1;
                 }
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case JALR_MASK:
@@ -925,8 +863,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 {
                     ins->is_func_ret = 1;
                 }
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case BRANCH_MASK:
@@ -941,8 +877,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                            | ((insn << (11 - 7)) & (1 << 11));
                 ins->imm = (ins->imm << 19) >> 19;
                 ins->type = INS_TYPE_COND_BRANCH;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case ATOMIC_MASK:
@@ -953,8 +887,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->has_dest = 1;
                 ins->type = INS_TYPE_ATOMIC;
                 funct3 = (insn >> 12) & 7;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 switch (funct3)
                 {
                     case 2:
@@ -1022,8 +954,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->set_fs = 1;
                 ins->imm = (int32_t)insn >> 20;
                 ins->type = INS_TYPE_FP_LOAD;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 switch (ins->funct3)
                 {
                     case 2: /* flw */
@@ -1055,8 +985,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->imm = ins->rd | ((insn >> (25 - 5)) & 0xfe0);
                 ins->imm = (ins->imm << 20) >> 20;
                 ins->type = INS_TYPE_FP_STORE;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 switch (ins->funct3)
                 {
                     case 2: /* fsw */
@@ -1086,8 +1014,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->set_fs = 1;
                 ins->funct3 = (ins->binary >> 25) & 3;
                 ins->rs3 = ins->binary >> 27;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case FMSUB_MASK:
@@ -1106,8 +1032,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->set_fs = 1;
                 ins->funct3 = (ins->binary >> 25) & 3;
                 ins->rs3 = ins->binary >> 27;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case FNMSUB_MASK:
@@ -1126,8 +1050,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->set_fs = 1;
                 ins->funct3 = (ins->binary >> 25) & 3;
                 ins->rs3 = ins->binary >> 27;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case FNMADD_MASK:
@@ -1146,8 +1068,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->set_fs = 1;
                 ins->funct3 = (ins->binary >> 25) & 3;
                 ins->rs3 = ins->binary >> 27;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 break;
             }
             case F_ARITHMETIC_MASK:
@@ -1160,8 +1080,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->fu_type = FU_FPU_ALU;
                 ins->rm = ins->funct3;
                 ins->type = INS_TYPE_FP_MISC;
-                // ins->exception = 1;
-                // ins->exception_cause = 2;
                 switch (ins->funct7)
                 {
 #define F_SIZE 32
@@ -1190,5 +1108,5 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
     return;
 exception:
     ins->exception = 1;
-    ins->exception_cause = 1;
+    ins->exception_cause = SIM_ILLEGAL_OPCODE;
 }

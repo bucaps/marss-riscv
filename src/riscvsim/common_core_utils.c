@@ -199,8 +199,6 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
      * entries. Page table entries are looked up in L1 data cache. */
     s->hw_pg_tb_wlk_latency = 1;
     s->hw_pg_tb_wlk_stage_id = FETCH;
-    s->hw_pg_tb_wlk_latency_accounted = FALSE;
-    s->ins_page_walks_accounted = FALSE;
     s->ins_tlb_lookup_accounted = FALSE;
     s->ins_tlb_hit_accounted = FALSE;
 
@@ -215,7 +213,7 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
         /* This instruction has raised a page fault exception during
          * fetch */
         e->ins.exception = TRUE;
-        e->ins.exception_cause = SIM_EXCEPTION;
+        e->ins.exception_cause = SIM_MMU_EXCEPTION;
 
         /* Hardware page table walk has been done and its latency must
          * be simulated */

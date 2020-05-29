@@ -137,4 +137,12 @@
 #define PRINT_INIT_MSG(str) fprintf(stderr, " \x1B[32m*\x1B[0m " str "...\n")
 #define PRINT_PROG_TITLE_MSG(str) fprintf(stderr, "\x1B[32m\x1B[0m " str "\n\n")
 
+/* For exception handling during simulation */
+#define SIM_ILLEGAL_OPCODE 0x1
+#define SIM_COMPLEX_OPCODE 0x2
+#define SIM_TIMEOUT_EXCEPTION 0x3
+#define SIM_MMU_EXCEPTION 0x4
+
+#define REALTIME_STATS_CLOCK_CYCLES_INTERVAL 500000
+
 #endif

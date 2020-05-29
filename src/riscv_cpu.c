@@ -398,21 +398,18 @@ static int get_phys_addr(RISCVCPUState *s,
 #endif
 
     /* for code page walk */
-    if (s->simulation && (access == 2) && !s->ins_page_walks_accounted) {
+    if (s->simulation && (access == 2)) {
         ++s->simcpu->stats[s->priv].ins_page_walks;
-        s->ins_page_walks_accounted = 1;
     }
 
     /* for load page walk */
-    if (s->simulation && (access == 0) && !s->load_tlb_page_walks_accounted) {
+    if (s->simulation && (access == 0)) {
         ++s->simcpu->stats[s->priv].load_page_walks;
-        s->load_tlb_page_walks_accounted = 1;
     }
 
     /* for store page walk */
-    if (s->simulation && (access == 1) && !s->store_tlb_page_walks_accounted) {
+    if (s->simulation && (access == 1)) {
         ++s->simcpu->stats[s->priv].store_page_walks;
-        s->store_tlb_page_walks_accounted = 1;
     }
 
     pte_addr = (s->satp & (((target_ulong)1 << pte_addr_bits) - 1)) << PG_SHIFT;
@@ -424,18 +421,18 @@ static int get_phys_addr(RISCVCPUState *s,
         pte_addr += pte_idx << pte_size_log2;
         if (pte_size_log2 == 2) {
             pte = phys_read_u32(s, pte_addr);
-            if (s->simulation && !s->hw_pg_tb_wlk_latency_accounted) {
-                s->hw_pg_tb_wlk_latency += mmu_pte_read(s->simcpu->mmu, pte_addr, 4,
-                                                       s->hw_pg_tb_wlk_stage_id, s->priv);
-                s->hw_pg_tb_wlk_latency_accounted = 1;
+            if (s->simulation) {
+                s->hw_pg_tb_wlk_latency
+                    += mmu_pte_read(s->simcpu->mmu, pte_addr, 4,
+                                    s->hw_pg_tb_wlk_stage_id, s->priv);
             }
         }
         else {
             pte = phys_read_u64(s, pte_addr);
-            if (s->simulation && !s->hw_pg_tb_wlk_latency_accounted) {
-                s->hw_pg_tb_wlk_latency += mmu_pte_read(
-                    s->simcpu->mmu, pte_addr, 8, s->hw_pg_tb_wlk_stage_id, s->priv);
-                s->hw_pg_tb_wlk_latency_accounted = 1;
+            if (s->simulation) {
+                s->hw_pg_tb_wlk_latency
+                    += mmu_pte_read(s->simcpu->mmu, pte_addr, 8,
+                                    s->hw_pg_tb_wlk_stage_id, s->priv);
             }
         }
         //printf("pte=0x%08" PRIx64 "\n", pte);
@@ -469,20 +466,18 @@ static int get_phys_addr(RISCVCPUState *s,
             if (need_write) {
                 if (pte_size_log2 == 2) {
                     phys_write_u32(s, pte_addr, pte);
-                    if (s->simulation && !s->hw_pg_tb_wlk_latency_accounted) {
+                    if (s->simulation) {
                         s->hw_pg_tb_wlk_latency
                             += mmu_pte_write(s->simcpu->mmu, pte_addr, 4,
-                                           s->hw_pg_tb_wlk_stage_id, s->priv);
-                        s->hw_pg_tb_wlk_latency_accounted = 1;
+                                             s->hw_pg_tb_wlk_stage_id, s->priv);
                     }
                 }
                 else {
                     phys_write_u64(s, pte_addr, pte);
-                    if (s->simulation && !s->hw_pg_tb_wlk_latency_accounted) {
+                    if (s->simulation) {
                         s->hw_pg_tb_wlk_latency
                             += mmu_pte_write(s->simcpu->mmu, pte_addr, 8,
-                                           s->hw_pg_tb_wlk_stage_id, s->priv);
-                        s->hw_pg_tb_wlk_latency_accounted = 1;
+                                             s->hw_pg_tb_wlk_stage_id, s->priv);
                     }
                 }
             }
@@ -574,9 +569,8 @@ int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
             s->pending_tval = addr;
             s->pending_exception = CAUSE_LOAD_PAGE_FAULT;
 
-            if (s->simulation && !s->load_page_faults_accounted) {
+            if (s->simulation) {
                 ++s->simcpu->stats[s->priv].load_page_faults;
-                s->load_page_faults_accounted = 1;
             }
 
             return -1;
@@ -670,9 +664,8 @@ int target_write_slow(RISCVCPUState *s, target_ulong addr,
             s->pending_tval = addr;
             s->pending_exception = CAUSE_STORE_PAGE_FAULT;
 
-            if (s->simulation && !s->store_page_faults_accounted) {
+            if (s->simulation) {
                 ++s->simcpu->stats[s->priv].store_page_faults;
-                s->store_page_faults_accounted = 1;
             }
 
             return -1;
@@ -770,9 +763,8 @@ no_inline __exception int target_read_insn_slow(RISCVCPUState *s,
         s->pending_tval = addr;
         s->pending_exception = CAUSE_FETCH_PAGE_FAULT;
 
-        if (s->simulation && !s->ins_page_faults_accounted) {
+        if (s->simulation) {
             ++s->simcpu->stats[s->priv].ins_page_faults;
-            s->ins_page_faults_accounted = 1;
         }
 
         return -1;

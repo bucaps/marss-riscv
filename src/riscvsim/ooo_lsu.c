@@ -43,13 +43,6 @@ oo_core_lsu(OOCore *core)
         {
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = MEMORY;
-            s->hw_pg_tb_wlk_latency_accounted = FALSE;
-            s->load_tlb_lookup_accounted = FALSE;
-            s->load_tlb_hit_accounted = FALSE;
-            s->load_tlb_page_walks_accounted = FALSE;
-            s->store_tlb_lookup_accounted = FALSE;
-            s->store_tlb_hit_accounted = FALSE;
-            s->store_tlb_page_walks_accounted = FALSE;
 
             /* current_latency: number of CPU cycles spent by this instruction
              * in memory stage so far */
@@ -60,7 +53,7 @@ oo_core_lsu(OOCore *core)
                 /* This load, store or atomic instruction raised a page
                  * fault exception */
                 e->ins.exception = TRUE;
-                e->ins.exception_cause = SIM_EXCEPTION;
+                e->ins.exception_cause = SIM_MMU_EXCEPTION;
 
                 /* In case of page fault, hardware page table walk has been done
                  * and its latency must be simulated */
