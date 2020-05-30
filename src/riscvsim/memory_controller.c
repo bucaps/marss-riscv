@@ -358,6 +358,15 @@ mem_controller_update_base(MemoryController *m)
                 }
             }
 
+            /* Send a write complete callback to the calling pipeline stage as
+             * we don't want the pipeline stage to wait for write to complete.
+             * But, simulate this write delay asynchronously via the memory
+             * controller */
+            if (e->type == Write)
+            {
+                write_complete(m, e->addr);
+            }
+
             m->mem_access_active = 1;
             m->current_latency = 1;
         }
@@ -376,11 +385,6 @@ mem_controller_update_base(MemoryController *m)
             if (e->type == Read)
             {
                 read_complete(m, e->addr);
-            }
-
-            if (e->type == Write)
-            {
-                write_complete(m, e->addr);
             }
 
             /* Remove the entry */
