@@ -43,6 +43,7 @@ typedef struct PendingMemAccessEntry
     int max_bytes_to_access;
     target_ulong addr;
     target_ulong req_addr;
+    target_ulong req_pte;
     int stage_queue_index;
     int stage_queue_type;
     MemAccessType type;

@@ -161,6 +161,7 @@ enum MEM_MODEL_TYPE
 #define DEF_WORDS_PER_CACHE_LINE 8
 
 #define DEF_TLB_SIZE 32
+#define DEF_PTE_RW_LATENCY 10
 #define DEF_DRAM_BURST_SIZE 32
 #define DEF_MEM_ACCESS_LATENCY 1
 
@@ -295,6 +296,7 @@ typedef struct SimParams
     /* TLB and DRAM Params */
     uint64_t guest_ram_size;
     int tlb_size;
+    int pte_rw_latency;
     uint32_t dram_burst_size;
     int mem_access_latency;
 

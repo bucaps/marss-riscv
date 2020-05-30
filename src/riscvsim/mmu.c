@@ -169,18 +169,11 @@ mmu_data_write(MMU *mmu, target_ulong paddr, int bytes_to_write, int stage_id, i
  * page walk.
  */
 int
-mmu_pte_read(MMU *mmu, target_ulong paddr, int bytes_to_read, int stage_id, int priv)
+mmu_pte_read(MMU *mmu, target_ulong paddr, int bytes_to_read, int stage_id,
+             int priv)
 {
-    if (mmu->caches_enabled)
-    {
-        /* Page table entries are looked up in L1 Data Cache  */
-        return cache_read(mmu->dcache, paddr, bytes_to_read,
-                          (void *)&stage_id, priv);
-    }
-
-    mem_controller_access_dram(mmu->mem_controller, paddr, bytes_to_read,
-                                      Read, (void *)&stage_id);
-    return 1;
+    return mem_controller_add_pte_to_dram_queue(
+        mmu->mem_controller, paddr, bytes_to_read, Read, (void *)&stage_id);
 }
 
 /**
@@ -191,16 +184,8 @@ int
 mmu_pte_write(MMU *mmu, target_ulong paddr, int bytes_to_write, int stage_id,
               int priv)
 {
-    if (mmu->caches_enabled)
-    {
-        /* Page table entries are looked up in L1 Data Cache  */
-        return cache_write(mmu->dcache, paddr, bytes_to_write,
-                           (void *)&stage_id, priv);
-    }
-
-    mem_controller_access_dram(mmu->mem_controller, paddr, bytes_to_write,
-                               Write, (void *)&stage_id);
-    return 1;
+    return mem_controller_add_pte_to_dram_queue(
+        mmu->mem_controller, paddr, bytes_to_write, Write, (void *)&stage_id);
 }
 
 void

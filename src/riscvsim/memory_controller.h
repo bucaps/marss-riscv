@@ -54,6 +54,7 @@ typedef struct MemoryController
     int current_latency;
     int max_latency;
     int mem_access_latency;
+    int pte_rw_latency;
     int mem_access_active;
     uint32_t dram_burst_size;
     uint64_t last_accessed_page_num;
@@ -75,5 +76,10 @@ void mem_controller_flush_stage_mem_access_queue(StageMemAccessQueue *q);
 int mem_controller_access_dram(MemoryController *m, target_ulong paddr,
                                int bytes_to_access, MemAccessType op_type,
                                void *p_mem_access_info);
+int mem_controller_add_pte_to_dram_queue(MemoryController *m,
+                                         target_ulong paddr,
+                                         int bytes_to_access,
+                                         MemAccessType type,
+                                         void *p_mem_access_info);
 void mem_controller_flush_dram_queue(MemoryController *m);
 #endif

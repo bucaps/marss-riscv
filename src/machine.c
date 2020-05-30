@@ -624,6 +624,12 @@ static int virt_machine_parse_config(VirtMachineParams *p,
                 tag_name, p->sim_params->tlb_size);
     }
 
+    tag_name = "pte_rw_latency";
+    if (vm_get_int(cfg, tag_name, &p->sim_params->pte_rw_latency) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->pte_rw_latency);
+    }
+
     /* BPU */
     tag_name = "enable_bpu";
     if (vm_get_str(cfg, tag_name, &str) < 0) {

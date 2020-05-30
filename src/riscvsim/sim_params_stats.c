@@ -74,6 +74,7 @@ sim_params_init()
     p->create_ins_str = DEF_CREATE_INS_STR;
 
     p->tlb_size = DEF_TLB_SIZE;
+    p->pte_rw_latency = DEF_PTE_RW_LATENCY;
 
     /* FU Latencies */
     p->num_alu_stages = DEF_NUM_ALU_STAGES;
@@ -367,6 +368,8 @@ sim_params_print(const SimParams *p)
 
     fprintf(stderr, "\n");
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "tlb_size", p->tlb_size);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "pte_rw_latency",
+            p->pte_rw_latency);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %lu MB\n", "guest_ram_size", p->guest_ram_size);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "mem_model_type",
             mem_model_type_str[p->mem_model_type]);
@@ -474,6 +477,7 @@ sim_params_validate(const SimParams *p)
     validate_param("start_in_sim", 1, 0, 1, p->start_in_sim);
     validate_param("enable_stats_display", 1, 0, 1, p->enable_stats_display);
     validate_param("tlb_size", 0, 1, 2048, p->tlb_size);
+    validate_param("pte_rw_latency", 0, 1, 2048, p->pte_rw_latency);
 
     if (strcmp(p->core_name, "incore") == 0)
     {

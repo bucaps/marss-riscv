@@ -46,6 +46,7 @@ mem_controller_init(const SimParams *p)
     m->dram_burst_size = p->dram_burst_size;
     m->mem_model_type = p->mem_model_type;
     m->mem_access_latency = p->mem_access_latency;
+    m->pte_rw_latency = p->pte_rw_latency;
 
     m->frontend_mem_access_queue.max_size = FRONTEND_MEM_ACCESS_QUEUE_SIZE;
     m->frontend_mem_access_queue.entry = (PendingMemAccessEntry *)calloc(
@@ -204,11 +205,58 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
         m->dram_dispatch_queue.entry[index].type = type;
         m->dram_dispatch_queue.entry[index].bytes_to_access = m->dram_burst_size;
         m->dram_dispatch_queue.entry[index].valid = 1;
+        m->dram_dispatch_queue.entry[index].req_pte = 0;
 
         /* Calculate remaining transactions for this access */
         bytes_to_access -= m->dram_burst_size;
         paddr += m->dram_burst_size;
     }
+
+    return 0;
+}
+
+int
+mem_controller_add_pte_to_dram_queue(MemoryController *m, target_ulong paddr, int bytes_to_access,
+           MemAccessType type, void *p_mem_access_info)
+{
+    int index, stage;
+
+    /* Get stage id which has generated this access, 0 for fetch, 1 for memory */
+    stage = *(int *)p_mem_access_info;
+
+    /* Add transaction for this access to either of the front-end or back-end
+     * queue */
+    if (stage == FETCH)
+    {
+        m->frontend_mem_access_queue.entry[m->frontend_mem_access_queue.cur_idx].addr = paddr;
+        m->frontend_mem_access_queue.entry[m->frontend_mem_access_queue.cur_idx].type = type;
+        m->frontend_mem_access_queue.entry[m->frontend_mem_access_queue.cur_idx].valid = 1;
+        ++m->frontend_mem_access_queue.cur_idx;
+        ++m->frontend_mem_access_queue.cur_size;
+    }
+    else if (stage == MEMORY)
+    {
+        m->backend_mem_access_queue.entry[m->backend_mem_access_queue.cur_idx].addr = paddr;
+        m->backend_mem_access_queue.entry[m->backend_mem_access_queue.cur_idx].type = type;
+        m->backend_mem_access_queue.entry[m->backend_mem_access_queue.cur_idx].valid = 1;
+        ++m->backend_mem_access_queue.cur_idx;
+        ++m->backend_mem_access_queue.cur_size;
+    }
+    else
+    {
+        /* Only fetch and memory stage generate memory access */
+        assert(0);
+    }
+
+    /* Add transaction for this access to dram dispatch queue */
+    index = cq_enqueue(&m->dram_dispatch_queue.cq);
+
+    assert(index != -1);
+    m->dram_dispatch_queue.entry[index].addr = paddr;
+    m->dram_dispatch_queue.entry[index].type = type;
+    m->dram_dispatch_queue.entry[index].bytes_to_access = m->dram_burst_size;
+    m->dram_dispatch_queue.entry[index].valid = 1;
+    m->dram_dispatch_queue.entry[index].req_pte = 1;
 
     return 0;
 }
@@ -285,21 +333,29 @@ mem_controller_update_base(MemoryController *m)
     {
         if (!cq_empty(&m->dram_dispatch_queue.cq))
         {
-            e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
+            e = &m->dram_dispatch_queue
+                     .entry[cq_front(&m->dram_dispatch_queue.cq)];
 
-            /* Remove page offset to get current page number */
-            current_page_num = e->addr >> 12;
-
-            if (m->last_accessed_page_num == current_page_num)
+            if (e->req_pte)
             {
-                /* Page hit */
-                m->max_latency = m->mem_access_latency;
+                /* This access is related to reading or writing page table entry */
+                m->max_latency = m->pte_rw_latency;
             }
             else
             {
-                /* Page misses */
-                m->last_accessed_page_num = current_page_num;
-                m->max_latency = m->mem_access_latency;
+                /* Remove page offset to get current page number */
+                current_page_num = e->addr >> 12;
+                if (m->last_accessed_page_num == current_page_num)
+                {
+                    /* Page hit */
+                    m->max_latency = m->mem_access_latency;
+                }
+                else
+                {
+                    /* Page misses */
+                    m->last_accessed_page_num = current_page_num;
+                    m->max_latency = m->mem_access_latency;
+                }
             }
 
             m->mem_access_active = 1;
