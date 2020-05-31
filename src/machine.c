@@ -269,7 +269,7 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     int version, val;
     const char *tag_name, *str;
     char buf1[256];
-    JSONValue cfg, obj, el;
+    JSONValue cfg, obj, obj1, el;
     char stage_latency_str[LATENCY_STRING_MAX_LENGTH];
     
     cfg = json_parse_value_len(config_file_str, len);
@@ -527,14 +527,22 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         p->sim_params->sim_stats_path = strdup(str);
     }
 
+    snprintf(buf1, sizeof(buf1), "%s", "execution_units");
+    obj = json_object_get(cfg, buf1);
+
+    if (json_is_undefined(obj)) {
+    fprintf(stderr, "%s object not found, selecting default values\n",
+            buf1);
+    }
+
     tag_name = "num_alu_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params->num_alu_stages) < 0) {
+    if (vm_get_int(obj, tag_name, &p->sim_params->num_alu_stages) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %d\n",
                 tag_name, p->sim_params->num_alu_stages);
     }
 
     tag_name = "alu_stage_latency";
-    if (vm_get_str(cfg, tag_name, &str) < 0) {
+    if (vm_get_str(obj, tag_name, &str) < 0) {
       fprintf(stderr, "%s not found, selecting default value\n", tag_name);
     } else {
       strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
@@ -544,13 +552,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     }
 
     tag_name = "num_mul_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params->num_mul_stages) < 0) {
+    if (vm_get_int(obj, tag_name, &p->sim_params->num_mul_stages) < 0) {
       fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
               p->sim_params->num_mul_stages);
     }
 
     tag_name = "mul_stage_latency";
-    if (vm_get_str(cfg, tag_name, &str) < 0) {
+    if (vm_get_str(obj, tag_name, &str) < 0) {
       fprintf(stderr, "%s not found, selecting default value\n", tag_name);
     } else {
       strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
@@ -560,13 +568,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     }
 
     tag_name = "num_div_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params->num_div_stages) < 0) {
+    if (vm_get_int(obj, tag_name, &p->sim_params->num_div_stages) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %d\n",
                 tag_name, p->sim_params->num_div_stages);
     }
 
     tag_name = "div_stage_latency";
-    if (vm_get_str(cfg, tag_name, &str) < 0) {
+    if (vm_get_str(obj, tag_name, &str) < 0) {
       fprintf(stderr, "%s not found, selecting default value\n", tag_name);
     } else {
       strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
@@ -575,31 +583,14 @@ static int virt_machine_parse_config(VirtMachineParams *p,
                               p->sim_params->num_div_stages, stage_latency_str);
     }
 
-    tag_name = "num_fpu_alu_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params->num_fpu_alu_stages) < 0) {
-        fprintf(stderr, "%s not found, selecting default value: %d\n",
-                tag_name, p->sim_params->num_fpu_alu_stages);
-    }
-
-    tag_name = "fpu_alu_stage_latency";
-    if (vm_get_str(cfg, tag_name, &str) < 0) {
-      fprintf(stderr, "%s not found, selecting default value\n", tag_name);
-    } else {
-      strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
-      stage_latency_str[LATENCY_STRING_MAX_LENGTH - 1] = '\0';
-      parse_stage_latency_str(&p->sim_params->fpu_alu_stage_latency,
-                              p->sim_params->num_fpu_alu_stages,
-                              stage_latency_str);
-    }
-
     tag_name = "num_fpu_fma_stages";
-    if (vm_get_int(cfg, tag_name, &p->sim_params->num_fpu_fma_stages) < 0) {
+    if (vm_get_int(obj, tag_name, &p->sim_params->num_fpu_fma_stages) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %d\n",
                 tag_name, p->sim_params->num_fpu_fma_stages);
     }
 
     tag_name = "fpu_fma_stage_latency";
-    if (vm_get_str(cfg, tag_name, &str) < 0) {
+    if (vm_get_str(obj, tag_name, &str) < 0) {
       fprintf(stderr, "%s not found, selecting default value\n", tag_name);
     } else {
       strncpy(stage_latency_str, str, LATENCY_STRING_MAX_LENGTH - 1);
@@ -607,6 +598,93 @@ static int virt_machine_parse_config(VirtMachineParams *p,
       parse_stage_latency_str(&p->sim_params->fpu_fma_stage_latency,
                               p->sim_params->num_fpu_fma_stages,
                               stage_latency_str);
+    }
+
+    snprintf(buf1, sizeof(buf1), "%s", "fpu_alu");
+    obj1 = json_object_get(obj, buf1);
+
+    tag_name = "fadd";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FADD]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FADD]);
+    }
+
+    tag_name = "fsub";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FSUB]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FSUB]);
+    }
+
+    tag_name = "fmul";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FMUL]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FMUL]);
+    }
+
+    tag_name = "fdiv";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FDIV]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FDIV]);
+    }
+
+    tag_name = "fsqrt";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FSQRT]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FSQRT]);
+    }
+
+    tag_name = "fsgnj";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FSGNJ]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FSGNJ]);
+    }
+
+    tag_name = "fmin";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FMIN]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FMIN]);
+    }
+
+    tag_name = "fmax";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FMAX]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FMAX]);
+    }
+
+    tag_name = "feq";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FEQ]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FEQ]);
+    }
+
+    tag_name = "flt";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FLT]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FLT]);
+    }
+
+    tag_name = "fle";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FLE]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FLE]);
+    }
+
+    tag_name = "fcvt";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FCVT]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FCVT]);
+    }
+
+    tag_name = "fmv";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FMV]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FMV]);
+    }
+
+    tag_name = "fclass";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FCLASS]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FCLASS]);
     }
 
     tag_name = "sim_trace_file";

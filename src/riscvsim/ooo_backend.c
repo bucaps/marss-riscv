@@ -60,7 +60,7 @@ issue_ins_to_exec_unit(OOCore *core, IMapEntry *e)
         }
         case FU_FPU_ALU:
         {
-            fu = &core->fpu_alu[0];
+            fu = &core->fpu_alu;
             break;
         }
         case FU_FPU_FMA:
@@ -223,11 +223,6 @@ get_next_exec_stage(OOCore *core, int cur_stage_id, int fu_type)
             stage = &core->idiv[cur_stage_id + 1];
             break;
         }
-        case FU_FPU_ALU:
-        {
-            stage = &core->fpu_alu[cur_stage_id + 1];
-            break;
-        }
         case FU_FPU_FMA:
         {
             stage = &core->fpu_fma[cur_stage_id + 1];
@@ -237,8 +232,68 @@ get_next_exec_stage(OOCore *core, int cur_stage_id, int fu_type)
     return stage;
 }
 
-void
-oo_core_execute(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
+static void
+oo_core_execute_non_pipe(OOCore *core, int fu_type, CPUStage *stage)
+{
+    IMapEntry *e;
+    RISCVCPUState *s = core->simcpu->emu_cpu_state;
+
+    if (stage->has_data)
+    {
+        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
+        if (!stage->stage_exec_done)
+        {
+            execute_riscv_instruction(&e->ins, &s->fflags);
+
+            /* Update FU stats */
+            ++s->simcpu->stats[s->priv].fu_access[fu_type];
+
+            /* current_latency: number of CPU cycles spent by this instruction
+             * in execute stage so far */
+            e->current_latency = 1;
+            e->max_latency = set_max_latency_for_non_pipe_fu(s, fu_type, e);
+            stage->stage_exec_done = TRUE;
+        }
+
+        /* If the latency is completed and next stage is free, pass this
+         * instruction to the next stage, else stall */
+        if (e->current_latency == e->max_latency)
+        {
+            if (e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
+            {
+                /* Inform the LSQ entry that address is calculated */
+                core->lsq.entries[e->lsq_idx].ready = TRUE;
+            }
+            else
+            {
+                if (e->ins.is_branch)
+                {
+                    if (!e->branch_processed)
+                    {
+                        oo_process_branch(core, e);
+                    }
+                }
+
+                if (e->ins.has_dest || e->ins.has_fp_dest)
+                {
+                    core->rob.entries[e->rob_idx].ready = TRUE;
+                }
+            }
+
+            /* Execution complete */
+            e->max_latency = 0;
+            e->current_latency = 0;
+            cpu_stage_flush(stage);
+        }
+        else
+        {
+            e->current_latency++;
+        }
+    }
+}
+
+static void
+oo_core_execute_pipe(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
                 int max_latency, int max_stage_id)
 {
     IMapEntry *e;
@@ -320,31 +375,26 @@ oo_core_execute_all(OOCore *core)
 
     for (i = core->simcpu->params->num_fpu_fma_stages - 1; i >= 0; i--)
     {
-        oo_core_execute(core, i, FU_FPU_FMA, &core->fpu_fma[i],
+        oo_core_execute_pipe(core, i, FU_FPU_FMA, &core->fpu_fma[i],
                         core->simcpu->params->fpu_fma_stage_latency[i],
                         core->simcpu->params->num_fpu_fma_stages - 1);
     }
-    for (i = core->simcpu->params->num_fpu_alu_stages - 1; i >= 0; i--)
-    {
-        oo_core_execute(core, i, FU_FPU_ALU, &core->fpu_alu[i],
-                        core->simcpu->params->fpu_alu_stage_latency[i],
-                        core->simcpu->params->num_fpu_alu_stages - 1);
-    }
+    oo_core_execute_non_pipe(core, FU_FPU_ALU, &core->fpu_alu);
     for (i = core->simcpu->params->num_div_stages - 1; i >= 0; i--)
     {
-        oo_core_execute(core, i, FU_DIV, &core->idiv[i],
+        oo_core_execute_pipe(core, i, FU_DIV, &core->idiv[i],
                         core->simcpu->params->div_stage_latency[i],
                         core->simcpu->params->num_div_stages - 1);
     }
     for (i = core->simcpu->params->num_mul_stages - 1; i >= 0; i--)
     {
-        oo_core_execute(core, i, FU_MUL, &core->imul[i],
+        oo_core_execute_pipe(core, i, FU_MUL, &core->imul[i],
                         core->simcpu->params->mul_stage_latency[i],
                         core->simcpu->params->num_mul_stages - 1);
     }
     for (i = core->simcpu->params->num_alu_stages - 1; i >= 0; i--)
     {
-        oo_core_execute(core, i, FU_ALU, &core->ialu[i],
+        oo_core_execute_pipe(core, i, FU_ALU, &core->ialu[i],
                         core->simcpu->params->alu_stage_latency[i],
                         core->simcpu->params->num_alu_stages - 1);
     }

@@ -94,8 +94,9 @@ typedef struct OOCore
     CPUStage *ialu;    /* INT ALU */
     CPUStage *imul;    /* INT Multiplier */
     CPUStage *idiv;    /* INT Divider */
-    CPUStage *fpu_alu; /* FP ALU */
     CPUStage *fpu_fma; /* FP Fused Multiply Add */
+
+    CPUStage fpu_alu; /* FP ALU */
 
     /*----------  Memory Stage  ----------*/
     CPUStage lsu; /* Load-Store Unit unit, works with LSQ */

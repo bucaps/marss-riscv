@@ -102,13 +102,21 @@ sim_params_init()
     }
 
     p->num_fpu_alu_stages = DEF_NUM_FPU_ALU_STAGES;
-    p->fpu_alu_stage_latency
-        = (int *)malloc(sizeof(int) * p->num_fpu_alu_stages);
-    assert(p->fpu_alu_stage_latency);
-    for (i = 0; i < p->num_fpu_alu_stages; ++i)
-    {
-        p->fpu_alu_stage_latency[i] = DEF_STAGE_LATENCY;
-    }
+
+    p->fpu_alu_latency[FU_FPU_ALU_FADD] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FSUB] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FMUL] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FDIV] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FSQRT] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FSGNJ] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FMIN] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FMAX] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FEQ] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FLT] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FLE] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FCVT] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FMV] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_FCLASS] = DEF_STAGE_LATENCY;
 
     p->num_fpu_fma_stages = DEF_NUM_FPU_FMA_STAGES;
     p->fpu_fma_stage_latency
@@ -252,10 +260,37 @@ sim_params_print(const SimParams *p)
                     p->mul_stage_latency);
     print_fu_config("num_div_stages", "div_stage_latencies", p->num_div_stages,
                     p->div_stage_latency);
-    print_fu_config("num_fpu_alu_stages", "fpu_alu_stage_latencies",
-                    p->num_fpu_alu_stages, p->fpu_alu_stage_latency);
     print_fu_config("num_fpu_fma_stages", "fpu_fma_stage_latencies",
                     p->num_fpu_fma_stages, p->fpu_fma_stage_latency);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "num_fpu_alu_stages", 1);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fadd",
+            p->fpu_alu_latency[FU_FPU_ALU_FADD]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fsub",
+            p->fpu_alu_latency[FU_FPU_ALU_FSUB]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fmul",
+            p->fpu_alu_latency[FU_FPU_ALU_FMUL]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fdiv",
+            p->fpu_alu_latency[FU_FPU_ALU_FDIV]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fsqrt",
+            p->fpu_alu_latency[FU_FPU_ALU_FSQRT]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fsgnj",
+            p->fpu_alu_latency[FU_FPU_ALU_FSGNJ]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fmin",
+            p->fpu_alu_latency[FU_FPU_ALU_FMIN]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fmax",
+            p->fpu_alu_latency[FU_FPU_ALU_FMAX]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "feq",
+            p->fpu_alu_latency[FU_FPU_ALU_FEQ]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "flt",
+            p->fpu_alu_latency[FU_FPU_ALU_FLT]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fle",
+            p->fpu_alu_latency[FU_FPU_ALU_FLE]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fcvt",
+            p->fpu_alu_latency[FU_FPU_ALU_FCVT]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fmv",
+            p->fpu_alu_latency[FU_FPU_ALU_FMV]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fclass",
+            p->fpu_alu_latency[FU_FPU_ALU_FCLASS]);
 
     fprintf(stderr, "\n");
 
@@ -411,8 +446,6 @@ sim_params_free(SimParams *p)
     p->mul_stage_latency = NULL;
     free(p->div_stage_latency);
     p->div_stage_latency = NULL;
-    free(p->fpu_alu_stage_latency);
-    p->fpu_alu_stage_latency = NULL;
     free(p->fpu_fma_stage_latency);
     p->fpu_fma_stage_latency = NULL;
 
@@ -521,11 +554,20 @@ sim_params_validate(const SimParams *p)
     }
 
     validate_param("num_fpu_alu_stages", 0, 1, 2048, p->num_fpu_alu_stages);
-    for (i = 0; i < p->num_fpu_alu_stages; ++i)
-    {
-        validate_param("fpu_alu_stage_latency", 0, 1, 2048,
-                       p->fpu_alu_stage_latency[i]);
-    }
+    validate_param("fadd", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FADD]);
+    validate_param("fsub", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FSUB]);
+    validate_param("fmul", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FMUL]);
+    validate_param("fdiv", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FDIV]);
+    validate_param("fsqrt", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FSQRT]);
+    validate_param("fsgnj", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FSGNJ]);
+    validate_param("fmin", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FMIN]);
+    validate_param("fmax", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FMAX]);
+    validate_param("feq", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FEQ]);
+    validate_param("flt", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FLT]);
+    validate_param("fle", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FLE]);
+    validate_param("fcvt", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FCVT]);
+    validate_param("fmv", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FMV]);
+    validate_param("fclass", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FCLASS]);
 
     validate_param("num_fpu_fma_stages", 0, 1, 2048, p->num_fpu_fma_stages);
     for (i = 0; i < p->num_fpu_fma_stages; ++i)

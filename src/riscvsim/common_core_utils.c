@@ -911,3 +911,18 @@ write_stats_to_stats_display_shm(RISCVCPUState *s)
                NUM_MAX_PRV_LEVELS * sizeof(SimStats));
     }
 }
+
+int
+set_max_latency_for_non_pipe_fu(RISCVCPUState *s, int fu_type, IMapEntry *e)
+{
+    switch (fu_type)
+    {
+        case FU_FPU_ALU:
+        {
+            return s->simcpu->params->fpu_alu_latency[e->ins.fpu_alu_type];
+        }
+    }
+
+    /* Default */
+    return 1;
+}

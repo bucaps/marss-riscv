@@ -67,8 +67,8 @@ typedef struct INCore
     CPUStage *ialu;
     CPUStage *imul;
     CPUStage *idiv;
-    CPUStage *fpu_alu;
     CPUStage *fpu_fma;
+    CPUStage fpu_alu;
 
     /*----------  Pointer to 5 or 6 stage run() function  ----------*/
     int (*pfn_incore_run_internal)(struct INCore *core);

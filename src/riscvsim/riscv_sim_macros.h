@@ -145,4 +145,21 @@
 
 #define REALTIME_STATS_CLOCK_CYCLES_INTERVAL 500000
 
+/* Instruction types processed by FPU ALU. This is used to set the latencies. */
+#define FU_FPU_ALU_FADD 0x0
+#define FU_FPU_ALU_FSUB 0x1
+#define FU_FPU_ALU_FMUL 0x2
+#define FU_FPU_ALU_FDIV 0x3
+#define FU_FPU_ALU_FSQRT 0x4
+#define FU_FPU_ALU_FSGNJ 0x5
+#define FU_FPU_ALU_FMIN 0x6
+#define FU_FPU_ALU_FMAX 0x7
+#define FU_FPU_ALU_FEQ 0x8
+#define FU_FPU_ALU_FLT 0x9
+#define FU_FPU_ALU_FLE 0xa
+#define FU_FPU_ALU_FCVT 0xb
+#define FU_FPU_ALU_CVT 0xc
+#define FU_FPU_ALU_FMV 0xd
+#define FU_FPU_ALU_FCLASS 0xe
+#define MAX_FU_FPU_ALU_TYPES 15
 #endif

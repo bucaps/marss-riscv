@@ -66,11 +66,6 @@ get_next_exec_stage(INCore *core, int cur_stage_id, int fu_type)
             stage = &core->idiv[cur_stage_id + 1];
             break;
         }
-        case FU_FPU_ALU:
-        {
-            stage = &core->fpu_alu[cur_stage_id + 1];
-            break;
-        }
         case FU_FPU_FMA:
         {
             stage = &core->fpu_fma[cur_stage_id + 1];
@@ -80,8 +75,93 @@ get_next_exec_stage(INCore *core, int cur_stage_id, int fu_type)
     return stage;
 }
 
-void
-in_core_execute(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
+static void
+do_exec_insn(RISCVCPUState *s, INCore *core, IMapEntry *e, int fu_type)
+{
+    if (e->ins.has_dest)
+    {
+        if (e->ins.rd != 0)
+        {
+            core->int_reg_status[e->ins.rd] = FALSE;
+        }
+    }
+    else if (e->ins.has_fp_dest)
+    {
+        core->fp_reg_status[e->ins.rd] = FALSE;
+    }
+
+    e->current_latency = 1;
+    execute_riscv_instruction(&e->ins, &s->fflags);
+    ++s->simcpu->stats[s->priv].fu_access[fu_type];
+}
+
+static void
+do_fwd_data_from_ex_to_drf(INCore *core, IMapEntry *e, int fu_type)
+{
+    if (!e->data_fwd_done
+        && !(e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
+        && !e->keep_dest_busy
+        && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
+    {
+        core->fwd_latch[fu_type].rd = e->ins.rd;
+        core->fwd_latch[fu_type].buffer = e->ins.buffer;
+        core->fwd_latch[fu_type].int_dest = e->ins.has_dest;
+        core->fwd_latch[fu_type].fp_dest = e->ins.has_fp_dest;
+        core->fwd_latch[fu_type].valid = TRUE;
+        e->data_fwd_done = TRUE;
+    }
+}
+
+static void
+push_insn_from_ex_to_mem(INCore *core, IMapEntry *e, CPUStage *stage)
+{
+    if (core->ins_dispatch_queue.data[cq_front(&core->ins_dispatch_queue.cq)]
+        == e->ins_dispatch_id)
+    {
+        if (!core->memory.has_data)
+        {
+            cq_dequeue(&core->ins_dispatch_queue.cq);
+            e->current_latency = 0;
+            e->data_fwd_done = FALSE;
+            stage->stage_exec_done = FALSE;
+            core->memory = *stage;
+            cpu_stage_flush(stage);
+        }
+    }
+}
+
+static void
+in_core_execute_non_pipe(INCore *core, int fu_type, CPUStage *stage)
+{
+    IMapEntry *e;
+    RISCVCPUState *s;
+
+    s = core->simcpu->emu_cpu_state;
+    if (stage->has_data)
+    {
+        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
+        ++s->simcpu->stats[s->priv].exec_unit_delay;
+        if (!stage->stage_exec_done)
+        {
+            do_exec_insn(s, core, e, fu_type);
+            e->max_latency = set_max_latency_for_non_pipe_fu(s, fu_type, e);
+            stage->stage_exec_done = TRUE;
+        }
+
+        if (e->current_latency == e->max_latency)
+        {
+            do_fwd_data_from_ex_to_drf(core, e, fu_type);
+            push_insn_from_ex_to_mem(core, e, stage);
+        }
+        else
+        {
+            e->current_latency++;
+        }
+    }
+}
+
+static void
+in_core_execute_pipe(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
                 int max_latency, int max_stage_id)
 {
     IMapEntry *e;
@@ -95,66 +175,17 @@ in_core_execute(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
         ++s->simcpu->stats[s->priv].exec_unit_delay;
         if (!stage->stage_exec_done)
         {
-            if (e->ins.has_dest)
-            {
-                if (e->ins.rd != 0)
-                {
-                    core->int_reg_status[e->ins.rd] = FALSE;
-                }
-            }
-            else if (e->ins.has_fp_dest)
-            {
-                core->fp_reg_status[e->ins.rd] = FALSE;
-            }
-
-            execute_riscv_instruction(&e->ins, &s->fflags);
-
-            /* Update FU stats */
-            ++s->simcpu->stats[s->priv].fu_access[fu_type];
-
-            /* current_latency: number of CPU cycles spent by this instruction
-             * in execute stage so far */
-            e->current_latency = 1;
+            do_exec_insn(s, core, e, fu_type);
             stage->stage_exec_done = TRUE;
         }
 
-        /* If the latency is completed and next stage is free, pass this
-         * instruction to the next stage, else stall */
         if (e->current_latency == max_latency)
         {
             /* Instruction is in last stage of FU*/
             if (cur_stage_id == max_stage_id)
             {
-                /* Push out the result and the register address on the
-                 * forwarding bus for this FU*/
-                if (!e->data_fwd_done && !e->ins.is_load && !e->ins.is_store && !e->keep_dest_busy
-                    && !e->ins.is_atomic && ((e->ins.has_dest && e->ins.rd != 0)
-                                             || e->ins.has_fp_dest))
-                {
-                    core->fwd_latch[fu_type].rd = e->ins.rd;
-                    core->fwd_latch[fu_type].buffer = e->ins.buffer;
-                    core->fwd_latch[fu_type].int_dest = e->ins.has_dest;
-                    core->fwd_latch[fu_type].fp_dest = e->ins.has_fp_dest;
-                    core->fwd_latch[fu_type].valid = TRUE;
-                    e->data_fwd_done = TRUE;
-                }
-
-                /* Check if this instruction can be issued to memory, if not,
-                 * then stall this stage */
-                if (core->ins_dispatch_queue
-                        .data[cq_front(&core->ins_dispatch_queue.cq)]
-                    == e->ins_dispatch_id)
-                {
-                    if (!core->memory.has_data)
-                    {
-                        cq_dequeue(&core->ins_dispatch_queue.cq);
-                        e->current_latency = 0;
-                        e->data_fwd_done = FALSE;
-                        stage->stage_exec_done = FALSE;
-                        core->memory = *stage;
-                        cpu_stage_flush(stage);
-                    }
-                }
+                do_fwd_data_from_ex_to_drf(core, e, fu_type);
+                push_insn_from_ex_to_mem(core, e, stage);
             }
             else
             {
@@ -182,33 +213,28 @@ in_core_execute_all(INCore *core)
 
     for (i = core->simcpu->params->num_fpu_fma_stages - 1; i >= 0; i--)
     {
-        in_core_execute(core, i, FU_FPU_FMA, &core->fpu_fma[i],
-                        core->simcpu->params->fpu_fma_stage_latency[i],
-                        core->simcpu->params->num_fpu_fma_stages - 1);
+        in_core_execute_pipe(core, i, FU_FPU_FMA, &core->fpu_fma[i],
+                             core->simcpu->params->fpu_fma_stage_latency[i],
+                             core->simcpu->params->num_fpu_fma_stages - 1);
     }
-    for (i = core->simcpu->params->num_fpu_alu_stages - 1; i >= 0; i--)
-    {
-        in_core_execute(core, i, FU_FPU_ALU, &core->fpu_alu[i],
-                        core->simcpu->params->fpu_alu_stage_latency[i],
-                        core->simcpu->params->num_fpu_alu_stages - 1);
-    }
+    in_core_execute_non_pipe(core, FU_FPU_ALU, &core->fpu_alu);
     for (i = core->simcpu->params->num_div_stages - 1; i >= 0; i--)
     {
-        in_core_execute(core, i, FU_DIV, &core->idiv[i],
-                        core->simcpu->params->div_stage_latency[i],
-                        core->simcpu->params->num_div_stages - 1);
+        in_core_execute_pipe(core, i, FU_DIV, &core->idiv[i],
+                             core->simcpu->params->div_stage_latency[i],
+                             core->simcpu->params->num_div_stages - 1);
     }
     for (i = core->simcpu->params->num_mul_stages - 1; i >= 0; i--)
     {
-        in_core_execute(core, i, FU_MUL, &core->imul[i],
-                        core->simcpu->params->mul_stage_latency[i],
-                        core->simcpu->params->num_mul_stages - 1);
+        in_core_execute_pipe(core, i, FU_MUL, &core->imul[i],
+                             core->simcpu->params->mul_stage_latency[i],
+                             core->simcpu->params->num_mul_stages - 1);
     }
     for (i = core->simcpu->params->num_alu_stages - 1; i >= 0; i--)
     {
-        in_core_execute(core, i, FU_ALU, &core->ialu[i],
-                        core->simcpu->params->alu_stage_latency[i],
-                        core->simcpu->params->num_alu_stages - 1);
+        in_core_execute_pipe(core, i, FU_ALU, &core->ialu[i],
+                             core->simcpu->params->alu_stage_latency[i],
+                             core->simcpu->params->num_alu_stages - 1);
     }
 }
 
@@ -267,7 +293,7 @@ flush_speculated_cpu_state(INCore *core, IMapEntry *e)
     flush_fu_stage(core, core->ialu, s->simcpu->params->num_alu_stages);
     flush_fu_stage(core, core->imul, s->simcpu->params->num_mul_stages);
     flush_fu_stage(core, core->idiv, s->simcpu->params->num_div_stages);
-    flush_fu_stage(core, core->fpu_alu, s->simcpu->params->num_fpu_alu_stages);
+    flush_fu_stage(core, &core->fpu_alu, 1);
     flush_fu_stage(core, core->fpu_fma, s->simcpu->params->num_fpu_fma_stages);
 
     /* Reset FU to MEM selector queue */
@@ -410,8 +436,7 @@ in_core_memory(INCore *core)
                                 s->simcpu->params->num_mul_stages);
                 exec_unit_flush(core->idiv,
                                 s->simcpu->params->num_div_stages);
-                exec_unit_flush(core->fpu_alu,
-                                s->simcpu->params->num_fpu_alu_stages);
+                exec_unit_flush(&core->fpu_alu, 1);
                 exec_unit_flush(core->fpu_fma,
                                 s->simcpu->params->num_fpu_fma_stages);
                 return;

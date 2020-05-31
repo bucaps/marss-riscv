@@ -103,6 +103,7 @@ typedef struct RVInstruction
     target_ulong target;
 
     int fu_type;
+    int fpu_alu_type;
     int is_system;
     int is_func_call;
     int is_func_ret;

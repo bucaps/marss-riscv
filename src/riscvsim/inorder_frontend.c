@@ -287,15 +287,6 @@ execute_stage_busy(INCore *core, int* busy_stage_id)
         }
     }
 
-    for (i = 0; i < core->simcpu->params->num_fpu_alu_stages; ++i)
-    {
-        if (core->fpu_alu[i].has_data)
-        {
-            *busy_stage_id = FU_FPU_ALU;
-            return TRUE;
-        }
-    }
-
     for (i = 0; i < core->simcpu->params->num_fpu_fma_stages; ++i)
     {
         if (core->fpu_fma[i].has_data)
@@ -303,6 +294,12 @@ execute_stage_busy(INCore *core, int* busy_stage_id)
             *busy_stage_id = FU_FPU_FMA;
             return TRUE;
         }
+    }
+
+    if (core->fpu_alu.has_data)
+    {
+        *busy_stage_id = FU_FPU_ALU;
+        return TRUE;
     }
 
     /* All the functional units are free */
@@ -333,7 +330,6 @@ target_fu_pipelined(INCore *core, int fu_type)
         }
         case FU_FPU_ALU:
         {
-            num_stages = core->simcpu->params->num_fpu_alu_stages;
             break;
         }
         case FU_FPU_FMA:
@@ -426,11 +422,7 @@ in_core_decode(INCore *core)
                 {
                     set_waw_lock_int_dest(s, &core->commit, e->ins.rd);
                     set_waw_lock_int_dest(s, &core->memory, e->ins.rd);
-                    for (i = s->simcpu->params->num_fpu_alu_stages - 1;
-                         i >= 0; i--)
-                    {
-                        set_waw_lock_int_dest(s, &core->fpu_alu[i], e->ins.rd);
-                    }
+                    set_waw_lock_int_dest(s, &core->fpu_alu, e->ins.rd);
                     for (i = s->simcpu->params->num_div_stages - 1; i >= 0;
                          i--)
                     {
@@ -460,11 +452,7 @@ in_core_decode(INCore *core)
                     {
                         set_waw_lock_fp_dest(s, &core->fpu_fma[i], e->ins.rd);
                     }
-                    for (i = s->simcpu->params->num_fpu_alu_stages - 1;
-                         i >= 0; i--)
-                    {
-                        set_waw_lock_fp_dest(s, &core->fpu_alu[i], e->ins.rd);
-                    }
+                    set_waw_lock_fp_dest(s, &core->fpu_alu, e->ins.rd);
                 }
             }
 
@@ -520,10 +508,10 @@ in_core_decode(INCore *core)
                 }
                 break;
             case FU_FPU_ALU:
-                if (!core->fpu_alu[0].has_data)
+                if (!core->fpu_alu.has_data)
                 {
                     core->decode.stage_exec_done = FALSE;
-                    core->fpu_alu[0] = core->decode;
+                    core->fpu_alu = core->decode;
                 }
                 else
                 {

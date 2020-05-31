@@ -249,7 +249,7 @@ typedef struct SimParams
     int *div_stage_latency;
 
     int num_fpu_alu_stages;
-    int *fpu_alu_stage_latency;
+    int fpu_alu_latency[MAX_FU_FPU_ALU_TYPES];
 
     int num_fpu_fma_stages;
     int *fpu_fma_stage_latency;

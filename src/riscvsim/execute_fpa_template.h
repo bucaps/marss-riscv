@@ -43,6 +43,7 @@
 #define FSIGN_MASK simglue(FSIGN_MASK, F_SIZE)
 
 case (0x00 << 2) | OPID: /* fadd */
+    i->fpu_alu_type = FU_FPU_ALU_FADD;
     i->buffer = simglue(add_sf, F_SIZE)(i->rs1_val, i->rs2_val,
                                         (RoundingModeEnum)rm, fflags)
                 | F_HIGH;
@@ -50,12 +51,14 @@ case (0x00 << 2) | OPID: /* fadd */
     break;
 
 case (0x01 << 2) | OPID: /* fsub */
+    i->fpu_alu_type = FU_FPU_ALU_FSUB;
     i->buffer = simglue(sub_sf, F_SIZE)(i->rs1_val, i->rs2_val,
                                         (RoundingModeEnum)rm, fflags)
                 | F_HIGH;
     break;
 
 case (0x02 << 2) | OPID: /* fmul */
+    i->fpu_alu_type = FU_FPU_ALU_FMUL;
     i->buffer = simglue(mul_sf, F_SIZE)(i->rs1_val, i->rs2_val,
                                         (RoundingModeEnum)rm, fflags)
                 | F_HIGH;
@@ -63,6 +66,7 @@ case (0x02 << 2) | OPID: /* fmul */
     break;
 
 case (0x03 << 2) | OPID: /* fdiv */
+    i->fpu_alu_type = FU_FPU_ALU_FDIV;
     i->buffer = simglue(div_sf, F_SIZE)(i->rs1_val, i->rs2_val,
                                         (RoundingModeEnum)rm, fflags)
                 | F_HIGH;
@@ -70,6 +74,7 @@ case (0x03 << 2) | OPID: /* fdiv */
     break;
 
 case (0x0b << 2) | OPID: /* fsqrt */
+    i->fpu_alu_type = FU_FPU_ALU_FSQRT;
     i->buffer
         = simglue(sqrt_sf, F_SIZE)(i->rs1_val, (RoundingModeEnum)rm, fflags)
           | F_HIGH;
@@ -77,6 +82,7 @@ case (0x0b << 2) | OPID: /* fsqrt */
     break;
 
 case (0x04 << 2) | OPID: /* sign inject */
+    i->fpu_alu_type = FU_FPU_ALU_FSGNJ;
     switch (rm)
     {
         case 0: /* fsgnj */
@@ -96,11 +102,13 @@ case (0x05 << 2) | OPID:
     switch (rm)
     {
         case 0: /* fmin */
+            i->fpu_alu_type = FU_FPU_ALU_FMIN;
             i->buffer = simglue(min_sf, F_SIZE)(i->rs1_val, i->rs2_val, fflags,
                                                 FMINMAX_IEEE754_201X)
                         | F_HIGH;
             break;
         case 1: /* fmax */
+            i->fpu_alu_type = FU_FPU_ALU_FMAX;
             i->buffer = simglue(max_sf, F_SIZE)(i->rs1_val, i->rs2_val, fflags,
                                                 FMINMAX_IEEE754_201X)
                         | F_HIGH;
@@ -109,6 +117,7 @@ case (0x05 << 2) | OPID:
     break;
 
 case (0x18 << 2) | OPID: /* f-convert */
+    i->fpu_alu_type = FU_FPU_ALU_FCVT;
     switch (i->rs2)
     {
         case 0: /* fcvt.w.[sdq] */
@@ -136,12 +145,15 @@ case (0x14 << 2) | OPID:
     switch (rm)
     {
         case 0: /* fle */
+            i->fpu_alu_type = FU_FPU_ALU_FLE;
             i->buffer = simglue(le_sf, F_SIZE)(i->rs1_val, i->rs2_val, fflags);
             break;
         case 1: /* flt */
+            i->fpu_alu_type = FU_FPU_ALU_FLT;
             i->buffer = simglue(lt_sf, F_SIZE)(i->rs1_val, i->rs2_val, fflags);
             break;
         case 2: /* feq */
+            i->fpu_alu_type = FU_FPU_ALU_FEQ;
             i->buffer
                 = simglue(eq_quiet_sf, F_SIZE)(i->rs1_val, i->rs2_val, fflags);
             break;
@@ -149,6 +161,7 @@ case (0x14 << 2) | OPID:
     break;
 
 case (0x1a << 2) | OPID:
+    i->fpu_alu_type = FU_FPU_ALU_FCVT;
     switch (i->rs2)
     {
         case 0: /* fcvt.[sdq].w */
@@ -177,6 +190,7 @@ case (0x1a << 2) | OPID:
     break;
 
 case (0x08 << 2) | OPID:
+    i->fpu_alu_type = FU_FPU_ALU_CVT;
     switch (i->rs2)
     {
 #if F_SIZE == 32 && FLEN >= 64
@@ -194,6 +208,7 @@ case (0x08 << 2) | OPID:
     break;
 
 case (0x1c << 2) | OPID:
+    i->fpu_alu_type = FU_FPU_ALU_FMV;
     switch (rm)
     {
 #if F_SIZE <= BIT_SIZE
@@ -208,6 +223,7 @@ case (0x1c << 2) | OPID:
             break;
 #endif          /* F_SIZE <= BIT_SIZE */
         case 1: /* fclass */
+            i->fpu_alu_type = FU_FPU_ALU_FCLASS;
             i->buffer = simglue(fclass_sf, F_SIZE)(i->rs1_val);
             break;
     }
@@ -215,6 +231,7 @@ case (0x1c << 2) | OPID:
 
 #if F_SIZE <= BIT_SIZE
 case (0x1e << 2) | OPID: /* fmv.s.x */
+    i->fpu_alu_type = FU_FPU_ALU_FMV;
 #if F_SIZE == 32
     i->buffer = (int32_t)i->rs1_val;
 #elif F_SIZE == 64

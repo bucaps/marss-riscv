@@ -124,4 +124,6 @@ void update_arch_reg_fp(struct RISCVCPUState *s, IMapEntry *e);
 void update_insn_commit_stats(struct RISCVCPUState *s, IMapEntry *e);
 void setup_sim_trace_pkt(struct RISCVCPUState *s, IMapEntry *e);
 void write_stats_to_stats_display_shm(struct RISCVCPUState *s);
+int set_max_latency_for_non_pipe_fu(struct RISCVCPUState *s, int fu_type,
+                                    IMapEntry *e);
 #endif
