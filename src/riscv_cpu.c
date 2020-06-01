@@ -319,6 +319,20 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats,
                                    "bpu_uncond_incorrect",
                                    bpu_uncond_incorrect);
+
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "itlb_reads",
+                                   code_tlb_lookups);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "itlb_hits",
+                                   code_tlb_hits);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "load_tlb_reads",
+                                   load_tlb_lookups);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "load_tlb_hits",
+                                   load_tlb_hits);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "store_tlb_reads",
+                                   store_tlb_lookups);
+        PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "store_tlb_hits",
+                                   store_tlb_hits);
+
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "ins_page_walks",
                                        ins_page_walks);
         PRINT_SIM_STAT_TO_TERMINAL(stderr, s->simcpu->stats, "load_page_walks",
