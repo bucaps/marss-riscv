@@ -675,6 +675,12 @@ static int virt_machine_parse_config(VirtMachineParams *p,
                 tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_FCVT]);
     }
 
+    tag_name = "cvt";
+    if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_CVT]) < 0) {
+        fprintf(stderr, "%s not found, selecting default value: %d\n",
+                tag_name, p->sim_params->fpu_alu_latency[FU_FPU_ALU_CVT]);
+    }
+
     tag_name = "fmv";
     if (vm_get_int(obj1, tag_name, &p->sim_params->fpu_alu_latency[FU_FPU_ALU_FMV]) < 0) {
         fprintf(stderr, "%s not found, selecting default value: %d\n",

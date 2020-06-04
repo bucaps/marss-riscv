@@ -115,6 +115,7 @@ sim_params_init()
     p->fpu_alu_latency[FU_FPU_ALU_FLT] = DEF_STAGE_LATENCY;
     p->fpu_alu_latency[FU_FPU_ALU_FLE] = DEF_STAGE_LATENCY;
     p->fpu_alu_latency[FU_FPU_ALU_FCVT] = DEF_STAGE_LATENCY;
+    p->fpu_alu_latency[FU_FPU_ALU_CVT] = DEF_STAGE_LATENCY;
     p->fpu_alu_latency[FU_FPU_ALU_FMV] = DEF_STAGE_LATENCY;
     p->fpu_alu_latency[FU_FPU_ALU_FCLASS] = DEF_STAGE_LATENCY;
 
@@ -287,6 +288,8 @@ sim_params_print(const SimParams *p)
             p->fpu_alu_latency[FU_FPU_ALU_FLE]);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fcvt",
             p->fpu_alu_latency[FU_FPU_ALU_FCVT]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "cvt",
+            p->fpu_alu_latency[FU_FPU_ALU_CVT]);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fmv",
             p->fpu_alu_latency[FU_FPU_ALU_FMV]);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "fclass",
@@ -566,6 +569,7 @@ sim_params_validate(const SimParams *p)
     validate_param("flt", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FLT]);
     validate_param("fle", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FLE]);
     validate_param("fcvt", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FCVT]);
+    validate_param("cvt", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_CVT]);
     validate_param("fmv", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FMV]);
     validate_param("fclass", 0, 1, 2048, p->fpu_alu_latency[FU_FPU_ALU_FCLASS]);
 

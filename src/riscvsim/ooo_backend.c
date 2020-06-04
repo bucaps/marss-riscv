@@ -252,6 +252,7 @@ oo_core_execute_non_pipe(OOCore *core, int fu_type, CPUStage *stage)
              * in execute stage so far */
             e->current_latency = 1;
             e->max_latency = set_max_latency_for_non_pipe_fu(s, fu_type, e);
+            assert(e->max_latency);
             stage->stage_exec_done = TRUE;
         }
 

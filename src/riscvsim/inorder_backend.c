@@ -145,6 +145,7 @@ in_core_execute_non_pipe(INCore *core, int fu_type, CPUStage *stage)
         {
             do_exec_insn(s, core, e, fu_type);
             e->max_latency = set_max_latency_for_non_pipe_fu(s, fu_type, e);
+            assert(e->max_latency);
             stage->stage_exec_done = TRUE;
         }
 
