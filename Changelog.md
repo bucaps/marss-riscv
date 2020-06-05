@@ -1,4 +1,25 @@
+# Version 3.1a
 
+ - Added
+	 - Print TLB stats to the terminal after the simulation completes
+	 - Specify latency for each FPU ALU instruction (`fadd`, `fsub`, `fmul`, `fdiv`, `fmin`, `fmax`, `fcvt`, `cvt`, `fle`, `flt`, `feq`, `fsgnj`, `fqsrt`, `fmv`, `fclass`) via TinyEMU config file 
+	 - Figure showing the high-level overview of MARSS-RISCV in README.md 
+- Changed
+	 - Simplify the base DRAM model
+		 - All memory accesses simulate a fixed latency `mem_access_latency`
+		 - Any subsequent accesses to the same physical page occupies a lower delay, which is roughly 60 percent of the fixed `mem_access_latency`
+		 - More info [here](https://marss-riscv-docs.readthedocs.io/en/latest/)
+	 - Parallel operation of functional units can be enabled or disabled in the in-order core via TinyEMU config file
+	 - Clean exception handling code
+	 - Simulate page table entry read/write delays directly via memory controller using a configurable fixed latency `pte_rw_latency`
+	 - Don't stall the pipeline stage for the write request to complete on the memory controller
+	 - Make FPU-ALU non-pipelined
+	 - Rename `dram_dispatch_queue` to`mem_request_queue`
+	 - Update [MARSS-RISCV Docs](https://marss-riscv-docs.readthedocs.io/en/latest/)
+	 - Update README.md
+	 - Update TinyEMU config file [here](https://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz)
+ - Fixed
+	 - memory leaks
 
 # Version 3.0a
 
