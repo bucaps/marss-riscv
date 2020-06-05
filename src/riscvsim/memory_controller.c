@@ -338,24 +338,26 @@ mem_controller_update_base(MemoryController *m)
 
             if (e->req_pte)
             {
-                /* This access is related to reading or writing page table entry */
+                /* This access is related to reading/writing page table entry */
                 m->max_latency = m->pte_rw_latency;
             }
             else
             {
-                /* Remove page offset to get current page number */
-                current_page_num = e->addr >> 12;
-                if (m->last_accessed_page_num == current_page_num)
-                {
-                    /* Page hit */
-                    m->max_latency = m->mem_access_latency;
-                }
-                else
-                {
-                    /* Page misses */
-                    m->last_accessed_page_num = current_page_num;
-                    m->max_latency = m->mem_access_latency;
-                }
+                m->max_latency = m->mem_access_latency;
+            }
+
+            /* Remove page offset to get current page number, page size is always 4KB */
+            current_page_num = e->addr >> 12;
+
+            if (m->last_accessed_page_num == current_page_num)
+            {
+                /* Page hit */
+                m->max_latency = m->max_latency * 0.6;
+            }
+            else
+            {
+                /* Page miss */
+                m->last_accessed_page_num = current_page_num;
             }
 
             /* Send a write complete callback to the calling pipeline stage as
