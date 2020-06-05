@@ -40,13 +40,13 @@
 
 #define FRONTEND_MEM_ACCESS_QUEUE_SIZE 64
 #define BACKEND_MEM_ACCESS_QUEUE_SIZE 64
-#define DRAM_DISPATCH_QUEUE_SIZE 64
+#define MEM_REQUEST_QUEUE_SIZE 64
 
-typedef struct DRAMDispatchQueue
+typedef struct MemRequestQueue
 {
     CQ cq;
-    PendingMemAccessEntry entry[DRAM_DISPATCH_QUEUE_SIZE];
-} DRAMDispatchQueue;
+    PendingMemAccessEntry entry[MEM_REQUEST_QUEUE_SIZE];
+} MemRequestQueue;
 
 typedef struct MemoryController
 {
@@ -61,7 +61,7 @@ typedef struct MemoryController
     void (*mem_controller_update_internal)(struct MemoryController *);
     StageMemAccessQueue frontend_mem_access_queue;
     StageMemAccessQueue backend_mem_access_queue;
-    DRAMDispatchQueue dram_dispatch_queue;
+    MemRequestQueue mem_request_queue;
 } MemoryController;
 
 MemoryController *mem_controller_init(const SimParams *p);

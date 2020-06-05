@@ -58,9 +58,9 @@ mem_controller_init(const SimParams *p)
         m->backend_mem_access_queue.max_size, sizeof(PendingMemAccessEntry));
     assert(m->backend_mem_access_queue.entry);
 
-    cq_init(&m->dram_dispatch_queue.cq, DRAM_DISPATCH_QUEUE_SIZE);
-    memset((void *)m->dram_dispatch_queue.entry, 0,
-           sizeof(PendingMemAccessEntry) * DRAM_DISPATCH_QUEUE_SIZE);
+    cq_init(&m->mem_request_queue.cq, MEM_REQUEST_QUEUE_SIZE);
+    memset((void *)m->mem_request_queue.entry, 0,
+           sizeof(PendingMemAccessEntry) * MEM_REQUEST_QUEUE_SIZE);
 
     PRINT_INIT_MSG("Setting up dram");
 
@@ -143,7 +143,7 @@ mem_controller_reset(MemoryController *m)
     mem_controller_flush_stage_mem_access_queue(&m->frontend_mem_access_queue);
     mem_controller_flush_stage_mem_access_queue(&m->backend_mem_access_queue);
 
-    cq_reset(&m->dram_dispatch_queue.cq);
+    cq_reset(&m->mem_request_queue.cq);
 }
 
 void
@@ -198,14 +198,14 @@ mem_controller_access_dram(MemoryController *m, target_ulong paddr, int bytes_to
         }
 
         /* Add transaction for this access to dram dispatch queue */
-        index = cq_enqueue(&m->dram_dispatch_queue.cq);
+        index = cq_enqueue(&m->mem_request_queue.cq);
 
         assert(index != -1);
-        m->dram_dispatch_queue.entry[index].addr = paddr;
-        m->dram_dispatch_queue.entry[index].type = type;
-        m->dram_dispatch_queue.entry[index].bytes_to_access = m->dram_burst_size;
-        m->dram_dispatch_queue.entry[index].valid = 1;
-        m->dram_dispatch_queue.entry[index].req_pte = 0;
+        m->mem_request_queue.entry[index].addr = paddr;
+        m->mem_request_queue.entry[index].type = type;
+        m->mem_request_queue.entry[index].bytes_to_access = m->dram_burst_size;
+        m->mem_request_queue.entry[index].valid = 1;
+        m->mem_request_queue.entry[index].req_pte = 0;
 
         /* Calculate remaining transactions for this access */
         bytes_to_access -= m->dram_burst_size;
@@ -249,14 +249,14 @@ mem_controller_add_pte_to_dram_queue(MemoryController *m, target_ulong paddr, in
     }
 
     /* Add transaction for this access to dram dispatch queue */
-    index = cq_enqueue(&m->dram_dispatch_queue.cq);
+    index = cq_enqueue(&m->mem_request_queue.cq);
 
     assert(index != -1);
-    m->dram_dispatch_queue.entry[index].addr = paddr;
-    m->dram_dispatch_queue.entry[index].type = type;
-    m->dram_dispatch_queue.entry[index].bytes_to_access = m->dram_burst_size;
-    m->dram_dispatch_queue.entry[index].valid = 1;
-    m->dram_dispatch_queue.entry[index].req_pte = 1;
+    m->mem_request_queue.entry[index].addr = paddr;
+    m->mem_request_queue.entry[index].type = type;
+    m->mem_request_queue.entry[index].bytes_to_access = m->dram_burst_size;
+    m->mem_request_queue.entry[index].valid = 1;
+    m->mem_request_queue.entry[index].req_pte = 1;
 
     return 0;
 }
@@ -331,10 +331,10 @@ mem_controller_update_base(MemoryController *m)
 
     if (!m->mem_access_active)
     {
-        if (!cq_empty(&m->dram_dispatch_queue.cq))
+        if (!cq_empty(&m->mem_request_queue.cq))
         {
-            e = &m->dram_dispatch_queue
-                     .entry[cq_front(&m->dram_dispatch_queue.cq)];
+            e = &m->mem_request_queue
+                     .entry[cq_front(&m->mem_request_queue.cq)];
 
             if (e->req_pte)
             {
@@ -376,7 +376,7 @@ mem_controller_update_base(MemoryController *m)
 
     if (m->mem_access_active)
     {
-        e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
+        e = &m->mem_request_queue.entry[cq_front(&m->mem_request_queue.cq)];
 
         if (m->current_latency == m->max_latency)
         {
@@ -391,7 +391,7 @@ mem_controller_update_base(MemoryController *m)
 
             /* Remove the entry */
             e->valid = 0;
-            cq_dequeue(&m->dram_dispatch_queue.cq);
+            cq_dequeue(&m->mem_request_queue.cq);
         }
         else
         {
@@ -405,13 +405,13 @@ mem_controller_update_dramsim(MemoryController *m)
 {
     PendingMemAccessEntry *e;
 
-    while (!cq_empty(&m->dram_dispatch_queue.cq))
+    while (!cq_empty(&m->mem_request_queue.cq))
     {
-        e = &m->dram_dispatch_queue.entry[cq_front(&m->dram_dispatch_queue.cq)];
+        e = &m->mem_request_queue.entry[cq_front(&m->mem_request_queue.cq)];
         if (dramsim_wrapper_can_add_transaction(e->addr))
         {
             dramsim_wrapper_add_transaction(e->addr, e->type);
-            cq_dequeue(&m->dram_dispatch_queue.cq);
+            cq_dequeue(&m->mem_request_queue.cq);
         }
         else
         {
@@ -432,5 +432,5 @@ mem_controller_flush_stage_mem_access_queue(StageMemAccessQueue *q)
 void
 mem_controller_flush_dram_queue(MemoryController *m)
 {
-    cq_reset(&m->dram_dispatch_queue.cq);
+    cq_reset(&m->mem_request_queue.cq);
 }
