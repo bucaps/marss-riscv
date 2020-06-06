@@ -406,8 +406,6 @@ sim_params_print(const SimParams *p)
 
     fprintf(stderr, "\n");
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "tlb_size", p->tlb_size);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "pte_rw_latency",
-            p->pte_rw_latency);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %lu MB\n", "guest_ram_size", p->guest_ram_size);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "mem_model_type",
             mem_model_type_str[p->mem_model_type]);
@@ -419,6 +417,8 @@ sim_params_print(const SimParams *p)
             fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %u\n",
                     "mem_access_latency",
                     p->mem_access_latency);
+            fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "pte_rw_latency",
+                    p->pte_rw_latency);
             break;
         }
         case MEM_MODEL_DRAMSIM:
