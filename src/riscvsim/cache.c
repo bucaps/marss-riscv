@@ -35,15 +35,6 @@
 
 #include "cache.h"
 
-#define MAX_STR 32
-
-// static char cache_evict_policy_str[][MAX_STR] = {"Random", "LRU"};
-// static char cache_write_policy_str[][MAX_STR] = {"WriteBack", "WriteThrough"};
-// static char cache_read_alloc_policy_str[][MAX_STR]
-//     = {"ReadAllocate", "ReadNoAllocate"};
-// static char cache_write_alloc_policy_str[][MAX_STR]
-//     = {"WriteAllocate", "WriteNoAllocate"};
-
 static void
 update_tag_address(const Cache *c, uint32_t *pset, CacheBlk **pblk,
                    target_ulong *ptag, target_ulong *paddr,
@@ -126,12 +117,12 @@ read_data_internal(const Cache *c, target_ulong paddr, int bytes_to_read,
     /* Read from next-level cache if present, otherwise from memory */
     if (NULL != c->next_level_cache)
     {
-        return cache_read(c->next_level_cache, paddr, bytes_to_read,
-                          p_mem_access_info, priv);
+        return c->read(c->next_level_cache, paddr, bytes_to_read,
+                       p_mem_access_info, priv);
     }
 
-    return c->mem_controller->create_mem_request(c->mem_controller, paddr, bytes_to_read, Read,
-                      p_mem_access_info);
+    return c->mem_controller->create_mem_request(
+        c->mem_controller, paddr, bytes_to_read, Read, p_mem_access_info);
 }
 
 static int
@@ -140,6 +131,7 @@ read_allocate_handler(const Cache *c, target_ulong paddr, int bytes_to_read,
 {
     target_ulong tag;
     int latency = 0;
+
     CacheBlk *blk = c->blk[set];
     /* Select victim using the set policy */
     int victim = (*c->pfn_get_victim_index)(c, set);
@@ -156,7 +148,8 @@ read_allocate_handler(const Cache *c, target_ulong paddr, int bytes_to_read,
 
     /* Read the line contents into the cache line selected as victim and adjust
      * the latency accordingly */
-    latency += read_data_internal(c, paddr, bytes_to_read, p_mem_access_info, priv);
+    latency
+        += read_data_internal(c, paddr, bytes_to_read, p_mem_access_info, priv);
 
     blk[victim].tag = tag;
     blk[victim].status = Valid;
@@ -175,7 +168,7 @@ read_no_allocate_handler(const Cache *c, target_ulong paddr, int bytes_to_read,
     return read_data_internal(c, paddr, bytes_to_read, p_mem_access_info, priv);
 }
 
-int
+static int
 cache_read(const Cache *c, target_ulong paddr, int bytes_to_read,
            void *p_mem_access_info, int priv)
 {
@@ -206,7 +199,8 @@ cache_read(const Cache *c, target_ulong paddr, int bytes_to_read,
                 }
 
                 /* Required bytes are possibly split across 2 cache lines */
-                /* Calculate the bytes available to read in the current cache line */
+                /* Calculate the bytes available to read in the current cache
+                 * line */
                 available_bytes
                     = ((c->max_words_per_blk * WORD_SIZE) - start_byte);
 
@@ -235,8 +229,8 @@ cache_read(const Cache *c, target_ulong paddr, int bytes_to_read,
         if ((start_byte + bytes_to_read) <= (c->max_words_per_blk * WORD_SIZE))
         {
             /* All remaining bytes can be allocated in the same line */
-            latency += (*c->pfn_read_alloc_handler)(c, paddr, bytes_to_read,
-                                                    set, p_mem_access_info, priv);
+            latency += (*c->pfn_read_alloc_handler)(
+                c, paddr, bytes_to_read, set, p_mem_access_info, priv);
             break;
         }
         else
@@ -246,8 +240,8 @@ cache_read(const Cache *c, target_ulong paddr, int bytes_to_read,
 
             /* Read the required line contents and allocate the cache line using
              * set policy */
-            latency += (*c->pfn_read_alloc_handler)(c, paddr, available_bytes,
-                                                    set, p_mem_access_info, priv);
+            latency += (*c->pfn_read_alloc_handler)(
+                c, paddr, available_bytes, set, p_mem_access_info, priv);
 
             /* Adjust the remaining bytes to read, tag, set and physical
              * address */
@@ -284,12 +278,12 @@ writethrough_handler(const Cache *c, target_ulong paddr, int bytes_to_write,
     /* Propagate write to next-level cache if available, memory otherwise */
     if (NULL != c->next_level_cache)
     {
-        return cache_write(c->next_level_cache, paddr, bytes_to_write,
-                           p_mem_access_info, priv);
+        return c->write(c->next_level_cache, paddr, bytes_to_write,
+                        p_mem_access_info, priv);
     }
 
-    return c->mem_controller->create_mem_request(c->mem_controller, paddr, bytes_to_write, Write,
-                      p_mem_access_info);
+    return c->mem_controller->create_mem_request(
+        c->mem_controller, paddr, bytes_to_write, Write, p_mem_access_info);
 }
 
 static int
@@ -316,8 +310,8 @@ write_allocate_handler(const Cache *c, target_ulong paddr, int bytes_to_write,
 
     /* Read the line contents into the cache line selected as victim and adjust
      * the latency accordingly */
-    latency
-        += read_data_internal(c, new_paddr, bytes_to_read, p_mem_access_info, priv);
+    latency += read_data_internal(c, new_paddr, bytes_to_read,
+                                  p_mem_access_info, priv);
 
     blk[victim].tag = tag;
     blk[victim].status = Valid;
@@ -331,18 +325,19 @@ write_allocate_handler(const Cache *c, target_ulong paddr, int bytes_to_write,
 
 static int
 write_no_allocate_handler(const Cache *c, target_ulong paddr,
-                          int bytes_to_write, int set, void *p_mem_access_info, int priv)
+                          int bytes_to_write, int set, void *p_mem_access_info,
+                          int priv)
 {
     /* Do not allocate cache line but propagate write to next-level cache if
      * available, memory otherwise */
     if (NULL != c->next_level_cache)
     {
-        return cache_write(c->next_level_cache, paddr, bytes_to_write,
-                           p_mem_access_info, priv);
+        return c->write(c->next_level_cache, paddr, bytes_to_write,
+                        p_mem_access_info, priv);
     }
 
-    return c->mem_controller->create_mem_request(c->mem_controller, paddr, bytes_to_write, Write,
-                      p_mem_access_info);
+    return c->mem_controller->create_mem_request(
+        c->mem_controller, paddr, bytes_to_write, Write, p_mem_access_info);
 }
 
 static int
@@ -359,16 +354,17 @@ writeback_victim_evict_handler(const Cache *c, CacheBlk *pBlk, int set, int way,
         {
             if (NULL != c->next_level_cache)
             {
-                latency += cache_write(
-                    c->next_level_cache, (pBlk->tag << c->word_bits),
-                    (WORD_SIZE * c->max_words_per_blk), p_mem_access_info, priv);
+                latency += c->write(c->next_level_cache,
+                                    (pBlk->tag << c->word_bits),
+                                    (WORD_SIZE * c->max_words_per_blk),
+                                    p_mem_access_info, priv);
             }
             else
             {
-                latency
-                    += c->mem_controller->create_mem_request(c->mem_controller, pBlk->tag << c->word_bits,
-                                  (WORD_SIZE * c->max_words_per_blk), Write,
-                                  p_mem_access_info);
+                latency += c->mem_controller->create_mem_request(
+                    c->mem_controller, pBlk->tag << c->word_bits,
+                    (WORD_SIZE * c->max_words_per_blk), Write,
+                    p_mem_access_info);
             }
         }
         memset(pBlk, 0, sizeof(CacheBlk));
@@ -387,7 +383,7 @@ writethrough_victim_evict_handler(const Cache *c, CacheBlk *pBlk, int set,
     return 0;
 }
 
-int
+static int
 cache_write(const Cache *c, target_ulong paddr, int bytes_to_write,
             void *p_mem_access_info, int priv)
 {
@@ -413,8 +409,9 @@ cache_write(const Cache *c, target_ulong paddr, int bytes_to_write,
                     <= (c->max_words_per_blk * WORD_SIZE))
                 {
                     /* All required bytes are present in the cache */
-                    latency += (*c->pfn_write_handler)(
-                        c, paddr, bytes_to_write, set, i, p_mem_access_info, priv);
+                    latency += (*c->pfn_write_handler)(c, paddr, bytes_to_write,
+                                                       set, i,
+                                                       p_mem_access_info, priv);
                     return latency;
                 }
 
@@ -424,8 +421,8 @@ cache_write(const Cache *c, target_ulong paddr, int bytes_to_write,
 
                 /* Write the cache line with the bytes_to_write set to actual
                  * bytes found in this cache line */
-                latency += (*c->pfn_write_handler)(c, paddr, available_bytes,
-                                                   set, i, p_mem_access_info, priv);
+                latency += (*c->pfn_write_handler)(
+                    c, paddr, available_bytes, set, i, p_mem_access_info, priv);
 
                 /* Adjust the remaining bytes to write */
                 update_tag_address(c, &set, &blk, &tag, &paddr, &bytes_to_write,
@@ -452,8 +449,8 @@ cache_write(const Cache *c, target_ulong paddr, int bytes_to_write,
         /* Call write allocator function */
         if ((start_byte + bytes_to_write) <= (c->max_words_per_blk * WORD_SIZE))
         {
-            latency += (*c->pfn_write_alloc_handler)(c, paddr, bytes_to_write,
-                                                     set, p_mem_access_info, priv);
+            latency += (*c->pfn_write_alloc_handler)(
+                c, paddr, bytes_to_write, set, p_mem_access_info, priv);
             break;
         }
         else
@@ -476,8 +473,8 @@ cache_write(const Cache *c, target_ulong paddr, int bytes_to_write,
     return latency;
 }
 
-void
-cache_flush(const Cache *c)
+static void
+cache_flush(Cache *c)
 {
     int i;
 
@@ -488,25 +485,55 @@ cache_flush(const Cache *c)
     }
 }
 
-const CacheStats *const
-get_cache_stats(Cache *c)
+static const CacheStats *
+cache_get_stats(const Cache *c)
 {
-    return (const CacheStats *const)(c->stats);
+    return (const CacheStats *)(c->stats);
 }
 
-void
-reset_cache_stats(Cache *c)
+static void
+cache_reset_stats(Cache *c)
 {
     memset((void *)c->stats, 0, NUM_MAX_PRV_LEVELS * sizeof(CacheStats));
 }
 
+static void
+cache_print_config(const Cache *c)
+{
+    fprintf(stderr, "\n");
+    fprintf(stderr, "Cache Configurations\n");
+    fprintf(stderr, "Cache Type: %u\n", c->type);
+    fprintf(stderr, "Cache Level: %u\n", c->level);
+    fprintf(stderr, "Total No. of Blocks: %u\n", c->num_blks);
+    fprintf(stderr, "Total No. of Ways: %u\n", c->num_ways);
+    fprintf(stderr, "Total No. of Sets: %u\n", c->num_sets);
+    fprintf(stderr, "Words per Block: %u\n", c->max_words_per_blk);
+    fprintf(stderr, "Word Size: %lu\n", WORD_SIZE);
+    fprintf(stderr, "Total Cache Size: %lu KB\n", c->size);
+    fprintf(stderr, "Offset(word) bits: %u\n", c->word_bits);
+    fprintf(stderr, "Set bits: %u\n", c->set_bits);
+    fprintf(stderr, "Tag bits: %u\n", c->tag_bits);
+    fprintf(stderr, "Eviction Policy: [%d] %s\n", c->cache_evict_policy,
+            cache_evict_str[c->cache_evict_policy]);
+    fprintf(stderr, "Write Policy: [%d] %s\n", c->cache_write_policy,
+            cache_wp_str[c->cache_write_policy]);
+    fprintf(stderr, "Read Alloc Policy: [%d] %s\n", c->cache_read_alloc_policy,
+            cache_ra_str[c->cache_read_alloc_policy]);
+    fprintf(stderr, "Write Alloc Policy: [%d] %s\n",
+            c->cache_write_alloc_policy,
+            cache_wa_str[c->cache_write_alloc_policy]);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "\n");
+}
+
 Cache *
-create_cache(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
-             int read_latency, int write_latency, Cache *next_level_cache, int words_per_blk,
-             CacheEvictionPolicy evict_policy, CacheWritePolicy write_policy,
-             CacheReadAllocPolicy read_alloc_policy,
-             CacheWriteAllocPolicy write_alloc_policy,
-             MemoryController *mem_controller)
+cache_init(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
+           int read_latency, int write_latency, Cache *next_level_cache,
+           int words_per_blk, CacheEvictionPolicy evict_policy,
+           CacheWritePolicy write_policy,
+           CacheReadAllocPolicy read_alloc_policy,
+           CacheWriteAllocPolicy write_alloc_policy,
+           MemoryController *mem_controller)
 {
     int i;
     Cache *c = (Cache *)malloc(sizeof(Cache));
@@ -635,11 +662,18 @@ create_cache(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
         }
     }
 
+    c->read = &cache_read;
+    c->write = &cache_write;
+    c->flush = &cache_flush;
+    c->print_config = &cache_print_config;
+    c->reset_stats = &cache_reset_stats;
+    c->get_stats = &cache_get_stats;
+
     return c;
 }
 
 void
-delete_cache(Cache **c)
+cache_free(Cache **c)
 {
     int i;
 
@@ -658,33 +692,4 @@ delete_cache(Cache **c)
     (*c)->stats = NULL;
     free(*c);
     *c = NULL;
-}
-
-void
-print_cache_config(const Cache *const c)
-{
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Cache Configurations\n");
-    fprintf(stderr, "Cache Type: %u\n", c->type);
-    fprintf(stderr, "Cache Level: %u\n", c->level);
-    fprintf(stderr, "Total No. of Blocks: %u\n", c->num_blks);
-    fprintf(stderr, "Total No. of Ways: %u\n", c->num_ways);
-    fprintf(stderr, "Total No. of Sets: %u\n", c->num_sets);
-    fprintf(stderr, "Words per Block: %u\n", c->max_words_per_blk);
-    fprintf(stderr, "Word Size: %lu\n", WORD_SIZE);
-    fprintf(stderr, "Total Cache Size: %lu KB\n", c->size);
-    fprintf(stderr, "Offset(word) bits: %u\n", c->word_bits);
-    fprintf(stderr, "Set bits: %u\n", c->set_bits);
-    fprintf(stderr, "Tag bits: %u\n", c->tag_bits);
-    fprintf(stderr, "Eviction Policy: [%d] %s\n", c->cache_evict_policy,
-            cache_evict_str[c->cache_evict_policy]);
-    fprintf(stderr, "Write Policy: [%d] %s\n", c->cache_write_policy,
-            cache_wp_str[c->cache_write_policy]);
-    fprintf(stderr, "Read Alloc Policy: [%d] %s\n", c->cache_read_alloc_policy,
-            cache_ra_str[c->cache_read_alloc_policy]);
-    fprintf(stderr, "Write Alloc Policy: [%d] %s\n",
-            c->cache_write_alloc_policy,
-            cache_wa_str[c->cache_write_alloc_policy]);
-    fprintf(stderr, "\n");
-    fprintf(stderr, "\n");
 }

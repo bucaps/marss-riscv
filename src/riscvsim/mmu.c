@@ -70,7 +70,7 @@ mmu_init(const SimParams *p)
         if (p->enable_l2_cache)
         {
             PRINT_INIT_MSG("Setting up l2-shared cache");
-            mmu->l2_cache = create_cache(
+            mmu->l2_cache = cache_init(
                 SharedCache, L2,
                 get_num_cache_blks_from_cache_size_kb(p->l2_shared_cache_size,
                                                       p->words_per_cache_line),
@@ -84,7 +84,7 @@ mmu_init(const SimParams *p)
         }
 
         PRINT_INIT_MSG("Setting up l1-instruction cache");
-        mmu->icache = create_cache(
+        mmu->icache = cache_init(
             InstructionCache, L1,
             get_num_cache_blks_from_cache_size_kb(p->l1_code_cache_size,
                                                   p->words_per_cache_line),
@@ -97,7 +97,7 @@ mmu_init(const SimParams *p)
             mmu->mem_controller);
 
         PRINT_INIT_MSG("Setting up l1-data cache");
-        mmu->dcache = create_cache(
+        mmu->dcache = cache_init(
             DataCache, L1, get_num_cache_blks_from_cache_size_kb(
                                p->l1_data_cache_size, p->words_per_cache_line),
             p->l1_data_cache_ways, p->l1_data_cache_read_latency,
@@ -129,7 +129,7 @@ mmu_insn_read(MMU *mmu, target_ulong paddr, int bytes_to_read, int stage_id, int
 {
     if (mmu->caches_enabled)
     {
-        return cache_read(mmu->icache, paddr, bytes_to_read, (void *)&stage_id, priv);
+        return mmu->icache->read(mmu->icache, paddr, bytes_to_read, (void *)&stage_id, priv);
     }
 
     mmu->mem_controller->create_mem_request(mmu->mem_controller, paddr, bytes_to_read,
@@ -142,7 +142,7 @@ mmu_data_read(MMU *mmu, target_ulong paddr, int bytes_to_read, int stage_id, int
 {
     if (mmu->caches_enabled)
     {
-        return cache_read(mmu->dcache, paddr, bytes_to_read, (void *)&stage_id, priv);
+        return mmu->dcache->read(mmu->dcache, paddr, bytes_to_read, (void *)&stage_id, priv);
     }
 
     mmu->mem_controller->create_mem_request(mmu->mem_controller, paddr, bytes_to_read,
@@ -155,7 +155,7 @@ mmu_data_write(MMU *mmu, target_ulong paddr, int bytes_to_write, int stage_id, i
 {
     if (mmu->caches_enabled)
     {
-        return cache_write(mmu->dcache, paddr, bytes_to_write,
+        return mmu->dcache->write(mmu->dcache, paddr, bytes_to_write,
                            (void *)&stage_id, priv);
     }
 
@@ -195,10 +195,10 @@ mmu_free(MMU **mmu)
     {
         if ((*mmu)->l2_cache)
         {
-            delete_cache(&(*mmu)->l2_cache);
+            cache_free(&(*mmu)->l2_cache);
         }
-        delete_cache(&(*mmu)->dcache);
-        delete_cache(&(*mmu)->icache);
+        cache_free(&(*mmu)->dcache);
+        cache_free(&(*mmu)->icache);
     }
 
     mem_controller_free(&(*mmu)->mem_controller);

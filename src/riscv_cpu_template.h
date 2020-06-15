@@ -262,22 +262,22 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         /* Reset Caches at every new simulation run */
         if (s->sim_params->enable_l1_caches)
         {
-            reset_cache_stats(s->simcpu->mmu->icache);
-            reset_cache_stats(s->simcpu->mmu->dcache);
+            s->simcpu->mmu->icache->reset_stats(s->simcpu->mmu->icache);
+            s->simcpu->mmu->dcache->reset_stats(s->simcpu->mmu->dcache);
 
             if (s->sim_params->flush_sim_mem)
             {
-                cache_flush(s->simcpu->mmu->icache);
-                cache_flush(s->simcpu->mmu->dcache);
+                s->simcpu->mmu->icache->flush(s->simcpu->mmu->icache);
+                s->simcpu->mmu->dcache->flush(s->simcpu->mmu->dcache);
             }
 
             if (s->sim_params->enable_l2_cache)
             {
-                reset_cache_stats(s->simcpu->mmu->l2_cache);
+                s->simcpu->mmu->l2_cache->reset_stats(s->simcpu->mmu->l2_cache);
 
                 if (s->sim_params->flush_sim_mem)
                 {
-                    cache_flush(s->simcpu->mmu->l2_cache);
+                    s->simcpu->mmu->l2_cache->flush(s->simcpu->mmu->l2_cache);
                 }
             }
         }

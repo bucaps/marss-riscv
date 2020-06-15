@@ -180,25 +180,24 @@ typedef struct Cache
      * cache (LLC) */
     struct Cache *next_level_cache;
     CacheStats *stats;
+
+    void (*flush)(struct Cache *c);
+    void (*print_config)(const struct Cache *c);
+    void (*reset_stats)(struct Cache *c);
+    const CacheStats *(*get_stats)(const struct Cache *c);
+
+    int (*read)(const struct Cache *c, target_ulong paddr, int bytes_to_read,
+                void *p_mem_access_info, int priv);
+    int (*write)(const struct Cache *c, target_ulong paddr, int bytes_to_read,
+                 void *p_mem_access_info, int priv);
 } Cache;
 
-int cache_read(const Cache *c, target_ulong paddr, int bytes_to_read,
-               void *p_mem_access_info, int priv);
-int cache_write(const Cache *c, target_ulong paddr, int bytes_to_read,
-                void *p_mem_access_info, int priv);
-
-Cache *create_cache(CacheTypes type, CacheLevels level, uint32_t blks,
+Cache *cache_init(CacheTypes type, CacheLevels level, uint32_t blks,
                     uint32_t ways, int read_latency, int write_latency, Cache *next_level_cache,
                     int words_per_blk, CacheEvictionPolicy evict_policy,
                     CacheWritePolicy write_policy,
                     CacheReadAllocPolicy read_alloc_policy,
                     CacheWriteAllocPolicy write_alloc_policy,
                     MemoryController *mem_controller);
-void delete_cache(Cache **c);
-
-const CacheStats *const get_cache_stats(Cache *c);
-void reset_cache_stats(Cache *c);
-void cache_flush(const Cache *c);
-void print_cache_config(const Cache *const c);
-
+void cache_free(Cache **c);
 #endif
