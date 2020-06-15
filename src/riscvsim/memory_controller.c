@@ -45,8 +45,6 @@ mem_controller_init(const SimParams *p)
     assert(m);
     m->dram_burst_size = p->dram_burst_size;
     m->mem_model_type = p->mem_model_type;
-    m->mem_access_latency = p->mem_access_latency;
-    m->pte_rw_latency = p->pte_rw_latency;
 
     m->frontend_mem_access_queue.max_size = FRONTEND_MEM_ACCESS_QUEUE_SIZE;
     m->frontend_mem_access_queue.entry = (PendingMemAccessEntry *)calloc(
@@ -71,6 +69,8 @@ mem_controller_init(const SimParams *p)
             PRINT_INIT_MSG("Setting up base dram model");
             m->mem_controller_update_internal = &mem_controller_update_base;
             mem_controller_set_dram_burst_size(m, p->dram_burst_size);
+            m->base_dram = base_dram_create(p, &m->frontend_mem_access_queue,
+                                            &m->backend_mem_access_queue);
             break;
         }
         case MEM_MODEL_DRAMSIM:
@@ -111,6 +111,7 @@ mem_controller_free(MemoryController **m)
     {
         case MEM_MODEL_BASE:
         {
+            base_dram_free(&(*m)->base_dram);
             break;
         }
         case MEM_MODEL_DRAMSIM:
@@ -135,15 +136,28 @@ mem_controller_free(MemoryController **m)
 void
 mem_controller_reset(MemoryController *m)
 {
-    m->current_latency = 0;
-    m->max_latency = 0;
-    m->mem_access_active = 0;
-    m->last_accessed_page_num = 0;
-
     mem_controller_flush_stage_mem_access_queue(&m->frontend_mem_access_queue);
     mem_controller_flush_stage_mem_access_queue(&m->backend_mem_access_queue);
-
     cq_reset(&m->mem_request_queue.cq);
+
+    switch (m->mem_model_type)
+    {
+        case MEM_MODEL_BASE:
+        {
+            m->base_dram->reset(m->base_dram);
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            dramsim_wrapper_destroy();
+            break;
+        }
+        default:
+        {
+            fprintf(stderr, "error: invalid memory model\n");
+            exit(1);
+        }
+    }
 }
 
 void
@@ -261,142 +275,23 @@ mem_controller_add_pte_to_dram_queue(MemoryController *m, target_ulong paddr, in
     return 0;
 }
 
-/* Read callback used by base DRAM model */
-static void
-read_complete(MemoryController *m, target_ulong addr)
-{
-    int i;
-
-    for (i = 0; i < m->frontend_mem_access_queue.cur_idx; ++i)
-    {
-        if ((m->frontend_mem_access_queue.entry[i].valid)
-            && (m->frontend_mem_access_queue.entry[i].addr == addr)
-            && (m->frontend_mem_access_queue.entry[i].type == Read))
-        {
-            m->frontend_mem_access_queue.entry[i].valid = 0;
-            --m->frontend_mem_access_queue.cur_size;
-            return;
-        }
-    }
-
-    for (i = 0; i < m->backend_mem_access_queue.cur_idx; ++i)
-    {
-        if ((m->backend_mem_access_queue.entry[i].valid)
-            && (m->backend_mem_access_queue.entry[i].addr == addr)
-            && (m->backend_mem_access_queue.entry[i].type == Read))
-        {
-            m->backend_mem_access_queue.entry[i].valid = 0;
-            --m->backend_mem_access_queue.cur_size;
-            return;
-        }
-    }
-}
-
-/* Write callback used by base DRAM model */
-static void
-write_complete(MemoryController *m, target_ulong addr)
-{
-    int i;
-
-    for (i = 0; i < m->frontend_mem_access_queue.cur_idx; ++i)
-    {
-        if ((m->frontend_mem_access_queue.entry[i].valid)
-            && (m->frontend_mem_access_queue.entry[i].addr == addr)
-            && (m->frontend_mem_access_queue.entry[i].type == Write))
-        {
-            m->frontend_mem_access_queue.entry[i].valid = 0;
-            --m->frontend_mem_access_queue.cur_size;
-            return;
-        }
-    }
-
-    for (i = 0; i < m->backend_mem_access_queue.cur_idx; ++i)
-    {
-        if ((m->backend_mem_access_queue.entry[i].valid)
-            && (m->backend_mem_access_queue.entry[i].addr == addr)
-            && (m->backend_mem_access_queue.entry[i].type == Write))
-        {
-            m->backend_mem_access_queue.entry[i].valid = 0;
-            --m->backend_mem_access_queue.cur_size;
-            return;
-        }
-    }
-}
-
 void
 mem_controller_update_base(MemoryController *m)
 {
-    uint64_t current_page_num;
     PendingMemAccessEntry *e;
 
-    if (!m->mem_access_active)
+    if (m->base_dram->can_accept_request(m->base_dram))
     {
         if (!cq_empty(&m->mem_request_queue.cq))
         {
-            e = &m->mem_request_queue
-                     .entry[cq_front(&m->mem_request_queue.cq)];
-
-            if (e->req_pte)
-            {
-                /* This access is related to reading/writing page table entry */
-                m->max_latency = m->pte_rw_latency;
-            }
-            else
-            {
-                m->max_latency = m->mem_access_latency;
-            }
-
-            /* Remove page offset to get current page number, page size is always 4KB */
-            current_page_num = e->addr >> 12;
-
-            if (m->last_accessed_page_num == current_page_num)
-            {
-                /* Page hit */
-                m->max_latency = m->max_latency * 0.6;
-            }
-            else
-            {
-                /* Page miss */
-                m->last_accessed_page_num = current_page_num;
-            }
-
-            /* Send a write complete callback to the calling pipeline stage as
-             * we don't want the pipeline stage to wait for write to complete.
-             * But, simulate this write delay asynchronously via the memory
-             * controller */
-            if (e->type == Write)
-            {
-                write_complete(m, e->addr);
-            }
-
-            m->mem_access_active = 1;
-            m->current_latency = 1;
+            e = &m->mem_request_queue.entry[cq_front(&m->mem_request_queue.cq)];
+            m->base_dram->send_request(m->base_dram, e);
         }
     }
 
-    if (m->mem_access_active)
+    if (m->base_dram->clock(m->base_dram))
     {
-        e = &m->mem_request_queue.entry[cq_front(&m->mem_request_queue.cq)];
-
-        if (m->current_latency == m->max_latency)
-        {
-            m->mem_access_active = 0;
-            m->max_latency = 0;
-            m->current_latency = 0;
-
-            if (e->type == Read)
-            {
-                read_complete(m, e->addr);
-            }
-
-            /* Remove the entry */
-            e->valid = 0;
-            cq_dequeue(&m->mem_request_queue.cq);
-        }
-        else
-        {
-            m->current_latency++;
-        }
+        cq_dequeue(&m->mem_request_queue.cq);
     }
 }
 

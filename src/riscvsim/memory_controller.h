@@ -32,11 +32,12 @@
 
 #include <math.h>
 
-#include "sim_params_stats.h"
+#include "../cutils.h"
+#include "base_dram.h"
 #include "circular_queue.h"
 #include "memory_controller_utils.h"
 #include "riscv_sim_typedefs.h"
-#include "../cutils.h"
+#include "sim_params_stats.h"
 
 #define FRONTEND_MEM_ACCESS_QUEUE_SIZE 64
 #define BACKEND_MEM_ACCESS_QUEUE_SIZE 64
@@ -51,17 +52,12 @@ typedef struct MemRequestQueue
 typedef struct MemoryController
 {
     int mem_model_type;
-    int current_latency;
-    int max_latency;
-    int mem_access_latency;
-    int pte_rw_latency;
-    int mem_access_active;
-    uint32_t dram_burst_size;
-    uint64_t last_accessed_page_num;
+    int dram_burst_size;
     void (*mem_controller_update_internal)(struct MemoryController *);
     StageMemAccessQueue frontend_mem_access_queue;
     StageMemAccessQueue backend_mem_access_queue;
     MemRequestQueue mem_request_queue;
+    BaseDram *base_dram;
 } MemoryController;
 
 MemoryController *mem_controller_init(const SimParams *p);
