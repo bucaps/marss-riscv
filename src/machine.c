@@ -1061,7 +1061,7 @@ static int virt_machine_parse_config(VirtMachineParams *p,
     }
 
 
-    switch (p->sim_params->mem_model_type)
+    switch (p->sim_params->dram_model_type)
     {
         case MEM_MODEL_BASE:
         {
@@ -1070,10 +1070,10 @@ static int virt_machine_parse_config(VirtMachineParams *p,
               fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
                       p->sim_params->mem_access_latency);
             }
-            tag_name = "dram_burst_size";
-            if (vm_get_int(cfg, tag_name, (int *)&p->sim_params->dram_burst_size) < 0) {
+            tag_name = "burst_length";
+            if (vm_get_int(cfg, tag_name, (int *)&p->sim_params->burst_length) < 0) {
               fprintf(stderr, "%s not found, selecting default value: %u\n", tag_name,
-                      p->sim_params->dram_burst_size);
+                      p->sim_params->burst_length);
             }
             break;
         }

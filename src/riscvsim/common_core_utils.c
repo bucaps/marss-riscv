@@ -633,7 +633,7 @@ handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
                 s->code_to_pc_addend = ras_target;
                 e->predicted_target = ras_target;
 
-                mem_controller_flush_stage_mem_access_queue(
+                s->simcpu->mmu->mem_controller->flush_cpu_stage_queue(
                     &s->simcpu->mmu->mem_controller->frontend_mem_access_queue);
 
                 /* Signal the calling stage to flush previous stages */

@@ -43,7 +43,7 @@ restore_cpu_frontend(OOCore *core, IMapEntry *e)
     speculative_cpu_stage_flush(&core->dispatch, s->simcpu->imap);
 
     /* Flush the memory transactions added by fetch stage */
-    mem_controller_flush_stage_mem_access_queue(
+    s->simcpu->mmu->mem_controller->flush_cpu_stage_queue(
         &s->simcpu->mmu->mem_controller->frontend_mem_access_queue);
 
     /* Set the new target address into fetch and enable fetch unit to start
@@ -186,7 +186,8 @@ restore_lsu(OOCore *core, uint64_t tag)
             speculative_cpu_stage_flush(&core->lsu, core->simcpu->imap);
 
             /* Flush memory controller queues on flush */
-            mem_controller_reset(core->simcpu->mmu->mem_controller);
+            core->simcpu->mmu->mem_controller->reset(
+                core->simcpu->mmu->mem_controller);
         }
     }
 }

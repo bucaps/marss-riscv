@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -51,31 +51,38 @@ typedef struct MemRequestQueue
 
 typedef struct MemoryController
 {
-    int mem_model_type;
-    int dram_burst_size;
-    void (*mem_controller_update_internal)(struct MemoryController *);
+    /* Type of DRAM model: base or dramsim2 */
+    int dram_model_type;
+
+    /* Memory controller burst length in bytes (or cache line size) */
+    int burst_length;
+
+    /* These queues are used to control the stall on fetch and memory CPU
+     * pipeline stages */
     StageMemAccessQueue frontend_mem_access_queue;
     StageMemAccessQueue backend_mem_access_queue;
+
+    /* A single FIFO queue known as mem_request_queue comprising all the pending
+     * memory access requests */
     MemRequestQueue mem_request_queue;
+
+    /* Simplistic base DRAM model */
     BaseDram *base_dram;
+
+    void (*reset)(struct MemoryController *m);
+    void (*clock)(struct MemoryController *m);
+    void (*flush_cpu_stage_queue)(StageMemAccessQueue *q);
+    void (*flush_mem_request_queue)(struct MemoryController *m);
+    void (*set_burst_length)(struct MemoryController *m, int burst_length);
+    int (*create_mem_request)(struct MemoryController *m, target_ulong paddr,
+                              int bytes_to_access, MemAccessType op_type,
+                              void *p_mem_access_info);
+    int (*create_mem_request_pte)(struct MemoryController *m,
+                                  target_ulong paddr, int bytes_to_access,
+                                  MemAccessType op_type,
+                                  void *p_mem_access_info);
 } MemoryController;
 
 MemoryController *mem_controller_init(const SimParams *p);
 void mem_controller_free(MemoryController **m);
-void mem_controller_reset(MemoryController *m);
-void mem_controller_update_base(MemoryController *m);
-void mem_controller_update_dramsim(MemoryController *m);
-void mem_controller_update(MemoryController *m);
-void mem_controller_set_dram_burst_size(MemoryController *m,
-                                        int dram_burst_size);
-void mem_controller_flush_stage_mem_access_queue(StageMemAccessQueue *q);
-int mem_controller_access_dram(MemoryController *m, target_ulong paddr,
-                               int bytes_to_access, MemAccessType op_type,
-                               void *p_mem_access_info);
-int mem_controller_add_pte_to_dram_queue(MemoryController *m,
-                                         target_ulong paddr,
-                                         int bytes_to_access,
-                                         MemAccessType type,
-                                         void *p_mem_access_info);
-void mem_controller_flush_dram_queue(MemoryController *m);
 #endif

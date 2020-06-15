@@ -213,7 +213,7 @@ extern const char *cache_wp_str[];
 extern const char *bpu_type_str[];
 extern const char *btb_evict_str[];
 extern const char *bpu_aliasing_func_type_str[];
-extern const char *mem_model_type_str[];
+extern const char *dram_model_type_str[];
 
 typedef struct SimParams
 {
@@ -297,11 +297,11 @@ typedef struct SimParams
     uint64_t guest_ram_size;
     int tlb_size;
     int pte_rw_latency;
-    uint32_t dram_burst_size;
+    uint32_t burst_length;
     int mem_access_latency;
 
     /* DRAMSim2 params */
-    int mem_model_type;
+    int dram_model_type;
     char *dramsim_ini_file;
     char *dramsim_system_ini_file;
     char *dramsim_stats_dir;

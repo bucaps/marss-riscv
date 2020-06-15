@@ -44,7 +44,7 @@ const char *cache_wp_str[] = {"writeback", "writethrough"};
 const char *bpu_type_str[] = {"bimodal", "adaptive"};
 const char *btb_evict_str[] = {"random", "lru"};
 const char *bpu_aliasing_func_type_str[] = {"xor", "and", "none"};
-const char *mem_model_type_str[] = {"base", "dramsim2"};
+const char *dram_model_type_str[] = {"base", "dramsim2"};
 
 SimParams *
 sim_params_init()
@@ -171,7 +171,7 @@ sim_params_init()
     p->cache_write_policy = DEF_CACHE_WRITE_POLICY;
 
     /* DRAM params */
-    p->dram_burst_size = DEF_DRAM_BURST_SIZE;
+    p->burst_length = DEF_DRAM_BURST_SIZE;
     p->mem_access_latency = DEF_MEM_ACCESS_LATENCY;
 
     p->iq_size = DEF_IQ_SIZE;
@@ -179,7 +179,7 @@ sim_params_init()
     p->rob_size = DEF_ROB_SIZE;
     p->lsq_size = DEF_LSQ_SIZE;
 
-    p->mem_model_type = DEF_MEM_MODEL;
+    p->dram_model_type = DEF_MEM_MODEL;
     p->dramsim_ini_file = strdup(DEF_DRAMSIM_INI_FILE);
     assert(p->dramsim_ini_file);
     p->dramsim_system_ini_file = strdup(DEF_DRAMSIM_SYSTEM_INI_FILE);
@@ -407,10 +407,10 @@ sim_params_print(const SimParams *p)
     fprintf(stderr, "\n");
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "tlb_size", p->tlb_size);
     fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %lu MB\n", "guest_ram_size", p->guest_ram_size);
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "mem_model_type",
-            mem_model_type_str[p->mem_model_type]);
+    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "dram_model_type",
+            dram_model_type_str[p->dram_model_type]);
 
-    switch (p->mem_model_type)
+    switch (p->dram_model_type)
     {
         case MEM_MODEL_BASE:
         {
@@ -677,7 +677,7 @@ sim_params_validate(const SimParams *p)
     }
 
     // TODO: Data bus transaction size must be power of 2
-    validate_param("dram_burst_size", 0, 1, 2048, (int)p->dram_burst_size);
+    validate_param("burst_length", 0, 1, 2048, (int)p->burst_length);
     validate_param("mem_access_latency", 0, 1, 2048,
                    p->mem_access_latency);
 }

@@ -755,7 +755,7 @@ int main(int argc, char **argv)
     path = argv[optind++];
 
     virt_machine_set_defaults(p);
-    p->sim_params->mem_model_type = marss_mem_model;
+    p->sim_params->dram_model_type = marss_mem_model;
 #ifdef CONFIG_FS_NET
     fs_wget_init();
 #endif

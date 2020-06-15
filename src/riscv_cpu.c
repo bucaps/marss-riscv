@@ -240,7 +240,7 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
         STOP_SIM_TIMER(s->sim_end);
         sim_time = GET_SIM_TIMER_DIFF(s->sim_start, s->sim_end) / 1000000;
 
-        if (s->simcpu->mmu->mem_controller->mem_model_type == MEM_MODEL_DRAMSIM)
+        if (s->simcpu->mmu->mem_controller->dram_model_type == MEM_MODEL_DRAMSIM)
         {
             dramsim_wrapper_print_stats();
         }

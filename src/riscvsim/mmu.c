@@ -61,11 +61,11 @@ mmu_init(const SimParams *p)
     /* Setup caches */
     if (p->enable_l1_caches)
     {
-        /* If caches are enabled, set dram burst size to cache line size. If
+        /* If caches are enabled, set burst length to cache line size. If
          * DRAMSim2 is used, its burst size must be equal to cache line size */
-        mem_controller_set_dram_burst_size(mmu->mem_controller,
-                                           p->words_per_cache_line
-                                               * sizeof(target_ulong));
+        mmu->mem_controller->set_burst_length(mmu->mem_controller,
+                                              p->words_per_cache_line
+                                                  * sizeof(target_ulong));
 
         if (p->enable_l2_cache)
         {
@@ -132,7 +132,7 @@ mmu_insn_read(MMU *mmu, target_ulong paddr, int bytes_to_read, int stage_id, int
         return cache_read(mmu->icache, paddr, bytes_to_read, (void *)&stage_id, priv);
     }
 
-    mem_controller_access_dram(mmu->mem_controller, paddr, bytes_to_read,
+    mmu->mem_controller->create_mem_request(mmu->mem_controller, paddr, bytes_to_read,
                                       Read, (void *)&stage_id);
     return 1;
 }
@@ -145,7 +145,7 @@ mmu_data_read(MMU *mmu, target_ulong paddr, int bytes_to_read, int stage_id, int
         return cache_read(mmu->dcache, paddr, bytes_to_read, (void *)&stage_id, priv);
     }
 
-    mem_controller_access_dram(mmu->mem_controller, paddr, bytes_to_read,
+    mmu->mem_controller->create_mem_request(mmu->mem_controller, paddr, bytes_to_read,
                                       Read, (void *)&stage_id);
     return 1;
 }
@@ -159,7 +159,7 @@ mmu_data_write(MMU *mmu, target_ulong paddr, int bytes_to_write, int stage_id, i
                            (void *)&stage_id, priv);
     }
 
-    mem_controller_access_dram(mmu->mem_controller, paddr,
+    mmu->mem_controller->create_mem_request(mmu->mem_controller, paddr,
                                       bytes_to_write, Write, (void *)&stage_id);
     return 1;
 }
@@ -172,7 +172,7 @@ int
 mmu_pte_read(MMU *mmu, target_ulong paddr, int bytes_to_read, int stage_id,
              int priv)
 {
-    return mem_controller_add_pte_to_dram_queue(
+    return mmu->mem_controller->create_mem_request_pte(
         mmu->mem_controller, paddr, bytes_to_read, Read, (void *)&stage_id);
 }
 
@@ -184,7 +184,7 @@ int
 mmu_pte_write(MMU *mmu, target_ulong paddr, int bytes_to_write, int stage_id,
               int priv)
 {
-    return mem_controller_add_pte_to_dram_queue(
+    return mmu->mem_controller->create_mem_request_pte(
         mmu->mem_controller, paddr, bytes_to_write, Write, (void *)&stage_id);
 }
 

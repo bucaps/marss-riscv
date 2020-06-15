@@ -130,7 +130,7 @@ read_data_internal(const Cache *c, target_ulong paddr, int bytes_to_read,
                           p_mem_access_info, priv);
     }
 
-    return mem_controller_access_dram(c->mem_controller, paddr, bytes_to_read, Read,
+    return c->mem_controller->create_mem_request(c->mem_controller, paddr, bytes_to_read, Read,
                       p_mem_access_info);
 }
 
@@ -288,7 +288,7 @@ writethrough_handler(const Cache *c, target_ulong paddr, int bytes_to_write,
                            p_mem_access_info, priv);
     }
 
-    return mem_controller_access_dram(c->mem_controller, paddr, bytes_to_write, Write,
+    return c->mem_controller->create_mem_request(c->mem_controller, paddr, bytes_to_write, Write,
                       p_mem_access_info);
 }
 
@@ -341,7 +341,7 @@ write_no_allocate_handler(const Cache *c, target_ulong paddr,
                            p_mem_access_info, priv);
     }
 
-    return mem_controller_access_dram(c->mem_controller, paddr, bytes_to_write, Write,
+    return c->mem_controller->create_mem_request(c->mem_controller, paddr, bytes_to_write, Write,
                       p_mem_access_info);
 }
 
@@ -366,7 +366,7 @@ writeback_victim_evict_handler(const Cache *c, CacheBlk *pBlk, int set, int way,
             else
             {
                 latency
-                    += mem_controller_access_dram(c->mem_controller, pBlk->tag << c->word_bits,
+                    += c->mem_controller->create_mem_request(c->mem_controller, pBlk->tag << c->word_bits,
                                   (WORD_SIZE * c->max_words_per_blk), Write,
                                   p_mem_access_info);
             }

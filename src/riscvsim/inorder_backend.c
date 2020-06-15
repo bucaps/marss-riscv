@@ -304,7 +304,7 @@ flush_speculated_cpu_state(INCore *core, IMapEntry *e)
     memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
 
     /* Flush memory controller queues on flush */
-    mem_controller_reset(s->simcpu->mmu->mem_controller);
+    s->simcpu->mmu->mem_controller->reset(s->simcpu->mmu->mem_controller);
 
     /* To start fetching */
     core->pcgen.has_data = TRUE;

@@ -109,7 +109,7 @@ void
 riscv_sim_cpu_reset(RISCVSIMCPUState *simcpu)
 {
     reset_imap(simcpu->imap);
-    mem_controller_reset(simcpu->mmu->mem_controller);
+    simcpu->mmu->mem_controller->reset(simcpu->mmu->mem_controller);
     simcpu->pfn_core_reset(simcpu->core);
 }
 

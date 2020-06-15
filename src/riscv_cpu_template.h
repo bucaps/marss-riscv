@@ -283,7 +283,7 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         }
 
         /* Reset DRAMs at every new simulation run */
-        switch (s->simcpu->mmu->mem_controller->mem_model_type)
+        switch (s->simcpu->mmu->mem_controller->dram_model_type)
         {
             case MEM_MODEL_BASE:
             {
