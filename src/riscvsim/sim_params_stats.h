@@ -61,12 +61,6 @@ enum BPU_TYPE
     BPU_TYPE_ADAPTIVE
 };
 
-enum BTB_EVICT_POLICY
-{
-    BTB_RANDOM_EVICT,
-    BTB_LRU_EVICT
-};
-
 enum CACHE_READ_ALLOC_POLICY
 {
     CACHE_READ_ALLOC,
@@ -83,12 +77,6 @@ enum CACHE_WRITE_POLICY
 {
     CACHE_WRITEBACK,
     CACHE_WRITETHROUGH,
-};
-
-enum CACHE_EVICT_POLICY
-{
-    CACHE_RANDOM_EVICT,
-    CACHE_LRU_EVICT
 };
 
 enum BPU_ALIAS_FUNC
@@ -131,21 +119,21 @@ enum MEM_MODEL_TYPE
 #define DEF_PHT_SIZE 1
 #define DEF_HISTORY_BITS 2
 #define DEF_BPU_ALIAS_FUNC BPU_ALIAS_FUNC_NONE
-#define DEF_BTB_EVICT_POLICY BTB_RANDOM_EVICT
+#define DEF_BTB_EVICT_POLICY EVICT_POLICY_RANDOM
 #define DEF_BPU_TYPE BPU_TYPE_BIMODAL
 
 #define DEF_ENABLE_L1_CACHE ENABLE
 #define DEF_L1_CODE_CACHE_READ_LATENCY 1
 #define DEF_L1_CODE_CACHE_SIZE 32
 #define DEF_L1_CODE_CACHE_WAYS 4
-#define DEF_L1_CODE_CACHE_EVICT CACHE_LRU_EVICT
+#define DEF_L1_CODE_CACHE_EVICT EVICT_POLICY_RANDOM
 
 #define DEF_L1_DATA_CACHE_PROBE_LATENCY 1
 #define DEF_L1_DATA_CACHE_READ_LATENCY 1
 #define DEF_L1_DATA_CACHE_WRITE_LATENCY 1
 #define DEF_L1_DATA_CACHE_SIZE 32
 #define DEF_L1_DATA_CACHE_WAYS 4
-#define DEF_L1_DATA_CACHE_EVICT CACHE_LRU_EVICT
+#define DEF_L1_DATA_CACHE_EVICT EVICT_POLICY_RANDOM
 
 #define DEF_ENABLE_L2_CACHE ENABLE
 #define DEF_L2_CACHE_PROBE_LATENCY 1
@@ -153,7 +141,7 @@ enum MEM_MODEL_TYPE
 #define DEF_L2_CACHE_WRITE_LATENCY 1
 #define DEF_L2_CACHE_SIZE 256
 #define DEF_L2_CACHE_WAYS 16
-#define DEF_L2_CACHE_EVICT CACHE_LRU_EVICT
+#define DEF_L2_CACHE_EVICT EVICT_POLICY_RANDOM
 
 #define DEF_CACHE_READ_ALLOC_POLICY CACHE_READ_ALLOC
 #define DEF_CACHE_WRITE_ALLOC_POLICY CACHE_WRITE_ALLOC
@@ -206,12 +194,11 @@ enum MEM_MODEL_TYPE
 
 extern const char *core_type_str[];
 extern const char *sim_param_status[];
-extern const char *cache_evict_str[];
+extern const char *evict_policy_str[];
 extern const char *cache_ra_str[];
 extern const char *cache_wa_str[];
 extern const char *cache_wp_str[];
 extern const char *bpu_type_str[];
-extern const char *btb_evict_str[];
 extern const char *bpu_aliasing_func_type_str[];
 extern const char *dram_model_type_str[];
 

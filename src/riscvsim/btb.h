@@ -32,6 +32,7 @@
 
 #include "sim_params_stats.h"
 #include "riscv_sim_typedefs.h"
+#include "evict_policy.h"
 
 typedef struct BtbEntry
 {
@@ -43,14 +44,12 @@ typedef struct BtbEntry
 typedef struct BranchTargetBuffer
 {
     BtbEntry **data;
-    int **status_bits; /* For each BTB entry, used in LRU eviction */
     int rand_evict;    /* If non-zero, uses random eviction policy for BTB, instead of LRU */
     int size;          /* Number of entries in BTB */
     int sets;          /* Number of BTB sets */
     uint32_t set_bits; /* Number of lowest bits of PC required to index into a set */
     int ways;          /* Number of ways in each set */
-    int (*pfn_btb_evict_handler)(struct BranchTargetBuffer *b,
-                                 int set); /* Pointer to BTB eviction handler*/
+    EvictPolicy *evict_policy;
 } BranchTargetBuffer;
 
 BranchTargetBuffer *btb_init(const SimParams *p);

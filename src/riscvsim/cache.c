@@ -52,64 +52,6 @@ update_tag_address(const Cache *c, uint32_t *pset, CacheBlk **pblk,
     *paddr = *ptag << c->word_bits;
 }
 
-static void
-update_status_bits(const Cache *c, int set, int way)
-{
-    /* Update status bit used by LRU algorithm (Hot & Cold bit)*/
-    int update_bit = 0;
-    int comp = floor(c->num_ways / 2);
-
-    while (update_bit < (c->num_ways - 1))
-    {
-        if (way <= comp)
-        {
-            /* Status bit is in first half */
-            c->status_bits[set][update_bit] = 0;
-            update_bit = ((update_bit + 1) * 2) - 1;
-            comp = floor(comp / 2);
-        }
-        else
-        {
-            /* Status bit is in second half */
-            c->status_bits[set][update_bit] = 1;
-            update_bit = ((update_bit + 1) * 2);
-            comp = floor((comp + c->num_ways - 1) / 2);
-        }
-    }
-}
-
-static int
-get_lru_victim_index(const Cache *c, int set)
-{
-    int check_bit = 0;
-    int lower_bound = 0;
-    int upper_bound = c->num_ways - 1;
-
-    while (check_bit < (c->num_ways - 1))
-    {
-        if (c->status_bits[set][check_bit])
-        {
-            /* First half is cold */
-            check_bit = ((check_bit + 1) * 2) - 1;
-            upper_bound = floor((lower_bound + upper_bound) / 2);
-        }
-        else
-        {
-            /* Second half is cold */
-            check_bit = ((check_bit + 1) * 2);
-            lower_bound = floor((lower_bound + upper_bound) / 2) + 1;
-        }
-    }
-
-    return lower_bound;
-}
-
-static int
-get_random_victim_index(const Cache *c, int set)
-{
-    return rand() % c->num_ways;
-}
-
 static int
 read_data_internal(const Cache *c, target_ulong paddr, int bytes_to_read,
                    void *p_mem_access_info, int priv)
@@ -134,7 +76,7 @@ read_allocate_handler(const Cache *c, target_ulong paddr, int bytes_to_read,
 
     CacheBlk *blk = c->blk[set];
     /* Select victim using the set policy */
-    int victim = (*c->pfn_get_victim_index)(c, set);
+    int victim = c->evict_policy->evict(c->evict_policy, set);
 
     /* As we want to allocate complete line, bytes_to_read = cache line width in
      * bytes and paddr is the address of the zeroth byte in the cache line */
@@ -154,8 +96,8 @@ read_allocate_handler(const Cache *c, target_ulong paddr, int bytes_to_read,
     blk[victim].tag = tag;
     blk[victim].status = Valid;
 
-    /* Update the status bits used for LRU victim selection policy */
-    update_status_bits(c, set, victim);
+    /* Update the status bits used for victim selection policy */
+    c->evict_policy->use(c->evict_policy, set, victim);
 
     return latency;
 }
@@ -190,7 +132,8 @@ cache_read(const Cache *c, target_ulong paddr, int bytes_to_read,
             if ((blk[i].tag == tag) && (blk[i].status == Valid))
             {
                 /* Tag-match: Physical address is present in the cache */
-                update_status_bits(c, set, i);
+                c->evict_policy->use(c->evict_policy, set, i);
+
                 if ((start_byte + bytes_to_read)
                     <= (c->max_words_per_blk * WORD_SIZE))
                 {
@@ -261,8 +204,7 @@ writeback_handler(const Cache *c, target_ulong paddr, int bytes_to_write,
     /* Just update dirty bit and status bits, no need to write to next cache */
     CacheBlk *blk = c->blk[set];
     blk[way].dirty = Dirty;
-
-    update_status_bits(c, set, way);
+    c->evict_policy->use(c->evict_policy, set, way);
     return 0;
 }
 
@@ -273,7 +215,7 @@ writethrough_handler(const Cache *c, target_ulong paddr, int bytes_to_write,
     /* Update the dirty bit and status bits */
     CacheBlk *blk = c->blk[set];
     blk[way].dirty = Dirty;
-    update_status_bits(c, set, way);
+    c->evict_policy->use(c->evict_policy, set, way);
 
     /* Propagate write to next-level cache if available, memory otherwise */
     if (NULL != c->next_level_cache)
@@ -303,7 +245,7 @@ write_allocate_handler(const Cache *c, target_ulong paddr, int bytes_to_write,
     target_ulong tag = paddr >> (c->word_bits);
 
     /* Select victim using the set policy */
-    int victim = (*c->pfn_get_victim_index)(c, set);
+    int victim = c->evict_policy->evict(c->evict_policy, set);
     /* Handle victim eviction according to set policy */
     latency += (*c->pfn_victim_evict_handler)(c, &(blk[victim]), set, victim,
                                               p_mem_access_info, priv);
@@ -478,10 +420,11 @@ cache_flush(Cache *c)
 {
     int i;
 
+    c->evict_policy->reset(c->evict_policy);
+
     for (i = 0; i < c->num_sets; ++i)
     {
         memset((void *)c->blk[i], 0, sizeof(CacheBlk) * c->num_ways);
-        memset((void *)c->status_bits[i], 0, sizeof(int) * (c->num_ways));
     }
 }
 
@@ -513,8 +456,8 @@ cache_print_config(const Cache *c)
     fprintf(stderr, "Offset(word) bits: %u\n", c->word_bits);
     fprintf(stderr, "Set bits: %u\n", c->set_bits);
     fprintf(stderr, "Tag bits: %u\n", c->tag_bits);
-    fprintf(stderr, "Eviction Policy: [%d] %s\n", c->cache_evict_policy,
-            cache_evict_str[c->cache_evict_policy]);
+    fprintf(stderr, "Eviction Policy: [%d] %s\n", c->evict_policy->type,
+            evict_policy_str[c->evict_policy->type]);
     fprintf(stderr, "Write Policy: [%d] %s\n", c->cache_write_policy,
             cache_wp_str[c->cache_write_policy]);
     fprintf(stderr, "Read Alloc Policy: [%d] %s\n", c->cache_read_alloc_policy,
@@ -529,7 +472,7 @@ cache_print_config(const Cache *c)
 Cache *
 cache_init(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
            int read_latency, int write_latency, Cache *next_level_cache,
-           int words_per_blk, CacheEvictionPolicy evict_policy,
+           int words_per_blk, int evict_policy,
            CacheWritePolicy write_policy,
            CacheReadAllocPolicy read_alloc_policy,
            CacheWriteAllocPolicy write_alloc_policy,
@@ -548,18 +491,11 @@ cache_init(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
     c->blk = (CacheBlk **)calloc(c->num_sets, sizeof(CacheBlk *));
     assert(c->blk);
 
-    /* Allocate memory to hold status bits */
-    c->status_bits = (int **)calloc(c->num_sets, sizeof(int *));
-    assert(c->status_bits);
-
     /* Allocate memory for cache blocks */
     for (i = 0; i < c->num_sets; ++i)
     {
         c->blk[i] = (CacheBlk *)calloc(c->num_ways, sizeof(CacheBlk));
         assert(c->blk[i]);
-
-        c->status_bits[i] = (int *)calloc(c->num_ways, sizeof(int));
-        assert(c->status_bits[i]);
     }
 
     c->max_words_per_blk = words_per_blk;
@@ -591,26 +527,11 @@ cache_init(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
     c->stats = (CacheStats *)calloc(NUM_MAX_PRV_LEVELS, sizeof(CacheStats));
     assert(c->stats);
 
-    c->cache_evict_policy = evict_policy;
+    c->evict_policy
+        = evict_policy_create(c->num_sets, c->num_ways, evict_policy);
     c->cache_write_policy = write_policy;
     c->cache_read_alloc_policy = read_alloc_policy;
     c->cache_write_alloc_policy = write_alloc_policy;
-
-    /* Set eviction function pointer */
-    switch (evict_policy)
-    {
-        case Random:
-        {
-            c->pfn_get_victim_index = &get_random_victim_index;
-            break;
-        }
-
-        case LRU:
-        {
-            c->pfn_get_victim_index = &get_lru_victim_index;
-            break;
-        }
-    }
 
     /* Set write policy handler function pointer */
     switch (write_policy)
@@ -681,15 +602,12 @@ cache_free(Cache **c)
     {
         free((*c)->blk[i]);
         (*c)->blk[i] = NULL;
-        free((*c)->status_bits[i]);
-        (*c)->status_bits[i] = NULL;
     }
     free((*c)->blk);
     (*c)->blk = NULL;
-    free((*c)->status_bits);
-    (*c)->status_bits = NULL;
     free((*c)->stats);
     (*c)->stats = NULL;
+    evict_policy_free(&(*c)->evict_policy);
     free(*c);
     *c = NULL;
 }

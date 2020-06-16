@@ -33,6 +33,7 @@
 #include "memory_controller.h"
 #include "riscv_sim_typedefs.h"
 #include "sim_params_stats.h"
+#include "evict_policy.h"
 
 /* Word size in the target architecture */
 #define WORD_SIZE (sizeof(target_ulong))
@@ -69,13 +70,6 @@ typedef enum CacheLevels
     L2 = 0x2,
     L3 = 0x3,
 } CacheLevels;
-
-/* Cache victim selection policy */
-typedef enum CacheEvictionPolicy
-{
-    Random, /* Replace a random block */
-    LRU,    /* Replace least recently used block (perfect LRU) */
-} CacheEvictionPolicy;
 
 /* Status of the cache block */
 typedef enum BlockStatus
@@ -150,8 +144,6 @@ typedef struct Cache
     int read_latency;
     int write_latency;
 
-    CacheEvictionPolicy cache_evict_policy;
-
     CacheWritePolicy cache_write_policy;
     CacheReadAllocPolicy cache_read_alloc_policy;
     CacheWriteAllocPolicy cache_write_alloc_policy;
@@ -175,11 +167,12 @@ typedef struct Cache
     PFN_VICTIM_EVICTION_HANDLER pfn_victim_evict_handler;
 
     CacheBlk **blk;
-    int **status_bits;
+
     /* Pointer to the next level cache, if NULL it means it is the last level
      * cache (LLC) */
     struct Cache *next_level_cache;
     CacheStats *stats;
+    EvictPolicy *evict_policy;
 
     void (*flush)(struct Cache *c);
     void (*print_config)(const struct Cache *c);
@@ -194,7 +187,7 @@ typedef struct Cache
 
 Cache *cache_init(CacheTypes type, CacheLevels level, uint32_t blks,
                     uint32_t ways, int read_latency, int write_latency, Cache *next_level_cache,
-                    int words_per_blk, CacheEvictionPolicy evict_policy,
+                    int words_per_blk, int evict_policy,
                     CacheWritePolicy write_policy,
                     CacheReadAllocPolicy read_alloc_policy,
                     CacheWriteAllocPolicy write_alloc_policy,

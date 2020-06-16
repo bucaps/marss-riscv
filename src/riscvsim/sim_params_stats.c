@@ -37,12 +37,11 @@
 
 const char *core_type_str[] = {"in-order", "out-of-order"};
 const char *sim_param_status[] = {"false", "true"};
-const char *cache_evict_str[] = {"random", "lru"};
+const char *evict_policy_str[] = {"random", "bit-plru"};
 const char *cache_ra_str[] = {"true", "false"};
 const char *cache_wa_str[] = {"true", "false"};
 const char *cache_wp_str[] = {"writeback", "writethrough"};
 const char *bpu_type_str[] = {"bimodal", "adaptive"};
-const char *btb_evict_str[] = {"random", "lru"};
 const char *bpu_aliasing_func_type_str[] = {"xor", "and", "none"};
 const char *dram_model_type_str[] = {"base", "dramsim2"};
 
@@ -306,7 +305,7 @@ sim_params_print(const SimParams *p)
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "btb_ways",
                 p->btb_ways);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "btb_eviction_policy",
-                btb_evict_str[p->btb_eviction_policy]);
+                evict_policy_str[p->btb_eviction_policy]);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "bpu_type",
                 bpu_type_str[p->bpu_type]);
 
@@ -355,7 +354,7 @@ sim_params_print(const SimParams *p)
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "l1_code_cache_ways",
                 p->l1_code_cache_ways);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "l1_code_cache_evict",
-                cache_evict_str[p->l1_code_cache_evict]);
+                evict_policy_str[p->l1_code_cache_evict]);
 
         /* L1-DCache */
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n",
@@ -367,7 +366,7 @@ sim_params_print(const SimParams *p)
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", "l1_data_cache_ways",
                 p->l1_data_cache_ways);
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "l1_data_cache_evict",
-                cache_evict_str[p->l1_data_cache_evict]);
+                evict_policy_str[p->l1_data_cache_evict]);
 
         /* L2 Shared Cache Size */
         fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n", "enable_l2_cache",
@@ -385,7 +384,7 @@ sim_params_print(const SimParams *p)
                     "l2_shared_cache_ways", p->l2_shared_cache_ways);
             fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %s\n",
                     "l2_shared_cache_evict",
-                    cache_evict_str[p->l2_shared_cache_evict]);
+                    evict_policy_str[p->l2_shared_cache_evict]);
         }
 
         /* Common cache params */

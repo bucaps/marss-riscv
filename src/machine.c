@@ -763,13 +763,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         tag_name = "btb_eviction_policy";
         if (vm_get_str(cfg, tag_name, &str) < 0) {
             fprintf(stderr, "%s not found, selecting default value %s\n", tag_name,
-                    btb_evict_str[p->sim_params->btb_eviction_policy]);
+                    evict_policy_str[p->sim_params->btb_eviction_policy]);
         }
         else {
             if (strcmp(str, "random") == 0) {
-                p->sim_params->btb_eviction_policy  = BTB_RANDOM_EVICT;
+                p->sim_params->btb_eviction_policy  = EVICT_POLICY_RANDOM;
             } else if (strcmp(str, "lru") == 0) {
-                p->sim_params->btb_eviction_policy = BTB_LRU_EVICT;
+                p->sim_params->btb_eviction_policy = EVICT_POLICY_BIT_PLRU;
             } else {
                 fprintf(stderr, "error: option %s has invalid value\n", tag_name);
                 exit(1);
@@ -878,13 +878,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
       tag_name = "eviction";
       if (vm_get_str(obj, tag_name, &str) < 0) {
           fprintf(stderr, "icache %s policy not found, selecting default value %s\n",
-                  tag_name, cache_evict_str[p->sim_params->l1_code_cache_evict]);
+                  tag_name, evict_policy_str[p->sim_params->l1_code_cache_evict]);
       }
       else {
          if (strcmp(str, "lru") == 0) {
-             p->sim_params->l1_code_cache_evict = CACHE_LRU_EVICT;
+             p->sim_params->l1_code_cache_evict = EVICT_POLICY_BIT_PLRU;
          } else if (strcmp(str, "random") == 0) {
-             p->sim_params->l1_code_cache_evict = CACHE_RANDOM_EVICT;
+             p->sim_params->l1_code_cache_evict = EVICT_POLICY_RANDOM;
          } else {
              fprintf(stderr, "error: option icache %s policy has invalid value\n", tag_name);
              exit(1);
@@ -926,13 +926,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
       tag_name = "eviction";
       if (vm_get_str(obj, tag_name, &str) < 0) {
           fprintf(stderr, "dcache %s policy not found, selecting default value %s\n",
-                  tag_name, cache_evict_str[p->sim_params->l1_data_cache_evict]);
+                  tag_name, evict_policy_str[p->sim_params->l1_data_cache_evict]);
       }
       else {
          if (strcmp(str, "lru") == 0) {
-             p->sim_params->l1_data_cache_evict = CACHE_LRU_EVICT;
+             p->sim_params->l1_data_cache_evict = EVICT_POLICY_BIT_PLRU;
          } else if (strcmp(str, "random") == 0) {
-             p->sim_params->l1_data_cache_evict = CACHE_RANDOM_EVICT;
+             p->sim_params->l1_data_cache_evict = EVICT_POLICY_RANDOM;
          } else {
              fprintf(stderr, "error: option dcache %s policy has invalid value\n", tag_name);
              exit(1);
@@ -1045,13 +1045,13 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         tag_name = "eviction";
         if (vm_get_str(obj, tag_name, &str) < 0) {
             fprintf(stderr, "l2-cache %s policy not found, selecting default value %s\n",
-                    tag_name, cache_evict_str[p->sim_params->l2_shared_cache_evict]);
+                    tag_name, evict_policy_str[p->sim_params->l2_shared_cache_evict]);
         }
         else {
             if (strcmp(str, "lru") == 0) {
-                p->sim_params->l2_shared_cache_evict = CACHE_LRU_EVICT;
+                p->sim_params->l2_shared_cache_evict = EVICT_POLICY_BIT_PLRU;
             } else if (strcmp(str, "random") == 0) {
-                p->sim_params->l2_shared_cache_evict = CACHE_RANDOM_EVICT;
+                p->sim_params->l2_shared_cache_evict = EVICT_POLICY_RANDOM;
             } else {
                 fprintf(stderr, "error: option l2-cache %s policy has invalid value\n", tag_name);
                 exit(1);

@@ -162,4 +162,9 @@
 #define FU_FPU_ALU_FMV 0xd
 #define FU_FPU_ALU_FCLASS 0xe
 #define MAX_FU_FPU_ALU_TYPES 15
+
+/* Eviction policies for set associative data structures */
+#define EVICT_POLICY_RANDOM 0x0
+#define EVICT_POLICY_BIT_PLRU 0x1
+
 #endif
