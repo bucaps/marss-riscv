@@ -262,28 +262,28 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         /* Reset Caches at every new simulation run */
         if (s->sim_params->enable_l1_caches)
         {
-            s->simcpu->mmu->icache->reset_stats(s->simcpu->mmu->icache);
-            s->simcpu->mmu->dcache->reset_stats(s->simcpu->mmu->dcache);
+            s->simcpu->mem_hierarchy->icache->reset_stats(s->simcpu->mem_hierarchy->icache);
+            s->simcpu->mem_hierarchy->dcache->reset_stats(s->simcpu->mem_hierarchy->dcache);
 
             if (s->sim_params->flush_sim_mem)
             {
-                s->simcpu->mmu->icache->flush(s->simcpu->mmu->icache);
-                s->simcpu->mmu->dcache->flush(s->simcpu->mmu->dcache);
+                s->simcpu->mem_hierarchy->icache->flush(s->simcpu->mem_hierarchy->icache);
+                s->simcpu->mem_hierarchy->dcache->flush(s->simcpu->mem_hierarchy->dcache);
             }
 
             if (s->sim_params->enable_l2_cache)
             {
-                s->simcpu->mmu->l2_cache->reset_stats(s->simcpu->mmu->l2_cache);
+                s->simcpu->mem_hierarchy->l2_cache->reset_stats(s->simcpu->mem_hierarchy->l2_cache);
 
                 if (s->sim_params->flush_sim_mem)
                 {
-                    s->simcpu->mmu->l2_cache->flush(s->simcpu->mmu->l2_cache);
+                    s->simcpu->mem_hierarchy->l2_cache->flush(s->simcpu->mem_hierarchy->l2_cache);
                 }
             }
         }
 
         /* Reset DRAMs at every new simulation run */
-        switch (s->simcpu->mmu->mem_controller->dram_model_type)
+        switch (s->simcpu->mem_hierarchy->mem_controller->dram_model_type)
         {
             case MEM_MODEL_BASE:
             {
@@ -297,8 +297,8 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                     s->sim_params->dramsim_system_ini_file,
                     s->sim_params->dramsim_stats_dir, s->sim_params->core_name,
                     s->sim_params->guest_ram_size,
-                    &s->simcpu->mmu->mem_controller->frontend_mem_access_queue,
-                    &s->simcpu->mmu->mem_controller->backend_mem_access_queue);
+                    &s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue,
+                    &s->simcpu->mem_hierarchy->mem_controller->backend_mem_access_queue);
                 break;
             }
         }

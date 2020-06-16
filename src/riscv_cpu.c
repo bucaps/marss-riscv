@@ -240,7 +240,7 @@ stop_system_simulation(RISCVCPUState *s, target_ulong pc, uint64_t icount)
         STOP_SIM_TIMER(s->sim_end);
         sim_time = GET_SIM_TIMER_DIFF(s->sim_start, s->sim_end) / 1000000;
 
-        if (s->simcpu->mmu->mem_controller->dram_model_type == MEM_MODEL_DRAMSIM)
+        if (s->simcpu->mem_hierarchy->mem_controller->dram_model_type == MEM_MODEL_DRAMSIM)
         {
             dramsim_wrapper_print_stats();
         }
@@ -437,16 +437,18 @@ static int get_phys_addr(RISCVCPUState *s,
             pte = phys_read_u32(s, pte_addr);
             if (s->simulation) {
                 s->hw_pg_tb_wlk_latency
-                    += mmu_pte_read(s->simcpu->mmu, pte_addr, 4,
-                                    s->hw_pg_tb_wlk_stage_id, s->priv);
+                    += s->simcpu->mem_hierarchy->pte_read_delay(
+                        s->simcpu->mem_hierarchy, pte_addr, 4,
+                        s->hw_pg_tb_wlk_stage_id, s->priv);
             }
         }
         else {
             pte = phys_read_u64(s, pte_addr);
             if (s->simulation) {
                 s->hw_pg_tb_wlk_latency
-                    += mmu_pte_read(s->simcpu->mmu, pte_addr, 8,
-                                    s->hw_pg_tb_wlk_stage_id, s->priv);
+                    += s->simcpu->mem_hierarchy->pte_read_delay(
+                        s->simcpu->mem_hierarchy, pte_addr, 8,
+                        s->hw_pg_tb_wlk_stage_id, s->priv);
             }
         }
         //printf("pte=0x%08" PRIx64 "\n", pte);
@@ -482,16 +484,18 @@ static int get_phys_addr(RISCVCPUState *s,
                     phys_write_u32(s, pte_addr, pte);
                     if (s->simulation) {
                         s->hw_pg_tb_wlk_latency
-                            += mmu_pte_write(s->simcpu->mmu, pte_addr, 4,
-                                             s->hw_pg_tb_wlk_stage_id, s->priv);
+                            += s->simcpu->mem_hierarchy->pte_write_delay(
+                                s->simcpu->mem_hierarchy, pte_addr, 4,
+                                s->hw_pg_tb_wlk_stage_id, s->priv);
                     }
                 }
                 else {
                     phys_write_u64(s, pte_addr, pte);
                     if (s->simulation) {
                         s->hw_pg_tb_wlk_latency
-                            += mmu_pte_write(s->simcpu->mmu, pte_addr, 8,
-                                             s->hw_pg_tb_wlk_stage_id, s->priv);
+                            += s->simcpu->mem_hierarchy->pte_write_delay(
+                                s->simcpu->mem_hierarchy, pte_addr, 8,
+                                s->hw_pg_tb_wlk_stage_id, s->priv);
                     }
                 }
             }

@@ -32,7 +32,7 @@
 
 #include "sim_params_stats.h"
 #include "bpu.h"
-#include "mmu.h"
+#include "memory_hierarchy.h"
 #include "riscv_sim_typedefs.h"
 #include "common_core_utils.h"
 
@@ -51,9 +51,7 @@ typedef struct RISCVSIMCPUState
     int (*pfn_branch_handler)(struct RISCVCPUState *, IMapEntry *);
     void (*pfn_branch_frontend_probe_handler)(struct RISCVCPUState *,IMapEntry *);
     int (*pfn_branch_frontend_decode_handler)(struct RISCVCPUState *, IMapEntry *);
-
-    MMU *mmu;               /* Memory controller */
-
+    MemoryHierarchy *mem_hierarchy;
     SimTracePacket sim_trace_pkt; /* Used to dump simulation trace */
 
     /*----------  Based on core type: in-order or out-of-order  ----------*/

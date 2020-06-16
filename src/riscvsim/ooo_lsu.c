@@ -73,20 +73,20 @@ oo_core_lsu(OOCore *core)
                     {
                         e->max_latency
                             -= min_int(s->hw_pg_tb_wlk_latency,
-                                       s->simcpu->mmu->dcache->read_latency);
+                                       s->simcpu->mem_hierarchy->dcache->read_latency);
                     }
                     if (e->ins.is_store)
                     {
                         e->max_latency
                             -= min_int(s->hw_pg_tb_wlk_latency,
-                                       s->simcpu->mmu->dcache->write_latency);
+                                       s->simcpu->mem_hierarchy->dcache->write_latency);
                     }
                     if (e->ins.is_atomic)
                     {
                         e->max_latency -= min_int(
                             s->hw_pg_tb_wlk_latency,
-                            min_int(s->simcpu->mmu->dcache->read_latency,
-                                    s->simcpu->mmu->dcache->write_latency));
+                            min_int(s->simcpu->mem_hierarchy->dcache->read_latency,
+                                    s->simcpu->mem_hierarchy->dcache->write_latency));
                     }
                 }
             }
@@ -97,9 +97,9 @@ oo_core_lsu(OOCore *core)
         {
             /* Number of CPU cycles spent by this instruction in memory stage
              * equals memory access delay for this instruction */
-            if (!s->simcpu->mmu->mem_controller->backend_mem_access_queue.cur_size)
+            if (!s->simcpu->mem_hierarchy->mem_controller->backend_mem_access_queue.cur_size)
             {
-                s->simcpu->mmu->mem_controller->backend_mem_access_queue.cur_idx
+                s->simcpu->mem_hierarchy->mem_controller->backend_mem_access_queue.cur_idx
                     = 0;
                 core->lsq.entries[e->lsq_idx].mem_request_complete = TRUE;
                 cpu_stage_flush(&core->lsu);

@@ -469,16 +469,23 @@ cache_print_config(const Cache *c)
     fprintf(stderr, "\n");
 }
 
+static int
+get_num_cache_blks(int size_kb, int cache_line_size)
+{
+    return (int)((size_kb * 1024) / cache_line_size);
+}
+
 Cache *
-cache_init(CacheTypes type, CacheLevels level, uint32_t blks, uint32_t ways,
-           int read_latency, int write_latency, Cache *next_level_cache,
-           int words_per_blk, int evict_policy,
+cache_init(CacheTypes type, CacheLevels level, int size_kb, int cache_line_size,
+           uint32_t ways, int read_latency, int write_latency,
+           Cache *next_level_cache, int words_per_blk, int evict_policy,
            CacheWritePolicy write_policy,
            CacheReadAllocPolicy read_alloc_policy,
            CacheWriteAllocPolicy write_alloc_policy,
            MemoryController *mem_controller)
 {
     int i;
+    uint32_t blks = get_num_cache_blks(size_kb, cache_line_size);
     Cache *c = (Cache *)malloc(sizeof(Cache));
 
     c->type = type;

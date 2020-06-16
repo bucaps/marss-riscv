@@ -53,7 +53,7 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
     assert(simcpu->imap);
 
     PRINT_PROG_TITLE_MSG("MARSS-RISCV: Micro-Architectural System Simulator for RISC-V");
-    simcpu->mmu = mmu_init(simcpu->params);
+    simcpu->mem_hierarchy = memory_hierarchy_init(simcpu->params);
 
     /* Seed for random eviction, if used in BPU and caches */
     srand(time(NULL));
@@ -109,7 +109,7 @@ void
 riscv_sim_cpu_reset(RISCVSIMCPUState *simcpu)
 {
     reset_imap(simcpu->imap);
-    simcpu->mmu->mem_controller->reset(simcpu->mmu->mem_controller);
+    simcpu->mem_hierarchy->mem_controller->reset(simcpu->mem_hierarchy->mem_controller);
     simcpu->pfn_core_reset(simcpu->core);
 }
 
@@ -128,7 +128,7 @@ riscv_sim_cpu_free(RISCVSIMCPUState **simcpu)
     free((*simcpu)->imap);
     (*simcpu)->imap = NULL;
 
-    mmu_free(&((*simcpu)->mmu));
+    memory_hierarchy_free(&((*simcpu)->mem_hierarchy));
 
     if ((*simcpu)->params->enable_bpu)
     {

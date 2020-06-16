@@ -120,7 +120,7 @@ in_core_fetch(INCore *core)
 
             /* Check if the dram accesses, if required for this instruction,
              * are completed */
-            if (!s->simcpu->mmu->mem_controller->frontend_mem_access_queue
+            if (!s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue
                      .cur_size)
             {
                 /* Stop fetching new instructions on a MMU exception */
@@ -134,7 +134,7 @@ in_core_fetch(INCore *core)
                      * decode stage */
                     if (!core->decode.has_data)
                     {
-                        s->simcpu->mmu->mem_controller->frontend_mem_access_queue
+                        s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue
                             .cur_idx
                             = 0;
 

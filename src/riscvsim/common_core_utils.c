@@ -205,7 +205,7 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
     /* current_latency: number of CPU cycles spent by this instruction
      * in fetch stage so far */
     e->current_latency = 1;
-    s->simcpu->mmu->mem_controller->frontend_mem_access_queue.cur_size = 0;
+    s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue.cur_size = 0;
 
     /* Fetch instruction from TinyEMU memory map */
     if (code_tlb_access_and_ins_fetch(s, e))
@@ -224,14 +224,15 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
         /* max_latency: Number of CPU cycles required for TLB and Cache
          * look-up */
         e->max_latency = s->hw_pg_tb_wlk_latency
-                         + mmu_insn_read(s->simcpu->mmu, s->code_guest_paddr, 4,
-                                         FETCH, s->priv);
+                         + s->simcpu->mem_hierarchy->insn_read_delay(
+                               s->simcpu->mem_hierarchy, s->code_guest_paddr, 4,
+                               FETCH, s->priv);
 
         if (s->sim_params->enable_l1_caches)
         {
             /* L1 caches and TLB are probed in parallel */
             e->max_latency -= min_int(s->hw_pg_tb_wlk_latency,
-                                      s->simcpu->mmu->icache->read_latency);
+                                      s->simcpu->mem_hierarchy->icache->read_latency);
         }
 
         /* Increment PC for the next instruction */
@@ -539,13 +540,15 @@ get_data_mem_access_latency(RISCVCPUState *s, IMapEntry *e)
 
     if ((e->ins.is_load || e->ins.is_atomic_load))
     {
-        latency += mmu_data_read(simcpu->mmu, s->data_guest_paddr,
-                                 e->ins.bytes_to_rw, MEMORY, s->priv);
+        latency += simcpu->mem_hierarchy->data_read_delay(
+            simcpu->mem_hierarchy, s->data_guest_paddr, e->ins.bytes_to_rw,
+            MEMORY, s->priv);
     }
     if ((e->ins.is_store || e->ins.is_atomic_store))
     {
-        latency += mmu_data_write(simcpu->mmu, s->data_guest_paddr,
-                                  e->ins.bytes_to_rw, MEMORY, s->priv);
+        latency += simcpu->mem_hierarchy->data_write_delay(
+            simcpu->mem_hierarchy, s->data_guest_paddr, e->ins.bytes_to_rw,
+            MEMORY, s->priv);
     }
     if (latency)
     {
@@ -633,8 +636,8 @@ handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
                 s->code_to_pc_addend = ras_target;
                 e->predicted_target = ras_target;
 
-                s->simcpu->mmu->mem_controller->flush_cpu_stage_queue(
-                    &s->simcpu->mmu->mem_controller->frontend_mem_access_queue);
+                s->simcpu->mem_hierarchy->mem_controller->flush_cpu_stage_queue(
+                    &s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue);
 
                 /* Signal the calling stage to flush previous stages */
                 return TRUE;
@@ -804,12 +807,12 @@ copy_cache_stats_to_global_stats(struct RISCVCPUState *s)
         for (i = 0; i < NUM_MAX_PRV_LEVELS; ++i)
         {
             cache_stats
-                = s->simcpu->mmu->icache->get_stats(s->simcpu->mmu->icache);
+                = s->simcpu->mem_hierarchy->icache->get_stats(s->simcpu->mem_hierarchy->icache);
             s->simcpu->stats[i].icache_read = cache_stats[i].total_read_cnt;
             s->simcpu->stats[i].icache_read_miss = cache_stats[i].read_miss_cnt;
 
             cache_stats
-                = s->simcpu->mmu->dcache->get_stats(s->simcpu->mmu->dcache);
+                = s->simcpu->mem_hierarchy->dcache->get_stats(s->simcpu->mem_hierarchy->dcache);
             s->simcpu->stats[i].dcache_read = cache_stats[i].total_read_cnt;
             s->simcpu->stats[i].dcache_read_miss = cache_stats[i].read_miss_cnt;
             s->simcpu->stats[i].dcache_write = cache_stats[i].total_write_cnt;
@@ -817,8 +820,8 @@ copy_cache_stats_to_global_stats(struct RISCVCPUState *s)
 
             if (s->sim_params->enable_l2_cache)
             {
-                cache_stats = s->simcpu->mmu->l2_cache->get_stats(
-                    s->simcpu->mmu->l2_cache);
+                cache_stats = s->simcpu->mem_hierarchy->l2_cache->get_stats(
+                    s->simcpu->mem_hierarchy->l2_cache);
                 s->simcpu->stats[i].l2_cache_read = cache_stats[i].total_read_cnt;
                 s->simcpu->stats[i].l2_cache_read_miss = cache_stats[i].read_miss_cnt;
                 s->simcpu->stats[i].l2_cache_write = cache_stats[i].total_write_cnt;

@@ -304,7 +304,7 @@ flush_speculated_cpu_state(INCore *core, IMapEntry *e)
     memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
 
     /* Flush memory controller queues on flush */
-    s->simcpu->mmu->mem_controller->reset(s->simcpu->mmu->mem_controller);
+    s->simcpu->mem_hierarchy->mem_controller->reset(s->simcpu->mem_hierarchy->mem_controller);
 
     /* To start fetching */
     core->pcgen.has_data = TRUE;
@@ -377,20 +377,20 @@ in_core_memory(INCore *core)
                         {
                             e->max_latency
                                 -= min_int(s->hw_pg_tb_wlk_latency,
-                                           s->simcpu->mmu->dcache->read_latency);
+                                           s->simcpu->mem_hierarchy->dcache->read_latency);
                         }
                         if (e->ins.is_store)
                         {
                             e->max_latency
                                 -= min_int(s->hw_pg_tb_wlk_latency,
-                                           s->simcpu->mmu->dcache->write_latency);
+                                           s->simcpu->mem_hierarchy->dcache->write_latency);
                         }
                         if (e->ins.is_atomic)
                         {
                             e->max_latency -= min_int(
                                 s->hw_pg_tb_wlk_latency,
-                                min_int(s->simcpu->mmu->dcache->read_latency,
-                                        s->simcpu->mmu->dcache->write_latency));
+                                min_int(s->simcpu->mem_hierarchy->dcache->read_latency,
+                                        s->simcpu->mem_hierarchy->dcache->write_latency));
                         }
                     }
                 }
@@ -415,7 +415,7 @@ in_core_memory(INCore *core)
              * accesses */
             if ((e->ins.is_load || e->ins.is_store || e->ins.is_atomic))
             {
-                if (s->simcpu->mmu->mem_controller->backend_mem_access_queue
+                if (s->simcpu->mem_hierarchy->mem_controller->backend_mem_access_queue
                         .cur_size)
                 {
                     ++s->simcpu->stats[s->priv].data_mem_delay;
@@ -459,7 +459,7 @@ in_core_memory(INCore *core)
              * stage, else stall memory stage */
             if (!core->commit.has_data)
             {
-                s->simcpu->mmu->mem_controller->backend_mem_access_queue.cur_idx = 0;
+                s->simcpu->mem_hierarchy->mem_controller->backend_mem_access_queue.cur_idx = 0;
                 core->memory.stage_exec_done = FALSE;
                 e->max_latency = 0;
                 e->current_latency = 0;

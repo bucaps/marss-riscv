@@ -185,12 +185,12 @@ typedef struct Cache
                  void *p_mem_access_info, int priv);
 } Cache;
 
-Cache *cache_init(CacheTypes type, CacheLevels level, uint32_t blks,
-                    uint32_t ways, int read_latency, int write_latency, Cache *next_level_cache,
-                    int words_per_blk, int evict_policy,
-                    CacheWritePolicy write_policy,
-                    CacheReadAllocPolicy read_alloc_policy,
-                    CacheWriteAllocPolicy write_alloc_policy,
-                    MemoryController *mem_controller);
+Cache *cache_init(CacheTypes type, CacheLevels level, int size_kb,
+                  int cache_line_size, uint32_t ways, int read_latency,
+                  int write_latency, Cache *next_level_cache, int words_per_blk,
+                  int evict_policy, CacheWritePolicy write_policy,
+                  CacheReadAllocPolicy read_alloc_policy,
+                  CacheWriteAllocPolicy write_alloc_policy,
+                  MemoryController *mem_controller);
 void cache_free(Cache **c);
 #endif

@@ -75,14 +75,14 @@ oo_core_fetch(OOCore *core)
 
             /* Check if all the dram accesses, if required for this instruction,
              * are complete */
-            if (!s->simcpu->mmu->mem_controller->frontend_mem_access_queue
+            if (!s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue
                      .cur_size)
             {
                 /* If the next stage is available, send this instruction to next
                    stage, else stall fetch */
                 if (!core->decode.has_data)
                 {
-                    s->simcpu->mmu->mem_controller->frontend_mem_access_queue
+                    s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue
                         .cur_idx
                         = 0;
 
