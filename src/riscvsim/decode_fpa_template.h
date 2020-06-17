@@ -46,95 +46,96 @@ case (0x03 << 2) | OPID: /* fdiv */
 {
     if (ins->rm < 0)
         goto exception;
-    ins->set_fs = 1;
-    ins->has_fp_src1 = 1;
-    ins->has_fp_src2 = 1;
-    ins->has_fp_dest = 1;
+    ins->set_fs = TRUE;
+    ins->has_fp_src1 = TRUE;
+    ins->has_fp_src2 = TRUE;
+    ins->has_fp_dest = TRUE;
+    break;
 }
-break;
 
 case (0x0b << 2) | OPID: /* fsqrt */
 {
     if (ins->rm < 0)
         goto exception;
-    ins->set_fs = 1;
-    ins->has_fp_src1 = 1;
-    ins->has_fp_dest = 1;
+    ins->set_fs = TRUE;
+    ins->has_fp_src1 = TRUE;
+    ins->has_fp_dest = TRUE;
+    break;
 }
-break;
 
 case (0x04 << 2) | OPID: /* sign inject */
 {
-    ins->set_fs = 1;
-    ins->has_fp_src1 = 1;
-    ins->has_fp_src2 = 1;
-    ins->has_fp_dest = 1;
+    ins->set_fs = TRUE;
+    ins->has_fp_src1 = TRUE;
+    ins->has_fp_src2 = TRUE;
+    ins->has_fp_dest = TRUE;
+    break;
 }
-break;
 
 case (0x05 << 2) | OPID: /* fmin-fmax */
 {
-    ins->set_fs = 1;
-    ins->has_fp_src1 = 1;
-    ins->has_fp_src2 = 1;
-    ins->has_fp_dest = 1;
+    ins->set_fs = TRUE;
+    ins->has_fp_src1 = TRUE;
+    ins->has_fp_src2 = TRUE;
+    ins->has_fp_dest = TRUE;
+    break;
 }
-break;
 
 case (0x18 << 2) | OPID: /* f-convert */
 {
     if (ins->rm < 0)
         goto exception;
-    ins->has_fp_src1 = 1;
-    ins->has_dest = 1;
+    ins->has_fp_src1 = TRUE;
+    ins->has_dest = TRUE;
+    break;
 }
-break;
 
 case (0x14 << 2) | OPID: /* floating point comparisons */
 {
-    ins->has_dest = 1;
-    ins->has_fp_src1 = 1;
-    ins->has_fp_src2 = 1;
+    ins->has_dest = TRUE;
+    ins->has_fp_src1 = TRUE;
+    ins->has_fp_src2 = TRUE;
+    break;
 }
-break;
 
 case (0x1a << 2) | OPID: /* floating point convert int-fp */
 {
     if (ins->rm < 0)
         goto exception;
-    ins->set_fs = 1;
-    ins->has_fp_dest = 1;
-    ins->has_src1 = 1;
+    ins->set_fs = TRUE;
+    ins->has_fp_dest = TRUE;
+    ins->has_src1 = TRUE;
+    break;
 }
-break;
 
 case (0x08 << 2) | OPID: /* floating point convert */
 {
     if (ins->rm < 0)
         goto exception;
-    ins->set_fs = 1;
-    ins->has_fp_dest = 1;
-    ins->has_fp_src1 = 1;
+    ins->set_fs = TRUE;
+    ins->has_fp_dest = TRUE;
+    ins->has_fp_src1 = TRUE;
+    break;
 }
-break;
 
 case (0x1c << 2) | OPID: /* floating point move fp-int*/
 {
     if (ins->rs2 != 0)
         goto exception;
-    ins->has_dest = 1;
-    ins->has_fp_src1 = 1;
+    ins->has_dest = TRUE;
+    ins->has_fp_src1 = TRUE;
+    break;
 }
-break;
 
 #if F_SIZE <= BIT_SIZE
 case (0x1e << 2) | OPID: /* fmv.s.x */
-
-if ((ins->rs2 != 0) || (ins->rm != 0))
-    goto exception;
-ins->has_fp_dest = 1;
-ins->has_src1 = 1;
-break;
+{
+    if ((ins->rs2 != 0) || (ins->rm != 0))
+        goto exception;
+    ins->has_fp_dest = TRUE;
+    ins->has_src1 = TRUE;
+    break;
+}
 #endif /* F_SIZE <= BIT_SIZE */
 
 #undef F_SIZE

@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../cutils.h"
 #include "riscv_ins_str_creator.h"
 #include "riscv_instruction.h"
 #include "riscv_sim_typedefs.h"
@@ -70,113 +71,123 @@ decode_compressed_q0(struct RVInstruction *ins)
     switch (funct3)
     {
         case 0: /* c.addi4spn */
-            ins->has_dest = 1;
-            ins->has_src1 = 1;
+        {
+            ins->has_dest = TRUE;
+            ins->has_src1 = TRUE;
             rs1 = 2;
             imm = cget_field1(insn, 11, 4, 5) | cget_field1(insn, 7, 6, 9)
                   | cget_field1(insn, 6, 2, 2) | cget_field1(insn, 5, 3, 3);
             if (imm == 0)
                 goto illegal_insn;
             break;
+        }
 #if SIM_FLEN >= 64
         case 1: /* c.fld */
         {
             if (ins->current_fs == 0)
                 goto illegal_insn;
-            ins->is_load = 1;
-            ins->has_fp_dest = 1;
-            ins->has_src1 = 1;
+            ins->is_load = TRUE;
+            ins->has_fp_dest = TRUE;
+            ins->has_src1 = TRUE;
             ins->bytes_to_rw = 8;
-            ins->f64_mask = 1;
-            ins->set_fs = 1;
+            ins->f64_mask = TRUE;
+            ins->set_fs = TRUE;
             ins->type = INS_TYPE_FP_LOAD;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
+            break;
         }
-        break;
 #endif
         case 2: /* c.lw */
         {
-            ins->is_load = 1;
-            ins->has_dest = 1;
-            ins->has_src1 = 1;
+            ins->is_load = TRUE;
+            ins->has_dest = TRUE;
+            ins->has_src1 = TRUE;
             ins->bytes_to_rw = 4;
             ins->type = INS_TYPE_LOAD;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
+            break;
         }
-        break;
 #if defined(RV64)
         case 3: /* c.ld */
         {
-            ins->is_load = 1;
-            ins->has_dest = 1;
-            ins->has_src1 = 1;
+            ins->is_load = TRUE;
+            ins->has_dest = TRUE;
+            ins->has_src1 = TRUE;
             ins->bytes_to_rw = 8;
             ins->type = INS_TYPE_LOAD;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
+            break;
         }
-        break;
 #elif SIM_FLEN >= 32
         case 3: /* c.flw */
         {
-            ins->is_load = 1;
-            ins->has_fp_dest = 1;
-            ins->has_src1 = 1;
+            ins->is_load = TRUE;
+            ins->has_fp_dest = TRUE;
+            ins->has_src1 = TRUE;
             ins->bytes_to_rw = 4;
-            ins->f32_mask = 1;
-            ins->set_fs = 1;
+            ins->f32_mask = TRUE;
+            ins->set_fs = TRUE;
             ins->type = INS_TYPE_FP_LOAD;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
+            break;
         }
-        break;
 #endif
 #if SIM_FLEN >= 64
         case 5: /* c.fsd */
-            ins->is_store = 1;
-            ins->has_src1 = 1;
-            ins->has_fp_src2 = 1;
+        {
+            ins->is_store = TRUE;
+            ins->has_src1 = TRUE;
+            ins->has_fp_src2 = TRUE;
             ins->bytes_to_rw = 8;
             ins->type = INS_TYPE_FP_STORE;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
             break;
+        }
 #endif
         case 6: /* c.sw */
-            ins->is_store = 1;
-            ins->has_src1 = 1;
-            ins->has_src2 = 1;
+        {
+            ins->is_store = TRUE;
+            ins->has_src1 = TRUE;
+            ins->has_src2 = TRUE;
             ins->bytes_to_rw = 4;
             ins->type = INS_TYPE_STORE;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
             break;
+        }
 #if defined(RV64)
         case 7: /* c.sd */
-            ins->is_store = 1;
-            ins->has_src1 = 1;
-            ins->has_src2 = 1;
+        {
+            ins->is_store = TRUE;
+            ins->has_src1 = TRUE;
+            ins->has_src2 = TRUE;
             ins->bytes_to_rw = 8;
             ins->type = INS_TYPE_STORE;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 5, 6, 7);
             rs1 = ((insn >> 7) & 7) | 8;
             break;
+        }
 #elif SIM_FLEN >= 32
         case 7: /* c.fsw */
-            ins->is_store = 1;
-            ins->has_src1 = 1;
-            ins->has_fp_src2 = 1;
+        {
+            ins->is_store = TRUE;
+            ins->has_src1 = TRUE;
+            ins->has_fp_src2 = TRUE;
             ins->bytes_to_rw = 4;
             ins->type = INS_TYPE_FP_STORE;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 6, 2, 2)
                   | cget_field1(insn, 5, 6, 6);
             rs1 = ((insn >> 7) & 7) | 8;
             break;
+        }
 #endif
         default:
             goto illegal_insn;
@@ -189,7 +200,7 @@ decode_compressed_q0(struct RVInstruction *ins)
     ins->quad = quad;
     return;
 illegal_insn:
-    ins->exception = 1;
+    ins->exception = TRUE;
     ins->exception_cause = SIM_ILLEGAL_OPCODE;
 }
 
@@ -207,15 +218,18 @@ decode_compressed_q1(struct RVInstruction *ins)
     switch (funct3)
     {
         case 0: /* c.addi/c.nop */
-            ins->has_dest = 1;
-            ins->has_src1 = 1;
+        {
+            ins->has_dest = TRUE;
+            ins->has_src1 = TRUE;
             imm = sextc(
                 cget_field1(insn, 12, 5, 5) | cget_field1(insn, 2, 0, 4), 6);
             break;
+        }
 #if defined(RV32)
         case 1: /* c.jal */
-            ins->has_dest = 1;
-            ins->is_branch = 1;
+        {
+            ins->has_dest = TRUE;
+            ins->is_branch = TRUE;
             ins->branch_type = BRANCH_UNCOND;
             ins->type = INS_TYPE_JAL;
             rd = 1;
@@ -225,27 +239,33 @@ decode_compressed_q1(struct RVInstruction *ins)
                     | cget_field1(insn, 7, 6, 6) | cget_field1(insn, 6, 7, 7)
                     | cget_field1(insn, 3, 1, 3) | cget_field1(insn, 2, 5, 5),
                 12);
-            ins->is_func_call = 1;
+            ins->is_func_call = TRUE;
             break;
+        }
 #elif defined(RV64)
         case 1: /* c.addiw */
-            ins->has_dest = 1;
-            ins->has_src1 = 1;
+        {
+            ins->has_dest = TRUE;
+            ins->has_src1 = TRUE;
             imm = sextc(
                 cget_field1(insn, 12, 5, 5) | cget_field1(insn, 2, 0, 4), 6);
             break;
+        }
 #endif
         case 2: /* c.li */
-            ins->has_dest = 1;
+        {
+            ins->has_dest = TRUE;
             imm = sextc(
                 cget_field1(insn, 12, 5, 5) | cget_field1(insn, 2, 0, 4), 6);
             break;
+        }
         case 3:
+        {
             if (rd == 2)
             {
                 /* c.addi16sp */
-                ins->has_dest = 1;
-                ins->has_src1 = 1;
+                ins->has_dest = TRUE;
+                ins->has_src1 = TRUE;
                 rd = 2;
                 rs1 = rd;
                 imm = sextc(cget_field1(insn, 12, 9, 9)
@@ -260,15 +280,17 @@ decode_compressed_q1(struct RVInstruction *ins)
             else if (rd != 0)
             {
                 /* c.lui */
-                ins->has_dest = 1;
+                ins->has_dest = TRUE;
                 imm = sextc(cget_field1(insn, 12, 17, 17)
                                 | cget_field1(insn, 2, 12, 16),
                             18);
             }
             break;
+        }
         case 4:
-            ins->has_dest = 1;
-            ins->has_src1 = 1;
+        {
+            ins->has_dest = TRUE;
+            ins->has_src1 = TRUE;
             funct4 = (insn >> 10) & 3;
             rd = ((insn >> 7) & 7) | 8;
             rs1 = rd;
@@ -290,7 +312,7 @@ decode_compressed_q1(struct RVInstruction *ins)
                     break;
                 case 3:
                     rs2 = ((insn >> 2) & 7) | 8;
-                    ins->has_src2 = 1;
+                    ins->has_src2 = TRUE;
                     funct5 = ((insn >> 5) & 3) | ((insn >> (12 - 2)) & 4);
                     switch (funct5)
                     {
@@ -309,8 +331,10 @@ decode_compressed_q1(struct RVInstruction *ins)
                     break;
             }
             break;
+        }
         case 5: /* c.j */
-            ins->is_branch = 1;
+        {
+            ins->is_branch = TRUE;
             ins->branch_type = BRANCH_UNCOND;
             ins->type = INS_TYPE_JAL;
             imm = sextc(
@@ -320,11 +344,13 @@ decode_compressed_q1(struct RVInstruction *ins)
                     | cget_field1(insn, 3, 1, 3) | cget_field1(insn, 2, 5, 5),
                 12);
             break;
+        }
         case 6: /* c.beqz */
-            ins->is_branch = 1;
+        {
+            ins->is_branch = TRUE;
             ins->branch_type = BRANCH_COND;
             ins->type = INS_TYPE_COND_BRANCH;
-            ins->has_src1 = 1;
+            ins->has_src1 = TRUE;
             rs1 = ((insn >> 7) & 7) | 8;
             rs2 = 0;
             imm = sextc(
@@ -333,11 +359,13 @@ decode_compressed_q1(struct RVInstruction *ins)
                     | cget_field1(insn, 2, 5, 5),
                 9);
             break;
+        }
         case 7: /* c.bnez */
-            ins->is_branch = 1;
+        {
+            ins->is_branch = TRUE;
             ins->branch_type = BRANCH_COND;
             ins->type = INS_TYPE_COND_BRANCH;
-            ins->has_src1 = 1;
+            ins->has_src1 = TRUE;
             rs1 = ((insn >> 7) & 7) | 8;
             rs2 = 0;
             imm = sextc(
@@ -346,8 +374,11 @@ decode_compressed_q1(struct RVInstruction *ins)
                     | cget_field1(insn, 2, 5, 5),
                 9);
             break;
+        }
         default:
+        {
             goto illegal_insn;
+        }
     }
     ins->rd = rd;
     ins->rs1 = rs1;
@@ -359,7 +390,7 @@ decode_compressed_q1(struct RVInstruction *ins)
     ins->funct5 = funct5;
     return;
 illegal_insn:
-    ins->exception = 1;
+    ins->exception = TRUE;
     ins->exception_cause = SIM_ILLEGAL_OPCODE;
 }
 
@@ -378,8 +409,9 @@ decode_compressed_q2(struct RVInstruction *ins)
     switch (funct3)
     {
         case 0: /* c.slli */
-            ins->has_dest = 1;
-            ins->has_src1 = 1;
+        {
+            ins->has_dest = TRUE;
+            ins->has_src1 = TRUE;
             rs1 = rd;
             imm = cget_field1(insn, 12, 5, 5) | rs2;
 #if XLEN == 32
@@ -387,85 +419,87 @@ decode_compressed_q2(struct RVInstruction *ins)
                 goto illegal_insn;
 #endif
             break;
+        }
 #if SIM_FLEN >= 64
         case 1: /* c.fldsp */
         {
-            ins->is_load = 1;
-            ins->has_fp_dest = 1;
-            ins->has_src1 = 1;
+            ins->is_load = TRUE;
+            ins->has_fp_dest = TRUE;
+            ins->has_src1 = TRUE;
             ins->bytes_to_rw = 8;
-            ins->f64_mask = 1;
-            ins->set_fs = 1;
+            ins->f64_mask = TRUE;
+            ins->set_fs = TRUE;
             ins->type = INS_TYPE_FP_LOAD;
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (3 << 3))
                   | cget_field1(insn, 2, 6, 8);
+            break;
         }
-        break;
 #endif
         case 2: /* c.lwsp */
         {
-            ins->is_load = 1;
+            ins->is_load = TRUE;
             ins->bytes_to_rw = 4;
-            ins->has_dest = 1;
-            ins->has_src1 = 1;
+            ins->has_dest = TRUE;
+            ins->has_src1 = TRUE;
             ins->type = INS_TYPE_LOAD;
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (7 << 2))
                   | cget_field1(insn, 2, 6, 7);
+            break;
         }
-        break;
 #if defined(RV64)
         case 3: /* c.ldsp */
         {
-            ins->is_load = 1;
+            ins->is_load = TRUE;
             ins->bytes_to_rw = 8;
-            ins->has_dest = 1;
-            ins->has_src1 = 1;
+            ins->has_dest = TRUE;
+            ins->has_src1 = TRUE;
             ins->type = INS_TYPE_LOAD;
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (3 << 3))
                   | cget_field1(insn, 2, 6, 8);
+            break;
         }
-        break;
 #elif SIM_FLEN >= 32
         case 3: /* c.flwsp */
         {
-            ins->is_load = 1;
-            ins->has_fp_dest = 1;
-            ins->has_src1 = 1;
+            ins->is_load = TRUE;
+            ins->has_fp_dest = TRUE;
+            ins->has_src1 = TRUE;
             ins->bytes_to_rw = 4;
-            ins->f32_mask = 1;
-            ins->set_fs = 1;
+            ins->f32_mask = TRUE;
+            ins->set_fs = TRUE;
             ins->type = INS_TYPE_FP_LOAD;
             rs1 = 2;
             imm = cget_field1(insn, 12, 5, 5) | (rs2 & (7 << 2))
                   | cget_field1(insn, 2, 6, 7);
+            break;
         }
-        break;
 #endif
         case 4:
+        {
             if (((insn >> 12) & 1) == 0)
             {
                 if (rs2 == 0)
                 {
                     /* c.jr */
-                    ins->is_branch = 1;
+                    ins->is_branch = TRUE;
                     ins->branch_type = BRANCH_UNCOND;
                     ins->type = INS_TYPE_JALR;
-                    ins->has_src1 = 1;
+                    ins->has_src1 = TRUE;
                     if (rd == 0)
                         goto illegal_insn;
                     if (rs1 == 1)
                     {
-                        ins->is_func_ret = 1;
+                        ins->is_func_ret = TRUE;
                     }
                 }
                 else
                 {
                     /* c.mv */
-                    ins->has_dest = 1;
-                    ins->has_src2 = 1;
+                    ins->has_dest = TRUE;
+                    ins->has_src2 = TRUE;
                 }
             }
             else
@@ -475,74 +509,85 @@ decode_compressed_q2(struct RVInstruction *ins)
                     if (rd == 0)
                     {
                         /* c.ebreak */
-                        ins->exception = 1;
+                        ins->exception = TRUE;
                         ins->exception_cause = SIM_COMPLEX_OPCODE;
                         ins->type = INS_TYPE_SYSTEM;
                     }
                     else
                     {
                         /* c.jalr */
-                        ins->is_branch = 1;
+                        ins->is_branch = TRUE;
                         ins->branch_type = BRANCH_UNCOND;
                         ins->type = INS_TYPE_JALR;
-                        ins->has_dest = 1;
-                        ins->has_src1 = 1;
+                        ins->has_dest = TRUE;
+                        ins->has_src1 = TRUE;
                         rd = 1;
-                        ins->is_func_call = 1;
+                        ins->is_func_call = TRUE;
                     }
                 }
                 else
                 {
                     /* c.add */
-                    ins->has_dest = 1;
-                    ins->has_src1 = 1;
-                    ins->has_src2 = 1;
+                    ins->has_dest = TRUE;
+                    ins->has_src1 = TRUE;
+                    ins->has_src2 = TRUE;
                 }
             }
             break;
+        }
 #if SIM_FLEN >= 64
         case 5: /* c.fsdsp */
-            ins->is_store = 1;
-            ins->has_src1 = 1;
-            ins->has_fp_src2 = 1;
+        {
+            ins->is_store = TRUE;
+            ins->has_src1 = TRUE;
+            ins->has_fp_src2 = TRUE;
             ins->bytes_to_rw = 8;
             ins->type = INS_TYPE_FP_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 7, 6, 8);
             break;
+        }
 #endif
         case 6: /* c.swsp */
-            ins->is_store = 1;
+        {
+            ins->is_store = TRUE;
             ins->bytes_to_rw = 4;
-            ins->has_src1 = 1;
-            ins->has_src2 = 1;
+            ins->has_src1 = TRUE;
+            ins->has_src2 = TRUE;
             ins->type = INS_TYPE_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 9, 2, 5) | cget_field1(insn, 7, 6, 7);
             break;
+        }
 #if defined(RV64)
         case 7: /* c.sdsp */
-            ins->is_store = 1;
+        {
+            ins->is_store = TRUE;
             ins->bytes_to_rw = 8;
-            ins->has_src1 = 1;
-            ins->has_src2 = 1;
+            ins->has_src1 = TRUE;
+            ins->has_src2 = TRUE;
             ins->type = INS_TYPE_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 10, 3, 5) | cget_field1(insn, 7, 6, 8);
             break;
+        }
 #elif SIM_FLEN >= 32
         case 7: /* c.fswsp */
-            ins->is_store = 1;
-            ins->has_src1 = 1;
-            ins->has_fp_src2 = 1;
+        {
+            ins->is_store = TRUE;
+            ins->has_src1 = TRUE;
+            ins->has_fp_src2 = TRUE;
             ins->bytes_to_rw = 4;
             ins->type = INS_TYPE_FP_STORE;
             rs1 = 2;
             imm = cget_field1(insn, 9, 2, 5) | cget_field1(insn, 7, 6, 7);
             break;
+        }
 #endif
         default:
+        {
             goto illegal_insn;
+        }
     }
     ins->rd = rd;
     ins->rs1 = rs1;
@@ -552,7 +597,7 @@ decode_compressed_q2(struct RVInstruction *ins)
     ins->funct3 = funct3;
     return;
 illegal_insn:
-    ins->exception = 1;
+    ins->exception = TRUE;
     ins->exception_cause = SIM_ILLEGAL_OPCODE;
 }
 
@@ -562,17 +607,17 @@ decode_compressed_type(struct RVInstruction *ins)
     int quad = ins->binary & 3;
     switch (quad)
     {
-        case 0:
+        case C_QUADRANT0:
         {
             decode_compressed_q0(ins);
             break;
         }
-        case 1:
+        case C_QUADRANT1:
         {
             decode_compressed_q1(ins);
             break;
         }
-        case 2:
+        case C_QUADRANT2:
         {
             decode_compressed_q2(ins);
             break;
@@ -679,9 +724,9 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
         {
             case LOAD_MASK:
             {
-                ins->is_load = 1;
-                ins->has_src1 = 1;
-                ins->has_dest = 1;
+                ins->is_load = TRUE;
+                ins->has_src1 = TRUE;
+                ins->has_dest = TRUE;
                 ins->imm = (int32_t)insn >> 20;
                 ins->type = INS_TYPE_LOAD;
                 switch (ins->funct3)
@@ -711,19 +756,19 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                     case 0x4: /* lbu */
                     {
                         ins->bytes_to_rw = 1;
-                        ins->is_unsigned = 1;
+                        ins->is_unsigned = TRUE;
                         break;
                     }
                     case 0x5: /* lhu */
                     {
                         ins->bytes_to_rw = 2;
-                        ins->is_unsigned = 1;
+                        ins->is_unsigned = TRUE;
                         break;
                     }
                     case 0x6: /* lwu */
                     {
                         ins->bytes_to_rw = 4;
-                        ins->is_unsigned = 1;
+                        ins->is_unsigned = TRUE;
                         break;
                     }
                 }
@@ -747,8 +792,8 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                     }
                 }
 
-                ins->has_src1 = 1;
-                ins->has_dest = 1;
+                ins->has_src1 = TRUE;
+                ins->has_dest = TRUE;
                 ins->imm = (int32_t)insn >> 20;
                 break;
             }
@@ -760,9 +805,9 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                     goto exception;
                 }
 
-                ins->has_src1 = 1;
-                ins->has_src2 = 1;
-                ins->has_dest = 1;
+                ins->has_src1 = TRUE;
+                ins->has_src2 = TRUE;
+                ins->has_dest = TRUE;
                 /* set the functional units for mul and div */
                 set_op_fu(ins);
                 break;
@@ -770,15 +815,15 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
             case LUI_MASK:
             case AUIPC_MASK:
             {
-                ins->has_dest = 1;
+                ins->has_dest = TRUE;
                 ins->imm = (int32_t)(insn & 0xfffff000);
                 break;
             }
             case STORE_MASK:
             {
-                ins->is_store = 1;
-                ins->has_src1 = 1;
-                ins->has_src2 = 1;
+                ins->is_store = TRUE;
+                ins->has_src1 = TRUE;
+                ins->has_src2 = TRUE;
                 ins->imm = ins->rd | ((insn >> (25 - 5)) & 0xfe0);
                 ins->imm = (ins->imm << 20) >> 20;
                 ins->type = INS_TYPE_STORE;
@@ -811,8 +856,8 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
             }
             case CSR_MASK:
             {
-                ins->is_system = 1;
-                ins->exception = 1;
+                ins->is_system = TRUE;
+                ins->exception = TRUE;
                 ins->type = INS_TYPE_SYSTEM;
 
                 /* Complex Opcode */
@@ -821,8 +866,8 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
             }
             case FENCE_MASK:
             {
-                ins->is_system = 1;
-                ins->exception = 1;
+                ins->is_system = TRUE;
+                ins->exception = TRUE;
                 ins->type = INS_TYPE_SYSTEM;
 
                 /* Complex Opcode */
@@ -832,9 +877,9 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
 
             case JAL_MASK:
             {
-                ins->is_branch = 1;
+                ins->is_branch = TRUE;
                 ins->branch_type = BRANCH_UNCOND;
-                ins->has_dest = 1;
+                ins->has_dest = TRUE;
                 ins->imm = ((insn >> (31 - 20)) & (1 << 20))
                            | ((insn >> (21 - 1)) & 0x7fe)
                            | ((insn >> (20 - 11)) & (1 << 11))
@@ -843,34 +888,34 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->type = INS_TYPE_JAL;
                 if (ins->rd == 1)
                 {
-                    ins->is_func_call = 1;
+                    ins->is_func_call = TRUE;
                 }
                 break;
             }
             case JALR_MASK:
             {
-                ins->is_branch = 1;
+                ins->is_branch = TRUE;
                 ins->branch_type = BRANCH_UNCOND;
-                ins->has_src1 = 1;
-                ins->has_dest = 1;
+                ins->has_src1 = TRUE;
+                ins->has_dest = TRUE;
                 ins->imm = (int32_t)insn >> 20;
                 ins->type = INS_TYPE_JALR;
                 if (ins->rd == 1)
                 {
-                    ins->is_func_call = 1;
+                    ins->is_func_call = TRUE;
                 }
                 if (ins->rs1 == 1)
                 {
-                    ins->is_func_ret = 1;
+                    ins->is_func_ret = TRUE;
                 }
                 break;
             }
             case BRANCH_MASK:
             {
-                ins->is_branch = 1;
+                ins->is_branch = TRUE;
                 ins->branch_type = BRANCH_COND;
-                ins->has_src1 = 1;
-                ins->has_src2 = 1;
+                ins->has_src1 = TRUE;
+                ins->has_src2 = TRUE;
                 ins->imm = ((insn >> (31 - 12)) & (1 << 12))
                            | ((insn >> (25 - 5)) & 0x7e0)
                            | ((insn >> (8 - 1)) & 0x1e)
@@ -883,8 +928,8 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
             {
                 uint32_t funct3;
 
-                ins->is_atomic = 1;
-                ins->has_dest = 1;
+                ins->is_atomic = TRUE;
+                ins->has_dest = TRUE;
                 ins->type = INS_TYPE_ATOMIC;
                 funct3 = (insn >> 12) & 7;
                 switch (funct3)
@@ -901,16 +946,16 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                             {
                                 if (ins->rs2 != 0)
                                     goto exception;
-                                ins->has_src1 = 1;
-                                ins->is_atomic_load = 1;
+                                ins->has_src1 = TRUE;
+                                ins->is_atomic_load = TRUE;
                                 ins->bytes_to_rw = sizeof(target_ulong);
                                 break;
                             }
                             case 3: /* sc.w */
                             {
-                                ins->has_src1 = 1;
-                                ins->has_src2 = 1;
-                                ins->is_atomic_store = 1;
+                                ins->has_src1 = TRUE;
+                                ins->has_src2 = TRUE;
+                                ins->is_atomic_store = TRUE;
                                 ins->bytes_to_rw = sizeof(target_ulong);
                                 break;
                             }
@@ -924,11 +969,11 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                             case 0x18: /* amominu.w */
                             case 0x1c: /* amomaxu.w */
                             {
-                                ins->has_src1 = 1;
-                                ins->has_src2 = 1;
-                                ins->is_atomic_operate = 1;
-                                ins->is_atomic_load = 1;
-                                ins->is_atomic_store = 1;
+                                ins->has_src1 = TRUE;
+                                ins->has_src2 = TRUE;
+                                ins->is_atomic_operate = TRUE;
+                                ins->is_atomic_load = TRUE;
+                                ins->is_atomic_store = TRUE;
                                 ins->bytes_to_rw = sizeof(target_ulong);
                                 break;
                             }
@@ -948,10 +993,10 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 {
                     goto exception;
                 }
-                ins->is_load = 1;
-                ins->has_fp_dest = 1;
-                ins->has_src1 = 1;
-                ins->set_fs = 1;
+                ins->is_load = TRUE;
+                ins->has_fp_dest = TRUE;
+                ins->has_src1 = TRUE;
+                ins->set_fs = TRUE;
                 ins->imm = (int32_t)insn >> 20;
                 ins->type = INS_TYPE_FP_LOAD;
                 switch (ins->funct3)
@@ -959,14 +1004,14 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                     case 2: /* flw */
                     {
                         ins->bytes_to_rw = 4;
-                        ins->f32_mask = 1;
+                        ins->f32_mask = TRUE;
                     }
                     break;
 #if SIM_FLEN >= 64
                     case 3: /* fld */
                     {
                         ins->bytes_to_rw = 8;
-                        ins->f64_mask = 1;
+                        ins->f64_mask = TRUE;
                     }
                     break;
 #endif
@@ -979,9 +1024,9 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 {
                     goto exception;
                 }
-                ins->is_store = 1;
-                ins->has_src1 = 1;
-                ins->has_fp_src2 = 1;
+                ins->is_store = TRUE;
+                ins->has_src1 = TRUE;
+                ins->has_fp_src2 = TRUE;
                 ins->imm = ins->rd | ((insn >> (25 - 5)) & 0xfe0);
                 ins->imm = (ins->imm << 20) >> 20;
                 ins->type = INS_TYPE_FP_STORE;
@@ -1007,11 +1052,11 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->data_class = INS_CLASS_FP;
                 ins->fu_type = FU_FPU_FMA;
                 ins->type = INS_TYPE_FP_FMA;
-                ins->has_fp_dest = 1;
-                ins->has_fp_src1 = 1;
-                ins->has_fp_src2 = 1;
-                ins->has_fp_src3 = 1;
-                ins->set_fs = 1;
+                ins->has_fp_dest = TRUE;
+                ins->has_fp_src1 = TRUE;
+                ins->has_fp_src2 = TRUE;
+                ins->has_fp_src3 = TRUE;
+                ins->set_fs = TRUE;
                 ins->funct3 = (ins->binary >> 25) & 3;
                 ins->rs3 = ins->binary >> 27;
                 break;
@@ -1025,11 +1070,11 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->data_class = INS_CLASS_FP;
                 ins->fu_type = FU_FPU_FMA;
                 ins->type = INS_TYPE_FP_FMA;
-                ins->has_fp_dest = 1;
-                ins->has_fp_src1 = 1;
-                ins->has_fp_src2 = 1;
-                ins->has_fp_src3 = 1;
-                ins->set_fs = 1;
+                ins->has_fp_dest = TRUE;
+                ins->has_fp_src1 = TRUE;
+                ins->has_fp_src2 = TRUE;
+                ins->has_fp_src3 = TRUE;
+                ins->set_fs = TRUE;
                 ins->funct3 = (ins->binary >> 25) & 3;
                 ins->rs3 = ins->binary >> 27;
                 break;
@@ -1043,11 +1088,11 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->data_class = INS_CLASS_FP;
                 ins->fu_type = FU_FPU_FMA;
                 ins->type = INS_TYPE_FP_FMA;
-                ins->has_fp_dest = 1;
-                ins->has_fp_src1 = 1;
-                ins->has_fp_src2 = 1;
-                ins->has_fp_src3 = 1;
-                ins->set_fs = 1;
+                ins->has_fp_dest = TRUE;
+                ins->has_fp_src1 = TRUE;
+                ins->has_fp_src2 = TRUE;
+                ins->has_fp_src3 = TRUE;
+                ins->set_fs = TRUE;
                 ins->funct3 = (ins->binary >> 25) & 3;
                 ins->rs3 = ins->binary >> 27;
                 break;
@@ -1061,11 +1106,11 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->data_class = INS_CLASS_FP;
                 ins->fu_type = FU_FPU_FMA;
                 ins->type = INS_TYPE_FP_FMA;
-                ins->has_fp_dest = 1;
-                ins->has_fp_src1 = 1;
-                ins->has_fp_src2 = 1;
-                ins->has_fp_src3 = 1;
-                ins->set_fs = 1;
+                ins->has_fp_dest = TRUE;
+                ins->has_fp_src1 = TRUE;
+                ins->has_fp_src2 = TRUE;
+                ins->has_fp_src3 = TRUE;
+                ins->set_fs = TRUE;
                 ins->funct3 = (ins->binary >> 25) & 3;
                 ins->rs3 = ins->binary >> 27;
                 break;
@@ -1107,6 +1152,6 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
     }
     return;
 exception:
-    ins->exception = 1;
+    ins->exception = TRUE;
     ins->exception_cause = SIM_ILLEGAL_OPCODE;
 }
