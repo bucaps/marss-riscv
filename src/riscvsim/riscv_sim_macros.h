@@ -134,6 +134,7 @@
 
 #define GET_NUM_BITS(x) ceil(log2((x)))
 #define GET_INDEX(x, bits) ((x) & ((1 << (bits)) - 1))
+#define GET_SET_ADDR(pc, bits) (GET_INDEX((pc), (bits)))
 #define PRINT_INIT_MSG(str) fprintf(stderr, " \x1B[32m*\x1B[0m " str "...\n")
 #define PRINT_PROG_TITLE_MSG(str) fprintf(stderr, "\x1B[32m\x1B[0m " str "\n\n")
 

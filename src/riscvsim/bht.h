@@ -40,12 +40,13 @@ typedef struct Bht
     BhtEntry *bht_entry;
     int bht_index_bits;
     int bht_size;
+
+    void (*flush)(struct Bht *b);
+    void (*add)(struct Bht *b, target_ulong pc);
+    void (*update)(struct Bht *b, target_ulong pc, int pred);
+    int (*get_prediction)(struct Bht *b, target_ulong pc);
 } Bht;
 
 Bht *bht_init(const SimParams *p);
 void bht_free(Bht **b);
-void bht_flush(Bht *b);
-int bht_get_pred(Bht *b, target_ulong pc);
-void bht_add(Bht *b, target_ulong pc);
-void bht_update(Bht *b, target_ulong pc, int pred);
 #endif

@@ -849,7 +849,7 @@ static void tlb_init(RISCVCPUState *s)
     /* Branch prediction unit must be flushed on tlb flush */
     if (s->simulation && s->sim_params->enable_bpu)
     {
-        bpu_flush(s->simcpu->bpu);
+        s->simcpu->bpu->flush(s->simcpu->bpu);
     }
 }
 

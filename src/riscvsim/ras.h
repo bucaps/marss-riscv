@@ -24,23 +24,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef _RAS_H_
+#define _RAS_H_
+
 #include "riscv_sim_macros.h"
 #include "riscv_sim_typedefs.h"
 #include "sim_params_stats.h"
 
 typedef struct Ras
 {
-    target_ulong *entry;
     int sptop;
     int spfill;
     int cur_size;
     int max_size;
     target_ulong empty_reg;
+    target_ulong *entry;
+
+    void (*push)(struct Ras *ras, target_ulong pc);
+    void (*flush)(struct Ras *ras);
+    int (*empty)(struct Ras *ras);
+    target_ulong (*pop)(struct Ras *ras);
 } Ras;
 
 Ras *ras_init(const SimParams *p);
-void ras_push(Ras *ras, target_ulong pc);
-void ras_flush(Ras *ras);
 void ras_free(Ras **ras);
-target_ulong ras_pop(Ras *ras);
-int ras_empty(Ras *ras);
+#endif

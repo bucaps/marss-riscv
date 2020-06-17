@@ -29,33 +29,7 @@
 
 #include "ras.h"
 
-Ras *
-ras_init(const SimParams *p)
-{
-    Ras *r;
-
-    r = calloc(1, sizeof(Ras));
-    assert(r);
-
-    r->entry = calloc(p->ras_size, sizeof(target_ulong));
-    assert(r->entry);
-
-    r->max_size = p->ras_size;
-    ras_flush(r);
-    return r;
-}
-
-void
-ras_free(Ras **ras)
-{
-	free((*ras)->entry);
-	(*ras)->entry = NULL;
-
-	free(*ras);
-	*ras = NULL;
-}
-
-void
+static void
 ras_flush(Ras *ras)
 {
     ras->cur_size = 0;
@@ -64,13 +38,13 @@ ras_flush(Ras *ras)
     ras->empty_reg = 0;
 }
 
-int
+static int
 ras_empty(Ras *ras)
 {
     return (!ras->cur_size);
 }
 
-void
+static void
 ras_push(Ras *ras, target_ulong pc)
 {
     ras->entry[ras->spfill] = pc;
@@ -85,12 +59,12 @@ ras_push(Ras *ras, target_ulong pc)
     }
 }
 
-target_ulong
+static target_ulong
 ras_pop(Ras *ras)
 {
     target_ulong ret_addr;
 
-    if (ras_empty(ras))
+    if (ras->empty(ras))
     {
         /* For empty RAS, return the last popped address in RAS empty register*/
         return ras->empty_reg;
@@ -110,4 +84,34 @@ ras_pop(Ras *ras)
     /* save pop address into empty register */
     ras->empty_reg = ret_addr;
     return ret_addr;
+}
+
+Ras *
+ras_init(const SimParams *p)
+{
+    Ras *r;
+
+    r = calloc(1, sizeof(Ras));
+    assert(r);
+
+    r->entry = calloc(p->ras_size, sizeof(target_ulong));
+    assert(r->entry);
+
+    r->max_size = p->ras_size;
+    r->push = &ras_push;
+    r->pop = &ras_pop;
+    r->flush = &ras_flush;
+    r->empty = &ras_empty;
+    r->flush(r);
+    return r;
+}
+
+void
+ras_free(Ras **ras)
+{
+    free((*ras)->entry);
+    (*ras)->entry = NULL;
+
+    free(*ras);
+    *ras = NULL;
 }

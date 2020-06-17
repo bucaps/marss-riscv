@@ -25,8 +25,8 @@
  * THE SOFTWARE.
  */
 #include <assert.h>
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "bht.h"
@@ -51,6 +51,46 @@ update_two_bit_counter(int *ctr, int pred)
     }
 }
 
+static int
+bht_get_pred(Bht *b, target_ulong pc)
+{
+    int idx;
+
+    idx = GET_INDEX(pc, b->bht_index_bits);
+    return b->bht_entry[idx].pred;
+}
+
+static void
+bht_add(Bht *b, target_ulong pc)
+{
+    int idx;
+
+    /* In case of bimodal predictor, set the 2-bit saturating counter to 1
+     * (Not taken) */
+    idx = GET_INDEX(pc, b->bht_index_bits);
+    b->bht_entry[idx].pred = 1;
+}
+
+static void
+bht_update(Bht *b, target_ulong pc, int pred)
+{
+    int idx;
+
+    idx = GET_INDEX(pc, b->bht_index_bits);
+    update_two_bit_counter(&b->bht_entry[idx].pred, pred);
+}
+
+static void
+bht_flush(Bht *b)
+{
+    int i;
+
+    for (i = 0; i < b->bht_size; ++i)
+    {
+        b->bht_entry[i].pred = 1;
+    }
+}
+
 Bht *
 bht_init(const SimParams *p)
 {
@@ -64,7 +104,10 @@ bht_init(const SimParams *p)
     assert(b->bht_entry);
 
     b->bht_index_bits = GET_NUM_BITS(b->bht_size);
-
+    b->flush = &bht_flush;
+    b->add = &bht_add;
+    b->update = &bht_update;
+    b->get_prediction = &bht_get_pred;
     return b;
 }
 
@@ -73,44 +116,4 @@ bht_free(Bht **b)
 {
     free((*b)->bht_entry);
     (*b)->bht_entry = NULL;
-}
-
-int
-bht_get_pred(Bht *b, target_ulong pc)
-{
-    int idx;
-
-    idx = GET_INDEX(pc, b->bht_index_bits);
-    return b->bht_entry[idx].pred;
-}
-
-void
-bht_add(Bht *b, target_ulong pc)
-{
-    int idx;
-
-    /* In case of bimodal predictor, set the 2-bit saturating counter to 1
-     * (Not taken) */
-    idx = GET_INDEX(pc, b->bht_index_bits);
-    b->bht_entry[idx].pred = 1;
-}
-
-void
-bht_update(Bht *b, target_ulong pc, int pred)
-{
-    int idx;
-
-    idx = GET_INDEX(pc, b->bht_index_bits);
-    update_two_bit_counter(&b->bht_entry[idx].pred, pred);
-}
-
-void
-bht_flush(Bht *b)
-{
-    int i;
-
-    for (i = 0; i < b->bht_size; ++i)
-    {
-        b->bht_entry[i].pred = 1;
-    }
 }

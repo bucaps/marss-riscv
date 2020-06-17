@@ -50,13 +50,14 @@ typedef struct BranchTargetBuffer
     uint32_t set_bits; /* Number of lowest bits of PC required to index into a set */
     int ways;          /* Number of ways in each set */
     EvictPolicy *evict_policy;
+
+    int (*probe)(struct BranchTargetBuffer *b, target_ulong pc,
+                 BtbEntry **btb_entry);
+    void (*add)(struct BranchTargetBuffer *b, target_ulong pc, int type);
+    void (*update)(struct BtbEntry *btb_entry, target_ulong target, int type);
+    void (*flush)(struct BranchTargetBuffer *b);
 } BranchTargetBuffer;
 
 BranchTargetBuffer *btb_init(const SimParams *p);
-int btb_probe(BranchTargetBuffer *b, target_ulong pc, BtbEntry **btb_entry);
-void btb_add(BranchTargetBuffer *b, target_ulong pc, int type);
-void btb_update(BtbEntry *btb_entry, target_ulong target, int type);
 void btb_free(BranchTargetBuffer **b);
-void btb_flush(BranchTargetBuffer *b);
-
 #endif

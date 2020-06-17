@@ -34,51 +34,7 @@
 
 #include "btb.h"
 
-#define GET_SET_ADDR(pc, bits) (GET_INDEX((pc), (bits)))
-
-BranchTargetBuffer *
-btb_init(const SimParams *p)
-{
-    int i;
-    BranchTargetBuffer *b;
-
-    b = (BranchTargetBuffer *)calloc(1, sizeof(BranchTargetBuffer));
-    assert(b);
-    b->size = p->btb_size;
-    b->sets = b->size / p->btb_ways;
-    b->ways = p->btb_ways;
-    b->set_bits = GET_NUM_BITS(b->sets);
-    b->evict_policy
-        = evict_policy_create(b->sets, b->ways, p->btb_eviction_policy);
-    b->data = (BtbEntry **)calloc(b->sets, sizeof(BtbEntry *));
-    assert(b->data);
-    for (i = 0; i < b->sets; ++i)
-    {
-        b->data[i] = (BtbEntry *)calloc(b->ways, sizeof(BtbEntry));
-        assert(b->data[i]);
-    }
-
-    return b;
-}
-
-void
-btb_free(BranchTargetBuffer **b)
-{
-    int i;
-
-    for (i = 0; i < (*b)->sets; ++i)
-    {
-        free((*b)->data[i]);
-        (*b)->data[i] = NULL;
-    }
-    free((*b)->data);
-    (*b)->data = NULL;
-    evict_policy_free(&(*b)->evict_policy);
-    free(*b);
-    *b = NULL;
-}
-
-void
+static void
 btb_flush(BranchTargetBuffer *b)
 {
     int i;
@@ -95,7 +51,7 @@ btb_flush(BranchTargetBuffer *b)
  * the BTB entry containing this PC to the out parameter (btb_entry), else
  * return BPU_MISS
  */
-int
+static int
 btb_probe(BranchTargetBuffer *b, target_ulong pc, BtbEntry **btb_entry)
 {
     int j;
@@ -123,7 +79,7 @@ btb_probe(BranchTargetBuffer *b, target_ulong pc, BtbEntry **btb_entry)
  * the entry in it's place. This is done from the decode stage
  * of the pipeline.
  */
-void
+static void
 btb_add(BranchTargetBuffer *b, target_ulong pc, int type)
 {
     int set_addr = GET_SET_ADDR(pc >> 1, b->set_bits);
@@ -140,9 +96,54 @@ btb_add(BranchTargetBuffer *b, target_ulong pc, int type)
  * the branch outcome. This is done from the memory stage of the pipeline,
  * where the branches are resolved.
  */
-void
-btb_update(BtbEntry *btb_entry, target_ulong target,int type)
+static void
+btb_update(BtbEntry *btb_entry, target_ulong target, int type)
 {
     btb_entry->target = target;
     btb_entry->type = type;
+}
+
+BranchTargetBuffer *
+btb_init(const SimParams *p)
+{
+    int i;
+    BranchTargetBuffer *b;
+
+    b = (BranchTargetBuffer *)calloc(1, sizeof(BranchTargetBuffer));
+    assert(b);
+    b->size = p->btb_size;
+    b->sets = b->size / p->btb_ways;
+    b->ways = p->btb_ways;
+    b->set_bits = GET_NUM_BITS(b->sets);
+    b->evict_policy
+        = evict_policy_create(b->sets, b->ways, p->btb_eviction_policy);
+    b->data = (BtbEntry **)calloc(b->sets, sizeof(BtbEntry *));
+    assert(b->data);
+    for (i = 0; i < b->sets; ++i)
+    {
+        b->data[i] = (BtbEntry *)calloc(b->ways, sizeof(BtbEntry));
+        assert(b->data[i]);
+    }
+    b->probe = &btb_probe;
+    b->add = &btb_add;
+    b->update = &btb_update;
+    b->flush = &btb_flush;
+    return b;
+}
+
+void
+btb_free(BranchTargetBuffer **b)
+{
+    int i;
+
+    for (i = 0; i < (*b)->sets; ++i)
+    {
+        free((*b)->data[i]);
+        (*b)->data[i] = NULL;
+    }
+    free((*b)->data);
+    (*b)->data = NULL;
+    evict_policy_free(&(*b)->evict_policy);
+    free(*b);
+    *b = NULL;
 }

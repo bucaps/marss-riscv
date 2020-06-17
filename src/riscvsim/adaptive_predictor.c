@@ -39,13 +39,10 @@
 #define PAG 0x2
 #define PAP 0x3
 
-#define GET_SET_ADDR(pc, bits) (GET_INDEX((pc), (bits)))
 #define UPDATE_GHR(ghr, bits, pred) (GET_INDEX((((ghr) << 1) | (pred)), (bits)))
 
 #define PRED_NOT_TAKEN 0x0
 #define PRED_TAKEN 0x1
-#define BPU_MISS 0x0
-#define BPU_HIT 0x1
 
 static uint32_t
 xor_aliasing_func(AdaptivePredictor *a, uint32_t hr, target_ulong pc)
@@ -63,6 +60,262 @@ static uint32_t
 none_aliasing_func(AdaptivePredictor *a, uint32_t hr, target_ulong pc)
 {
     return GET_INDEX(hr, a->hreg_bits);
+}
+
+static void
+update_two_bit_counter(int *ctr, int pred)
+{
+    if (pred)
+    {
+        if ((*ctr >= 0) && (*ctr < 3))
+        {
+            (*ctr)++;
+        }
+    }
+    else
+    {
+        if ((*ctr >= 1) && (*ctr <= 3))
+        {
+            (*ctr)--;
+        }
+    }
+}
+
+/* Returns BPU_HIT if given pc is present in GHT */
+static int
+adaptive_predictor_ght_probe(AdaptivePredictor *a, target_ulong pc)
+{
+    int index = GET_INDEX(pc >> 1, a->ght_index_bits);
+
+    if (a->ght[index].pc == pc)
+    {
+        return BPU_HIT;
+    }
+
+    return BPU_MISS;
+}
+
+/* Returns BPU_HIT if given pc is present in PHT */
+static int
+adaptive_predictor_pht_probe(AdaptivePredictor *a, target_ulong pc)
+{
+    int index = GET_INDEX(pc >> 1, a->pht_index_bits);
+
+    if (a->pht[index].pc == pc)
+    {
+        return BPU_HIT;
+    }
+
+    return BPU_MISS;
+}
+
+/**
+ * Based on the adaptive predictor scheme, probe either GHT
+ * or PHT or both.
+ */
+static int
+adaptive_predictor_probe(AdaptivePredictor *a, target_ulong pc)
+{
+    switch (a->type)
+    {
+        case GAG:
+        {
+            return BPU_HIT;
+        }
+        case GAP:
+        {
+            return adaptive_predictor_pht_probe(a, pc);
+        }
+        case PAG:
+        {
+            return adaptive_predictor_ght_probe(a, pc);
+        }
+        case PAP:
+        {
+            return (adaptive_predictor_ght_probe(a, pc)
+                    && adaptive_predictor_pht_probe(a, pc));
+        }
+    }
+
+    assert(0);
+    return 0;
+}
+
+/**
+ * Based on the adaptive predictor scheme, return the
+ * prediction.
+ */
+static int
+adaptive_predictor_get_prediction(AdaptivePredictor *a, target_ulong pc)
+{
+    int l1_index;
+    int l2_index;
+    uint32_t ghr;
+
+    switch (a->type)
+    {
+        case GAG:
+        {
+            ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
+
+            /* Apply aliasing function for Gshare and Gselect */
+            ghr = a->pfn_ap_aliasing_func(a, ghr, pc);
+            if (a->pht[0].ctr[ghr] > 1)
+            {
+                return 1;
+            }
+            return 0;
+        }
+        case GAP:
+        {
+            ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
+            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
+            if (a->pht[l2_index].ctr[ghr] > 1)
+            {
+                return 1;
+            }
+            return 0;
+        }
+        case PAG:
+        {
+            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
+            ghr = GET_INDEX(a->ght[l1_index].ghr, a->hreg_bits);
+            if (a->pht[0].ctr[ghr] > 1)
+            {
+                return 1;
+            }
+            return 0;
+        }
+        case PAP:
+        {
+            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
+            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
+            ghr = GET_INDEX(a->ght[l1_index].ghr, a->hreg_bits);
+            if (a->pht[l2_index].ctr[ghr] > 1)
+            {
+                return 1;
+            }
+            return 0;
+        }
+    }
+
+    assert(0);
+    return 0;
+}
+
+/**
+ * Based on the adaptive predictor scheme, allocate the entries in GHT or
+ * PHT or both.
+ *
+ * History register in the allocated GHT entry is set to 0.
+ * 2-bit saturating counter array in the allocated PHT entry get default values
+ * of 0 (strongly not taken).
+ */
+static void
+adaptive_predictor_add(AdaptivePredictor *a, target_ulong pc)
+{
+    int l1_index;
+    int l2_index;
+
+    switch (a->type)
+    {
+        case GAG:
+        {
+            break;
+        }
+        case GAP:
+        {
+            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
+            a->pht[l2_index].pc = pc;
+            memset(a->pht[l2_index].ctr, 0, sizeof(int) * (1 << a->hreg_bits));
+            break;
+        }
+        case PAG:
+        {
+            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
+            a->ght[l1_index].pc = pc;
+            a->ght[l1_index].ghr = 0;
+            break;
+        }
+        case PAP:
+        {
+            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
+            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
+            a->ght[l1_index].pc = pc;
+            a->ght[l1_index].ghr = 0;
+            a->pht[l2_index].pc = pc;
+            memset(a->pht[l2_index].ctr, 0, sizeof(int) * (1 << a->hreg_bits));
+            break;
+        }
+    }
+}
+
+/**
+ * Based on the adaptive predictor scheme, update the entries in GHT or
+ * PHT or both. First update the 2-bit saturating counter in PHT and then
+ * update history register in GHT. Update to history register is performed
+ * by left-shifting the current branch outcome into its previous value.
+ */
+static void
+adaptive_predictor_update(AdaptivePredictor *a, target_ulong pc, int pred)
+{
+    int l1_index;
+    int l2_index;
+    uint32_t ghr;
+
+    switch (a->type)
+    {
+        case GAG:
+        {
+            ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
+
+            /* Apply aliasing function for Gshare and Gselect */
+            ghr = a->pfn_ap_aliasing_func(a, ghr, pc);
+            update_two_bit_counter(&a->pht[0].ctr[ghr], pred);
+            a->ght[0].ghr = UPDATE_GHR(a->ght[0].ghr, a->hreg_bits, pred);
+            break;
+        }
+        case GAP:
+        {
+            ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
+            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
+            update_two_bit_counter(&a->pht[l2_index].ctr[ghr], pred);
+            a->ght[0].ghr = UPDATE_GHR(a->ght[0].ghr, a->hreg_bits, pred);
+            break;
+        }
+        case PAG:
+        {
+            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
+            ghr = GET_INDEX(a->ght[l1_index].ghr, a->hreg_bits);
+            update_two_bit_counter(&a->pht[0].ctr[ghr], pred);
+            a->ght[l1_index].ghr
+                = UPDATE_GHR(a->ght[l1_index].ghr, a->hreg_bits, pred);
+            break;
+        }
+        case PAP:
+        {
+            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
+            ghr = GET_INDEX(a->ght[l1_index].ghr, a->hreg_bits);
+            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
+            update_two_bit_counter(&a->pht[l2_index].ctr[ghr], pred);
+            a->ght[l1_index].ghr
+                = UPDATE_GHR(a->ght[l1_index].ghr, a->hreg_bits, pred);
+            break;
+        }
+    }
+}
+
+static void
+adaptive_predictor_flush(AdaptivePredictor *a)
+{
+    int i;
+
+    memset(a->ght, 0, a->ght_size * sizeof(GHTEntry));
+    for (i = 0; i < a->pht_size; ++i)
+    {
+        a->pht[i].pc = 0;
+        memset(a->pht[i].ctr, 0, sizeof(int) * (1 << a->hreg_bits));
+    }
 }
 
 AdaptivePredictor *
@@ -135,26 +388,12 @@ adaptive_predictor_init(const SimParams *p)
         a->type = PAP;
     }
 
+    a->probe = &adaptive_predictor_probe;
+    a->get_prediction = &adaptive_predictor_get_prediction;
+    a->add = &adaptive_predictor_add;
+    a->update = &adaptive_predictor_update;
+    a->flush = &adaptive_predictor_flush;
     return a;
-}
-
-static void
-update_two_bit_counter(int *ctr, int pred)
-{
-    if (pred)
-    {
-        if ((*ctr >= 0) && (*ctr < 3))
-        {
-            (*ctr)++;
-        }
-    }
-    else
-    {
-        if ((*ctr >= 1) && (*ctr <= 3))
-        {
-            (*ctr)--;
-        }
-    }
 }
 
 void
@@ -173,241 +412,4 @@ adaptive_predictor_free(AdaptivePredictor **a)
     (*a)->ght = NULL;
     free(*a);
     *a = NULL;
-}
-
-/* Returns BPU_HIT if given pc is present in GHT */
-static int
-adaptive_predictor_ght_probe(AdaptivePredictor *a, target_ulong pc)
-{
-    int index = GET_INDEX(pc >> 1, a->ght_index_bits);
-
-    if (a->ght[index].pc == pc)
-    {
-        return BPU_HIT;
-    }
-
-    return BPU_MISS;
-}
-
-/* Returns BPU_HIT if given pc is present in PHT */
-static int
-adaptive_predictor_pht_probe(AdaptivePredictor *a, target_ulong pc)
-{
-    int index = GET_INDEX(pc >> 1, a->pht_index_bits);
-
-    if (a->pht[index].pc == pc)
-    {
-        return BPU_HIT;
-    }
-
-    return BPU_MISS;
-}
-
-/**
- * Based on the adaptive predictor scheme, probe either GHT
- * or PHT or both.
- */
-int
-adaptive_predictor_probe(AdaptivePredictor *a, target_ulong pc)
-{
-    switch (a->type)
-    {
-        case GAG:
-        {
-            return BPU_HIT;
-        }
-        case GAP:
-        {
-            return adaptive_predictor_pht_probe(a, pc);
-        }
-        case PAG:
-        {
-            return adaptive_predictor_ght_probe(a, pc);
-        }
-        case PAP:
-        {
-            return (adaptive_predictor_ght_probe(a, pc)
-                    && adaptive_predictor_pht_probe(a, pc));
-        }
-    }
-
-    assert(0);
-    return 0;
-}
-
-/**
- * Based on the adaptive predictor scheme, return the
- * prediction.
- */
-int
-adaptive_predictor_get_prediction(AdaptivePredictor *a, target_ulong pc)
-{
-    int l1_index;
-    int l2_index;
-    uint32_t ghr;
-
-    switch (a->type)
-    {
-        case GAG:
-        {
-            ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
-
-            /* Apply aliasing function for Gshare and Gselect */
-            ghr = a->pfn_ap_aliasing_func(a, ghr, pc);
-            if (a->pht[0].ctr[ghr] > 1)
-            {
-                return 1;
-            }
-            return 0;
-        }
-        case GAP:
-        {
-            ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
-            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
-            if (a->pht[l2_index].ctr[ghr] > 1)
-            {
-                return 1;
-            }
-            return 0;
-        }
-        case PAG:
-        {
-            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
-            ghr = GET_INDEX(a->ght[l1_index].ghr, a->hreg_bits);
-            if (a->pht[0].ctr[ghr] > 1)
-            {
-                return 1;
-            }
-            return 0;
-        }
-        case PAP:
-        {
-            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
-            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
-            ghr = GET_INDEX(a->ght[l1_index].ghr, a->hreg_bits);
-            if (a->pht[l2_index].ctr[ghr] > 1)
-            {
-                return 1;
-            }
-            return 0;
-        }
-    }
-
-    assert(0);
-    return 0;
-}
-
-/**
- * Based on the adaptive predictor scheme, allocate the entries in GHT or
- * PHT or both.
- *
- * History register in the allocated GHT entry is set to 0.
- * 2-bit saturating counter array in the allocated PHT entry get default values
- * of 0 (strongly not taken).
- */
-void
-adaptive_predictor_add(AdaptivePredictor *a, target_ulong pc)
-{
-    int l1_index;
-    int l2_index;
-
-    switch (a->type)
-    {
-        case GAG:
-        {
-            break;
-        }
-        case GAP:
-        {
-            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
-            a->pht[l2_index].pc = pc;
-            memset(a->pht[l2_index].ctr, 0, sizeof(int) * (1 << a->hreg_bits));
-            break;
-        }
-        case PAG:
-        {
-            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
-            a->ght[l1_index].pc = pc;
-            a->ght[l1_index].ghr = 0;
-            break;
-        }
-        case PAP:
-        {
-            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
-            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
-            a->ght[l1_index].pc = pc;
-            a->ght[l1_index].ghr = 0;
-            a->pht[l2_index].pc = pc;
-            memset(a->pht[l2_index].ctr, 0, sizeof(int) * (1 << a->hreg_bits));
-            break;
-        }
-    }
-}
-
-/**
- * Based on the adaptive predictor scheme, update the entries in GHT or
- * PHT or both. First update the 2-bit saturating counter in PHT and then
- * update history register in GHT. Update to history register is performed
- * by left-shifting the current branch outcome into its previous value.
- */
-void
-adaptive_predictor_update(AdaptivePredictor *a, target_ulong pc, int pred)
-{
-    int l1_index;
-    int l2_index;
-    uint32_t ghr;
-
-    switch (a->type)
-    {
-        case GAG:
-        {
-            ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
-
-            /* Apply aliasing function for Gshare and Gselect */
-            ghr = a->pfn_ap_aliasing_func(a, ghr, pc);
-            update_two_bit_counter(&a->pht[0].ctr[ghr], pred);
-            a->ght[0].ghr = UPDATE_GHR(a->ght[0].ghr, a->hreg_bits, pred);
-            break;
-        }
-        case GAP:
-        {
-            ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
-            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
-            update_two_bit_counter(&a->pht[l2_index].ctr[ghr], pred);
-            a->ght[0].ghr = UPDATE_GHR(a->ght[0].ghr, a->hreg_bits, pred);
-            break;
-        }
-        case PAG:
-        {
-            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
-            ghr = GET_INDEX(a->ght[l1_index].ghr, a->hreg_bits);
-            update_two_bit_counter(&a->pht[0].ctr[ghr], pred);
-            a->ght[l1_index].ghr
-                = UPDATE_GHR(a->ght[l1_index].ghr, a->hreg_bits, pred);
-            break;
-        }
-        case PAP:
-        {
-            l1_index = GET_INDEX(pc >> 1, a->ght_index_bits);
-            ghr = GET_INDEX(a->ght[l1_index].ghr, a->hreg_bits);
-            l2_index = GET_INDEX(pc >> 1, a->pht_index_bits);
-            update_two_bit_counter(&a->pht[l2_index].ctr[ghr], pred);
-            a->ght[l1_index].ghr
-                = UPDATE_GHR(a->ght[l1_index].ghr, a->hreg_bits, pred);
-            break;
-        }
-    }
-}
-
-void
-adaptive_predictor_flush(AdaptivePredictor *a)
-{
-    int i;
-
-    memset(a->ght, 0, a->ght_size * sizeof(GHTEntry));
-    for (i = 0; i < a->pht_size; ++i)
-    {
-        a->pht[i].pc = 0;
-        memset(a->pht[i].ctr, 0, sizeof(int) * (1 << a->hreg_bits));
-    }
 }

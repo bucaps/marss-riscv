@@ -37,22 +37,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sim_params_stats.h"
 #include "adaptive_predictor.h"
-#include "btb.h"
 #include "bht.h"
+#include "btb.h"
 #include "ras.h"
 #include "riscv_sim_typedefs.h"
-
-typedef struct BranchPredUnit
-{
-    BranchTargetBuffer *btb;
-    Bht *bht;
-    Ras *ras;
-    AdaptivePredictor *ap;
-    SimStats *stats;
-    int bpu_type;
-} BranchPredUnit;
+#include "sim_params_stats.h"
 
 typedef struct BPUResponsePkt
 {
@@ -62,14 +52,27 @@ typedef struct BPUResponsePkt
     BtbEntry *btb_entry;
 } BPUResponsePkt;
 
+typedef struct BranchPredUnit
+{
+    BranchTargetBuffer *btb;
+    Bht *bht;
+    Ras *ras;
+    AdaptivePredictor *ap;
+    SimStats *stats;
+    int bpu_type;
+
+    void (*probe)(struct BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p,
+                  int priv);
+    void (*add)(struct BranchPredUnit *u, target_ulong pc, int type,
+                BPUResponsePkt *p, int priv, int fret);
+    void (*update)(struct BranchPredUnit *u, target_ulong pc,
+                   target_ulong target, int pred, int type, BPUResponsePkt *p,
+                   int priv);
+    void (*flush)(struct BranchPredUnit *u);
+    target_ulong (*get_target)(struct BranchPredUnit *u, target_ulong pc,
+                               BtbEntry *btb_entry);
+} BranchPredUnit;
+
 BranchPredUnit *bpu_init(const SimParams *p, SimStats *s);
 void bpu_free(BranchPredUnit **u);
-void bpu_probe(BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p, int priv);
-target_ulong bpu_get_target(BranchPredUnit *u, target_ulong pc,
-                            BtbEntry *btb_entry);
-void bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p,
-             int priv, int fret);
-void bpu_update(BranchPredUnit *u, target_ulong pc, target_ulong target,
-                int pred, int type, BPUResponsePkt *p, int priv);
-void bpu_flush(BranchPredUnit *u);
 #endif

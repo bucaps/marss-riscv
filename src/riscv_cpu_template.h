@@ -256,7 +256,7 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         /* Reset BPU at every new simulation run */
         if (s->sim_params->enable_bpu)
         {
-            bpu_flush(s->simcpu->bpu);
+            s->simcpu->bpu->flush(s->simcpu->bpu);
         }
 
         /* Reset Caches at every new simulation run */

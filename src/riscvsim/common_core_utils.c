@@ -567,11 +567,11 @@ handle_bpu_frontend_probe(struct RISCVCPUState *s, IMapEntry *e)
     target_ulong bpu_target;
 
     bpu_target = 0;
-    bpu_probe(s->simcpu->bpu, e->ins.pc, &e->bpu_resp_pkt, s->priv);
+    s->simcpu->bpu->probe(s->simcpu->bpu, e->ins.pc, &e->bpu_resp_pkt, s->priv);
     if (e->bpu_resp_pkt.bpu_probe_status)
     {
-        bpu_target = bpu_get_target(s->simcpu->bpu, e->ins.pc,
-                                    e->bpu_resp_pkt.btb_entry);
+        bpu_target = s->simcpu->bpu->get_target(s->simcpu->bpu, e->ins.pc,
+                                                e->bpu_resp_pkt.btb_entry);
 
         /* Non-zero target means branch is taken, according to the prediction,
          * so set the predicted address into pcgen unit */
@@ -610,8 +610,8 @@ handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
      * miss */
     if (!e->bpu_resp_pkt.bpu_probe_status)
     {
-        bpu_add(s->simcpu->bpu, e->ins.pc, e->ins.branch_type, &e->bpu_resp_pkt,
-                s->priv, e->ins.is_func_ret);
+        s->simcpu->bpu->add(s->simcpu->bpu, e->ins.pc, e->ins.branch_type,
+                            &e->bpu_resp_pkt, s->priv, e->ins.is_func_ret);
     }
 
     /* If return address stack is enabled */
@@ -619,14 +619,14 @@ handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
     {
         if (e->ins.is_func_call)
         {
-            ras_push(
+            s->simcpu->bpu->ras->push(
                 s->simcpu->bpu->ras,
                 ((e->ins.binary & 3) == 3 ? e->ins.pc + 4 : e->ins.pc + 2));
         }
 
         if (e->ins.is_func_ret)
         {
-            ras_target = ras_pop(s->simcpu->bpu->ras);
+            ras_target = s->simcpu->bpu->ras->pop(s->simcpu->bpu->ras);
 
             /* Start fetch from address returned by RAS if non-zero */
             if (ras_target)
@@ -660,7 +660,7 @@ handle_cond_bpu(RISCVCPUState *s, IMapEntry *e)
     int mispredict = FALSE;
     RISCVSIMCPUState *simcpu = s->simcpu;
 
-    bpu_probe(simcpu->bpu, e->ins.pc, &e->bpu_resp_pkt, s->priv);
+    s->simcpu->bpu->probe(simcpu->bpu, e->ins.pc, &e->bpu_resp_pkt, s->priv);
 
     if (e->ins.cond)
     {
@@ -705,8 +705,8 @@ handle_cond_bpu(RISCVCPUState *s, IMapEntry *e)
     }
 
     /* Update BPU if hit, else skip the update */
-    bpu_update(simcpu->bpu, e->ins.pc, e->ins.target, pred, BRANCH_COND,
-               &e->bpu_resp_pkt, s->priv);
+    simcpu->bpu->update(simcpu->bpu, e->ins.pc, e->ins.target, pred,
+                        BRANCH_COND, &e->bpu_resp_pkt, s->priv);
 
     return mispredict;
 }
@@ -720,11 +720,11 @@ handle_uncond_bpu(RISCVCPUState *s, IMapEntry *e)
     RISCVSIMCPUState *simcpu = s->simcpu;
     int type = BRANCH_UNCOND;
     int mispredict = FALSE;
-    bpu_probe(simcpu->bpu, e->ins.pc, &e->bpu_resp_pkt, s->priv);
+    s->simcpu->bpu->probe(simcpu->bpu, e->ins.pc, &e->bpu_resp_pkt, s->priv);
 
     /* Update BPU if hit, else skip the update */
-    bpu_update(simcpu->bpu, e->ins.pc, e->ins.target, TRUE, type,
-               &e->bpu_resp_pkt, s->priv);
+    simcpu->bpu->update(simcpu->bpu, e->ins.pc, e->ins.target, TRUE, type,
+                        &e->bpu_resp_pkt, s->priv);
 
     if (e->predicted_target == e->ins.target)
     {

@@ -60,14 +60,14 @@ typedef struct AdaptivePredictor
                                 based on ght_size and pht_size*/
     uint32_t (*pfn_ap_aliasing_func)(struct AdaptivePredictor *a, uint32_t hr,
                                      target_ulong pc); /* Type of aliasing function (and, xor or none) to apply for GAg based schemes */
+
+    int (*probe)(struct AdaptivePredictor *a, target_ulong pc);
+    int (*get_prediction)(struct AdaptivePredictor *a, target_ulong pc);
+    void (*add)(struct AdaptivePredictor *a, target_ulong pc);
+    void (*update)(struct AdaptivePredictor *a, target_ulong pc, int pred);
+    void (*flush)(struct AdaptivePredictor *a);
 } AdaptivePredictor;
 
 AdaptivePredictor * adaptive_predictor_init(const SimParams *p);
 void adaptive_predictor_free(AdaptivePredictor **a);
-int adaptive_predictor_probe(AdaptivePredictor *a, target_ulong pc);
-int adaptive_predictor_get_prediction(AdaptivePredictor *a, target_ulong pc);
-void adaptive_predictor_add(AdaptivePredictor *a, target_ulong pc);
-void adaptive_predictor_update(AdaptivePredictor *a, target_ulong pc, int pred);
-void adaptive_predictor_flush(AdaptivePredictor *a);
-
 #endif
