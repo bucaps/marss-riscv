@@ -53,7 +53,7 @@
 #include "slirp/libslirp.h"
 #endif
 
-#include "riscvsim/sim_params_stats.h"
+#include "riscvsim/utils/sim_params_stats.h"
 
 #ifndef _WIN32
 typedef struct {

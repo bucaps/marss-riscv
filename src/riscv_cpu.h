@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include "cutils.h"
 #include "iomem.h"
-#include "riscvsim/sim_params_stats.h"
+#include "riscvsim/utils/sim_params_stats.h"
 
 #define MIP_USIP (1 << 0)
 #define MIP_SSIP (1 << 1)
