@@ -44,6 +44,15 @@ typedef struct InsDispatchQueue
     uint64_t data[INCORE_NUM_INS_DISPATCH_QUEUE_ENTRY];
 } InsDispatchQueue;
 
+typedef struct DataFWDLatch
+{
+    uint64_t buffer;
+    int rd;
+    int valid;
+    int fp_dest;
+    int int_dest;
+} DataFWDLatch;
+
 typedef struct INCore
 {
     /*----------  In-order pipeline stages   ----------*/

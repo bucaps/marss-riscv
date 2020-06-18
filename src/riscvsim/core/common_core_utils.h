@@ -36,15 +36,6 @@
 
 struct RISCVCPUState;
 
-typedef struct DataFWDLatch
-{
-    uint64_t buffer;
-    int rd;
-    int valid;
-    int fp_dest;
-    int int_dest;
-} DataFWDLatch;
-
 typedef struct InstructionMapEntry
 {
     int status;
