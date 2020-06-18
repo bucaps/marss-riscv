@@ -187,9 +187,9 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
     s->ins_tlb_lookup_accounted = FALSE;
     s->ins_tlb_hit_accounted = FALSE;
 
-    /* current_latency: number of CPU cycles spent by this instruction
+    /* elasped_clock_cycles: number of CPU cycles spent by this instruction
      * in fetch stage so far */
-    e->current_latency = 1;
+    e->elasped_clock_cycles = 1;
     s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue.cur_size = 0;
 
     /* Fetch instruction from TinyEMU memory map */
@@ -202,13 +202,13 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
 
         /* Hardware page table walk has been done and its latency must
          * be simulated */
-        e->max_latency = s->hw_pg_tb_wlk_latency;
+        e->max_clock_cycles = s->hw_pg_tb_wlk_latency;
     }
     else
     {
-        /* max_latency: Number of CPU cycles required for TLB and Cache
+        /* max_clock_cycles: Number of CPU cycles required for TLB and Cache
          * look-up */
-        e->max_latency = s->hw_pg_tb_wlk_latency
+        e->max_clock_cycles = s->hw_pg_tb_wlk_latency
                          + s->simcpu->mem_hierarchy->insn_read_delay(
                                s->simcpu->mem_hierarchy, s->code_guest_paddr, 4,
                                FETCH, s->priv);
@@ -216,7 +216,7 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
         if (s->sim_params->enable_l1_caches)
         {
             /* L1 caches and TLB are probed in parallel */
-            e->max_latency -= min_int(s->hw_pg_tb_wlk_latency,
+            e->max_clock_cycles -= min_int(s->hw_pg_tb_wlk_latency,
                                       s->simcpu->mem_hierarchy->icache->read_latency);
         }
 
@@ -904,7 +904,7 @@ write_stats_to_stats_display_shm(RISCVCPUState *s)
 }
 
 int
-set_max_latency_for_non_pipe_fu(RISCVCPUState *s, int fu_type, IMapEntry *e)
+set_max_clock_cycles_for_non_pipe_fu(RISCVCPUState *s, int fu_type, IMapEntry *e)
 {
     switch (fu_type)
     {

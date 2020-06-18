@@ -90,7 +90,7 @@ do_exec_insn(RISCVCPUState *s, INCore *core, IMapEntry *e, int fu_type)
         core->fp_reg_status[e->ins.rd] = FALSE;
     }
 
-    e->current_latency = 1;
+    e->elasped_clock_cycles = 1;
     execute_riscv_instruction(&e->ins, &s->fflags);
     ++s->simcpu->stats[s->priv].fu_access[fu_type];
 }
@@ -121,7 +121,7 @@ push_insn_from_ex_to_mem(INCore *core, IMapEntry *e, CPUStage *stage)
         if (!core->memory.has_data)
         {
             cq_dequeue(&core->ins_dispatch_queue.cq);
-            e->current_latency = 0;
+            e->elasped_clock_cycles = 0;
             e->data_fwd_done = FALSE;
             stage->stage_exec_done = FALSE;
             core->memory = *stage;
@@ -144,26 +144,26 @@ in_core_execute_non_pipe(INCore *core, int fu_type, CPUStage *stage)
         if (!stage->stage_exec_done)
         {
             do_exec_insn(s, core, e, fu_type);
-            e->max_latency = set_max_latency_for_non_pipe_fu(s, fu_type, e);
-            assert(e->max_latency);
+            e->max_clock_cycles = set_max_clock_cycles_for_non_pipe_fu(s, fu_type, e);
+            assert(e->max_clock_cycles);
             stage->stage_exec_done = TRUE;
         }
 
-        if (e->current_latency == e->max_latency)
+        if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
             do_fwd_data_from_ex_to_drf(core, e, fu_type);
             push_insn_from_ex_to_mem(core, e, stage);
         }
         else
         {
-            e->current_latency++;
+            e->elasped_clock_cycles++;
         }
     }
 }
 
 static void
 in_core_execute_pipe(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
-                int max_latency, int max_stage_id)
+                int max_clock_cycles, int max_stage_id)
 {
     IMapEntry *e;
     CPUStage *next;
@@ -180,7 +180,7 @@ in_core_execute_pipe(INCore *core, int cur_stage_id, int fu_type, CPUStage *stag
             stage->stage_exec_done = TRUE;
         }
 
-        if (e->current_latency == max_latency)
+        if (e->elasped_clock_cycles == max_clock_cycles)
         {
             /* Instruction is in last stage of FU*/
             if (cur_stage_id == max_stage_id)
@@ -194,7 +194,7 @@ in_core_execute_pipe(INCore *core, int cur_stage_id, int fu_type, CPUStage *stag
                 next = get_next_exec_stage(core, cur_stage_id, fu_type);
                 if (!next->has_data)
                 {
-                    e->current_latency = 1;
+                    e->elasped_clock_cycles = 1;
                     *next = *stage;
                     cpu_stage_flush(stage);
                 }
@@ -202,7 +202,7 @@ in_core_execute_pipe(INCore *core, int cur_stage_id, int fu_type, CPUStage *stag
         }
         else
         {
-            e->current_latency++;
+            e->elasped_clock_cycles++;
         }
     }
 }
@@ -337,14 +337,14 @@ in_core_memory(INCore *core)
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = MEMORY;
 
-            /* current_latency: number of CPU cycles spent by this instruction
+            /* elasped_clock_cycles: number of CPU cycles spent by this instruction
              * in memory stage so far */
-            e->current_latency = 1;
+            e->elasped_clock_cycles = 1;
 
             /* Set default total number of CPU cycles required for this
              * instruction in memory stage Note: This is the default latency for
              * non-memory instructions */
-            e->max_latency = 1;
+            e->max_clock_cycles = 1;
 
             if (e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
             {
@@ -357,17 +357,17 @@ in_core_memory(INCore *core)
 
                     /* In case of page fault, hardware page table walk has been
                        done and its latency must be simulated */
-                    e->max_latency = s->hw_pg_tb_wlk_latency;
+                    e->max_clock_cycles = s->hw_pg_tb_wlk_latency;
 
                     /* Safety check */
-                    assert(e->max_latency);
+                    assert(e->max_clock_cycles);
                 }
                 else
                 {
                     /* Memory access was successful, no page fault, so set the
                        total number of CPU cycles required for memory
                        instruction */
-                    e->max_latency = s->hw_pg_tb_wlk_latency
+                    e->max_clock_cycles = s->hw_pg_tb_wlk_latency
                                      + get_data_mem_access_latency(s, e);
 
                     if (s->sim_params->enable_l1_caches)
@@ -375,19 +375,19 @@ in_core_memory(INCore *core)
                         /* L1 caches and TLB are probed in parallel */
                         if (e->ins.is_load)
                         {
-                            e->max_latency
+                            e->max_clock_cycles
                                 -= min_int(s->hw_pg_tb_wlk_latency,
                                            s->simcpu->mem_hierarchy->dcache->read_latency);
                         }
                         if (e->ins.is_store)
                         {
-                            e->max_latency
+                            e->max_clock_cycles
                                 -= min_int(s->hw_pg_tb_wlk_latency,
                                            s->simcpu->mem_hierarchy->dcache->write_latency);
                         }
                         if (e->ins.is_atomic)
                         {
-                            e->max_latency -= min_int(
+                            e->max_clock_cycles -= min_int(
                                 s->hw_pg_tb_wlk_latency,
                                 min_int(s->simcpu->mem_hierarchy->dcache->read_latency,
                                         s->simcpu->mem_hierarchy->dcache->write_latency));
@@ -406,7 +406,7 @@ in_core_memory(INCore *core)
             core->memory.stage_exec_done = TRUE;
         }
 
-        if (e->current_latency == e->max_latency)
+        if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
             /* Number of CPU cycles spent by this instruction in memory stage
                equals memory access delay for this instruction */
@@ -461,8 +461,8 @@ in_core_memory(INCore *core)
             {
                 s->simcpu->mem_hierarchy->mem_controller->backend_mem_access_queue.cur_idx = 0;
                 core->memory.stage_exec_done = FALSE;
-                e->max_latency = 0;
-                e->current_latency = 0;
+                e->max_clock_cycles = 0;
+                e->elasped_clock_cycles = 0;
                 e->data_fwd_done = FALSE;
                 core->commit = core->memory;
                 cpu_stage_flush(&core->memory);
@@ -470,7 +470,7 @@ in_core_memory(INCore *core)
         }
         else
         {
-            e->current_latency++;
+            e->elasped_clock_cycles++;
         }
     }
 }

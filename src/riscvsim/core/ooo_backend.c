@@ -248,17 +248,17 @@ oo_core_execute_non_pipe(OOCore *core, int fu_type, CPUStage *stage)
             /* Update FU stats */
             ++s->simcpu->stats[s->priv].fu_access[fu_type];
 
-            /* current_latency: number of CPU cycles spent by this instruction
+            /* elasped_clock_cycles: number of CPU cycles spent by this instruction
              * in execute stage so far */
-            e->current_latency = 1;
-            e->max_latency = set_max_latency_for_non_pipe_fu(s, fu_type, e);
-            assert(e->max_latency);
+            e->elasped_clock_cycles = 1;
+            e->max_clock_cycles = set_max_clock_cycles_for_non_pipe_fu(s, fu_type, e);
+            assert(e->max_clock_cycles);
             stage->stage_exec_done = TRUE;
         }
 
         /* If the latency is completed and next stage is free, pass this
          * instruction to the next stage, else stall */
-        if (e->current_latency == e->max_latency)
+        if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
             if (e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
             {
@@ -282,20 +282,20 @@ oo_core_execute_non_pipe(OOCore *core, int fu_type, CPUStage *stage)
             }
 
             /* Execution complete */
-            e->max_latency = 0;
-            e->current_latency = 0;
+            e->max_clock_cycles = 0;
+            e->elasped_clock_cycles = 0;
             cpu_stage_flush(stage);
         }
         else
         {
-            e->current_latency++;
+            e->elasped_clock_cycles++;
         }
     }
 }
 
 static void
 oo_core_execute_pipe(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
-                int max_latency, int max_stage_id)
+                int max_clock_cycles, int max_stage_id)
 {
     IMapEntry *e;
     CPUStage *next;
@@ -311,15 +311,15 @@ oo_core_execute_pipe(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stag
             /* Update FU stats */
             ++s->simcpu->stats[s->priv].fu_access[fu_type];
 
-            /* current_latency: number of CPU cycles spent by this instruction
+            /* elasped_clock_cycles: number of CPU cycles spent by this instruction
              * in execute stage so far */
-            e->current_latency = 1;
+            e->elasped_clock_cycles = 1;
             stage->stage_exec_done = TRUE;
         }
 
         /* If the latency is completed and next stage is free, pass this
          * instruction to the next stage, else stall */
-        if (e->current_latency == max_latency)
+        if (e->elasped_clock_cycles == max_clock_cycles)
         {
             /* Instruction is in last stage of FU*/
             if (cur_stage_id == max_stage_id)
@@ -346,8 +346,8 @@ oo_core_execute_pipe(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stag
                 }
 
                 /* Execution complete */
-                e->max_latency = 0;
-                e->current_latency = 0;
+                e->max_clock_cycles = 0;
+                e->elasped_clock_cycles = 0;
                 cpu_stage_flush(stage);
             }
             else
@@ -356,7 +356,7 @@ oo_core_execute_pipe(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stag
                 next = get_next_exec_stage(core, cur_stage_id, fu_type);
                 if (!next->has_data)
                 {
-                    e->current_latency = 1;
+                    e->elasped_clock_cycles = 1;
                     *next = *stage;
                     cpu_stage_flush(stage);
                 }
@@ -364,7 +364,7 @@ oo_core_execute_pipe(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stag
         }
         else
         {
-            e->current_latency++;
+            e->elasped_clock_cycles++;
         }
     }
 }

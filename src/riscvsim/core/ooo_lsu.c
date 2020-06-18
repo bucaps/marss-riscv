@@ -44,9 +44,9 @@ oo_core_lsu(OOCore *core)
             s->hw_pg_tb_wlk_latency = 1;
             s->hw_pg_tb_wlk_stage_id = MEMORY;
 
-            /* current_latency: number of CPU cycles spent by this instruction
+            /* elasped_clock_cycles: number of CPU cycles spent by this instruction
              * in memory stage so far */
-            e->current_latency = 1;
+            e->elasped_clock_cycles = 1;
 
             if (execute_load_store(s, e))
             {
@@ -57,13 +57,13 @@ oo_core_lsu(OOCore *core)
 
                 /* In case of page fault, hardware page table walk has been done
                  * and its latency must be simulated */
-                e->max_latency = s->hw_pg_tb_wlk_latency;
+                e->max_clock_cycles = s->hw_pg_tb_wlk_latency;
             }
             else
             {
                 /* Memory access was successful, no page fault, so set the total
                  * number of CPU cycles required for memory instruction */
-                e->max_latency = s->hw_pg_tb_wlk_latency
+                e->max_clock_cycles = s->hw_pg_tb_wlk_latency
                                  + get_data_mem_access_latency(s, e);
 
                 if (s->sim_params->enable_l1_caches)
@@ -71,19 +71,19 @@ oo_core_lsu(OOCore *core)
                     /* L1 caches and TLB are probed in parallel */
                     if (e->ins.is_load)
                     {
-                        e->max_latency
+                        e->max_clock_cycles
                             -= min_int(s->hw_pg_tb_wlk_latency,
                                        s->simcpu->mem_hierarchy->dcache->read_latency);
                     }
                     if (e->ins.is_store)
                     {
-                        e->max_latency
+                        e->max_clock_cycles
                             -= min_int(s->hw_pg_tb_wlk_latency,
                                        s->simcpu->mem_hierarchy->dcache->write_latency);
                     }
                     if (e->ins.is_atomic)
                     {
-                        e->max_latency -= min_int(
+                        e->max_clock_cycles -= min_int(
                             s->hw_pg_tb_wlk_latency,
                             min_int(s->simcpu->mem_hierarchy->dcache->read_latency,
                                     s->simcpu->mem_hierarchy->dcache->write_latency));
@@ -93,7 +93,7 @@ oo_core_lsu(OOCore *core)
             core->lsu.stage_exec_done = TRUE;
         }
 
-        if (e->current_latency == e->max_latency)
+        if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
             /* Number of CPU cycles spent by this instruction in memory stage
              * equals memory access delay for this instruction */
@@ -111,7 +111,7 @@ oo_core_lsu(OOCore *core)
         }
         else
         {
-            e->current_latency++;
+            e->elasped_clock_cycles++;
         }
     }
 }

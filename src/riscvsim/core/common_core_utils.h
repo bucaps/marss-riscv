@@ -46,8 +46,8 @@ typedef struct InstructionMapEntry
     uint32_t bpu_probe;
     target_ulong predicted_target;
     uint32_t is_pred_correct;
-    int max_latency;
-    int current_latency;
+    int max_clock_cycles;
+    int elasped_clock_cycles;
     int data_fwd_done;
     int read_rs1;
     int read_rs2;
@@ -115,6 +115,6 @@ void update_arch_reg_fp(struct RISCVCPUState *s, IMapEntry *e);
 void update_insn_commit_stats(struct RISCVCPUState *s, IMapEntry *e);
 void setup_sim_trace_pkt(struct RISCVCPUState *s, IMapEntry *e);
 void write_stats_to_stats_display_shm(struct RISCVCPUState *s);
-int set_max_latency_for_non_pipe_fu(struct RISCVCPUState *s, int fu_type,
+int set_max_clock_cycles_for_non_pipe_fu(struct RISCVCPUState *s, int fu_type,
                                     IMapEntry *e);
 #endif

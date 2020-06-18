@@ -68,7 +68,7 @@ oo_core_fetch(OOCore *core)
             e = get_imap_entry(s->simcpu->imap, core->fetch.imap_index);
         }
 
-        if (e->current_latency == e->max_latency)
+        if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
             /* Number of CPU cycles spent by this instruction in fetch stage
              * equals lookup delay for this instruction */
@@ -87,8 +87,8 @@ oo_core_fetch(OOCore *core)
                         = 0;
 
                     core->fetch.stage_exec_done = FALSE;
-                    e->max_latency = 0;
-                    e->current_latency = 0;
+                    e->max_clock_cycles = 0;
+                    e->elasped_clock_cycles = 0;
                     core->decode = core->fetch;
                     core->fetch.imap_index = -1;
 
@@ -106,7 +106,7 @@ oo_core_fetch(OOCore *core)
         }
         else
         {
-            e->current_latency++;
+            e->elasped_clock_cycles++;
         }
     }
 }
