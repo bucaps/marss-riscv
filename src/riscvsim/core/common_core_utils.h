@@ -35,86 +35,88 @@
 #include "../riscv_sim_typedefs.h"
 
 struct RISCVCPUState;
-
-typedef struct InstructionMapEntry
+ 
+typedef struct InstructionLatch
 {
     int status;
-    uint64_t ins_dispatch_id;
-    uint32_t is_decoded;
-    uint32_t is_branch_taken;
-    target_ulong branch_target;
-    uint32_t bpu_probe;
-    target_ulong predicted_target;
-    uint32_t is_pred_correct;
+    int insn_latch_index;
+    int is_decoded;
+    struct RVInstruction ins;
     int max_clock_cycles;
     int elasped_clock_cycles;
+
     int data_fwd_done;
     int read_rs1;
     int read_rs2;
     int read_rs3;
+    int keep_dest_busy;
+
     int renamed;
     int rob_idx;
     int iq_idx;
     int lsq_idx;
-    int imap_index;
+
     int branch_processed;
-    int stop_flush;
     int mispredict;
-    int keep_dest_busy;
-    struct RVInstruction ins;
+    int is_branch_taken;
+    int is_pred_correct;
+    target_ulong branch_target;
+    target_ulong predicted_target;
     BPUResponsePkt bpu_resp_pkt;
-} IMapEntry;
+
+    uint64_t ins_dispatch_id;
+} InstructionLatch;
 
 typedef struct CPUStage
 {
     uint32_t has_data;
-    int imap_index;
+    int insn_latch_index;
     uint32_t stage_exec_done;
 } CPUStage;
 
 typedef struct SimTracePacket
 {
     uint32_t cycle;
-    IMapEntry *e;
+    InstructionLatch *e;
 } SimTracePacket;
 
 void cpu_stage_flush(CPUStage *stage);
 void exec_unit_flush(CPUStage *stage, int num_stages);
-void speculative_cpu_stage_flush(CPUStage *stage, IMapEntry *imap);
+void speculative_cpu_stage_flush(CPUStage *stage, InstructionLatch *insn_latch_pool);
 void speculative_exec_unit_flush(CPUStage *stage, int num_stages,
-                                 IMapEntry *imap);
+                                 InstructionLatch *insn_latch_pool);
 
-IMapEntry *allocate_imap_entry(IMapEntry *imap);
-void reset_imap(IMapEntry *e);
-IMapEntry *get_imap_entry(IMapEntry *imap, int index);
+InstructionLatch *insn_latch_allocate(InstructionLatch *insn_latch_pool);
+void reset_insn_latch_pool(InstructionLatch *e);
+InstructionLatch *get_insn_latch(InstructionLatch *insn_latch_pool, int index);
 
-int code_tlb_access_and_ins_fetch(struct RISCVCPUState *s, IMapEntry *e);
-void do_fetch_stage_exec(struct RISCVCPUState *s, IMapEntry *e);
+int code_tlb_access_and_ins_fetch(struct RISCVCPUState *s, InstructionLatch *e);
+void do_fetch_stage_exec(struct RISCVCPUState *s, InstructionLatch *e);
 
-void do_decode_stage_exec(struct RISCVCPUState *s, IMapEntry *e);
+void do_decode_stage_exec(struct RISCVCPUState *s, InstructionLatch *e);
 
-void set_exception_state(struct RISCVCPUState *s, const IMapEntry *e);
-void set_timer_exception_state(struct RISCVCPUState *s, const IMapEntry *e);
-int execute_load_store(struct RISCVCPUState *s, IMapEntry *e);
-int get_data_mem_access_latency(struct RISCVCPUState *s, IMapEntry *e);
+void set_exception_state(struct RISCVCPUState *s, const InstructionLatch *e);
+void set_timer_exception_state(struct RISCVCPUState *s, const InstructionLatch *e);
+int execute_load_store(struct RISCVCPUState *s, InstructionLatch *e);
+int get_data_mem_access_latency(struct RISCVCPUState *s, InstructionLatch *e);
 
-void handle_bpu_frontend_probe(struct RISCVCPUState *s, IMapEntry *e);
-void handle_no_bpu_frontend_probe(struct RISCVCPUState *s, IMapEntry *e);
-int handle_branch_with_bpu(struct RISCVCPUState *s, IMapEntry *e);
-int handle_branch_no_bpu(struct RISCVCPUState *s, IMapEntry *e);
+void handle_bpu_frontend_probe(struct RISCVCPUState *s, InstructionLatch *e);
+void handle_no_bpu_frontend_probe(struct RISCVCPUState *s, InstructionLatch *e);
+int handle_branch_with_bpu(struct RISCVCPUState *s, InstructionLatch *e);
+int handle_branch_no_bpu(struct RISCVCPUState *s, InstructionLatch *e);
 
-int handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e);
-int handle_branch_decode_no_bpu(struct RISCVCPUState *s, IMapEntry *e);
+int handle_branch_decode_with_bpu(struct RISCVCPUState *s, InstructionLatch *e);
+int handle_branch_decode_no_bpu(struct RISCVCPUState *s, InstructionLatch *e);
 
 void copy_cache_stats_to_global_stats(struct RISCVCPUState *s);
 void sim_print_ins_trace(struct RISCVCPUState *s);
 void sim_print_exp_trace(struct RISCVCPUState *s);
 
-void update_arch_reg_int(struct RISCVCPUState *s, IMapEntry *e);
-void update_arch_reg_fp(struct RISCVCPUState *s, IMapEntry *e);
-void update_insn_commit_stats(struct RISCVCPUState *s, IMapEntry *e);
-void setup_sim_trace_pkt(struct RISCVCPUState *s, IMapEntry *e);
+void update_arch_reg_int(struct RISCVCPUState *s, InstructionLatch *e);
+void update_arch_reg_fp(struct RISCVCPUState *s, InstructionLatch *e);
+void update_insn_commit_stats(struct RISCVCPUState *s, InstructionLatch *e);
+void setup_sim_trace_pkt(struct RISCVCPUState *s, InstructionLatch *e);
 void write_stats_to_stats_display_shm(struct RISCVCPUState *s);
 int set_max_clock_cycles_for_non_pipe_fu(struct RISCVCPUState *s, int fu_type,
-                                    IMapEntry *e);
+                                    InstructionLatch *e);
 #endif

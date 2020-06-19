@@ -263,7 +263,7 @@ rob_entry_committed(ROB *rob, int src_idx, int current_idx)
 }
 
 void
-read_int_operand_from_rob_slot(OOCore *core, IMapEntry *e, int arch_src,
+read_int_operand_from_rob_slot(OOCore *core, InstructionLatch *e, int arch_src,
                                int src_rob_idx, int current_rob_idx,
                                uint64_t *buffer, int *read_flag)
 {
@@ -292,7 +292,7 @@ read_int_operand_from_rob_slot(OOCore *core, IMapEntry *e, int arch_src,
 }
 
 void
-read_fp_operand_from_rob_slot(OOCore *core, IMapEntry *e, int arch_src,
+read_fp_operand_from_rob_slot(OOCore *core, InstructionLatch *e, int arch_src,
                                int src_rob_idx, int current_rob_idx,
                                uint64_t *buffer, int *read_flag)
 {

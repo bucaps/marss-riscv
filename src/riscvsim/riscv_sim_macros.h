@@ -93,10 +93,11 @@
 
 #define RISCV_INS_STR_MAX_LENGTH 64
 
-/* NOTE: IMAP size must always be greater than ROB size */
-#define NUM_IMAP_ENTRY 128
-#define IMAP_ENTRY_STATUS_FREE 0
-#define IMAP_ENTRY_STATUS_ALLOCATED 1
+/* NOTE: Max size of instruction latch pool, must always be greater than ROB
+ * size */
+#define INSN_LATCH_POOL_SIZE 128
+#define INSN_LATCH_FREE 0x0
+#define INSN_LATCH_ALLOCATED 0x1
 
 /* Used to check pipeline drain status in case of exception inside simulator */
 #define PIPELINE_NOT_DRAINED 0

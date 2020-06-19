@@ -76,7 +76,7 @@ get_next_exec_stage(INCore *core, int cur_stage_id, int fu_type)
 }
 
 static void
-do_exec_insn(RISCVCPUState *s, INCore *core, IMapEntry *e, int fu_type)
+do_exec_insn(RISCVCPUState *s, INCore *core, InstructionLatch *e, int fu_type)
 {
     if (e->ins.has_dest)
     {
@@ -96,7 +96,7 @@ do_exec_insn(RISCVCPUState *s, INCore *core, IMapEntry *e, int fu_type)
 }
 
 static void
-do_fwd_data_from_ex_to_drf(INCore *core, IMapEntry *e, int fu_type)
+do_fwd_data_from_ex_to_drf(INCore *core, InstructionLatch *e, int fu_type)
 {
     if (!e->data_fwd_done
         && !(e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
@@ -113,7 +113,7 @@ do_fwd_data_from_ex_to_drf(INCore *core, IMapEntry *e, int fu_type)
 }
 
 static void
-push_insn_from_ex_to_mem(INCore *core, IMapEntry *e, CPUStage *stage)
+push_insn_from_ex_to_mem(INCore *core, InstructionLatch *e, CPUStage *stage)
 {
     if (core->ins_dispatch_queue.data[cq_front(&core->ins_dispatch_queue.cq)]
         == e->ins_dispatch_id)
@@ -133,13 +133,13 @@ push_insn_from_ex_to_mem(INCore *core, IMapEntry *e, CPUStage *stage)
 static void
 in_core_execute_non_pipe(INCore *core, int fu_type, CPUStage *stage)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
     if (stage->has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, stage->insn_latch_index);
         ++s->simcpu->stats[s->priv].exec_unit_delay;
         if (!stage->stage_exec_done)
         {
@@ -165,14 +165,14 @@ static void
 in_core_execute_pipe(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
                 int max_clock_cycles, int max_stage_id)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     CPUStage *next;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
     if (stage->has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, stage->insn_latch_index);
         ++s->simcpu->stats[s->priv].exec_unit_delay;
         if (!stage->stage_exec_done)
         {
@@ -248,7 +248,7 @@ static void
 flush_fu_stage(INCore *core, CPUStage *fu, int stages)
 {
     int i;
-    IMapEntry *e;
+    InstructionLatch *e;
 
     for (i = 0; i < stages; ++i)
     {
@@ -256,7 +256,7 @@ flush_fu_stage(INCore *core, CPUStage *fu, int stages)
         {
             /* This resets the valid bits for INT and FP destination registers
              * on the speculated path */
-            e = get_imap_entry(core->simcpu->imap, fu[i].imap_index);
+            e = get_insn_latch(core->simcpu->insn_latch_pool, fu[i].insn_latch_index);
 
             if (e->ins.has_dest)
             {
@@ -272,7 +272,7 @@ flush_fu_stage(INCore *core, CPUStage *fu, int stages)
 }
 
 static void
-flush_speculated_cpu_state(INCore *core, IMapEntry *e)
+flush_speculated_cpu_state(INCore *core, InstructionLatch *e)
 {
     int i;
     RISCVCPUState *s = core->simcpu->emu_cpu_state;
@@ -312,12 +312,12 @@ flush_speculated_cpu_state(INCore *core, IMapEntry *e)
     /* Reset exception on speculated path */
     s->sim_exception = FALSE;
 
-    /* Reset all the imap entries allocated on the speculated path */
-    for (i = 0; i < NUM_IMAP_ENTRY; ++i)
+    /* Reset all the insn_latch_pool entries allocated on the speculated path */
+    for (i = 0; i < INSN_LATCH_POOL_SIZE; ++i)
     {
-        if ((i != core->memory.imap_index) && (i != core->commit.imap_index))
+        if ((i != core->memory.insn_latch_index) && (i != core->commit.insn_latch_index))
         {
-            s->simcpu->imap[i].status = IMAP_ENTRY_STATUS_FREE;
+            s->simcpu->insn_latch_pool[i].status = INSN_LATCH_FREE;
         }
     }
 }
@@ -325,13 +325,13 @@ flush_speculated_cpu_state(INCore *core, IMapEntry *e)
 void
 in_core_memory(INCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
     if (core->memory.has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, core->memory.imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, core->memory.insn_latch_index);
         if (!core->memory.stage_exec_done)
         {
             s->hw_pg_tb_wlk_latency = 1;
@@ -484,13 +484,13 @@ in_core_memory(INCore *core)
 int
 in_core_commit(INCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
     if (core->commit.has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, core->commit.imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, core->commit.insn_latch_index);
 
         if (e->ins.has_dest)
         {
@@ -527,7 +527,7 @@ in_core_commit(INCore *core)
         }
 
         /* Commit success */
-        e->status = IMAP_ENTRY_STATUS_FREE;
+        e->status = INSN_LATCH_FREE;
         cpu_stage_flush(&core->commit);
 
         /* Check for timeout */

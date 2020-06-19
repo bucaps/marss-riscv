@@ -37,7 +37,7 @@
 ===============================================*/
 
 static int
-issue_ins_to_exec_unit(OOCore *core, IMapEntry *e)
+issue_ins_to_exec_unit(OOCore *core, InstructionLatch *e)
 {
     CPUStage *fu;
 
@@ -78,7 +78,7 @@ issue_ins_to_exec_unit(OOCore *core, IMapEntry *e)
     {
         fu->has_data = TRUE;
         fu->stage_exec_done = FALSE;
-        fu->imap_index = e->imap_index;
+        fu->insn_latch_index = e->insn_latch_index;
         return 0;
     }
 
@@ -89,7 +89,7 @@ issue_ins_to_exec_unit(OOCore *core, IMapEntry *e)
 static void
 read_int_operand(OOCore *core, int has_src, int *read_src, int arch_src,
                  int phy_src, int current_rob_idx, uint64_t *buffer,
-                 IMapEntry *e)
+                 InstructionLatch *e)
 {
     if (has_src && !(*read_src))
     {
@@ -101,7 +101,7 @@ read_int_operand(OOCore *core, int has_src, int *read_src, int arch_src,
 static void
 read_fp_operand(OOCore *core, int has_src, int *read_src, int arch_src,
                 int phy_src, int current_rob_idx, uint64_t *buffer,
-                IMapEntry *e)
+                InstructionLatch *e)
 {
     if (has_src && !(*read_src))
     {
@@ -111,7 +111,7 @@ read_fp_operand(OOCore *core, int has_src, int *read_src, int arch_src,
 }
 
 static int
-issue_instruction(OOCore *core, IssueQueueEntry *iqe, IMapEntry *e)
+issue_instruction(OOCore *core, IssueQueueEntry *iqe, InstructionLatch *e)
 {
     if (!issue_ins_to_exec_unit(core, e))
     {
@@ -131,7 +131,7 @@ static void
 process_iq(OOCore *core, IssueQueueEntry *iq, int iq_size, int max_issue_ports)
 {
     int i;
-    IMapEntry *e;
+    InstructionLatch *e;
     IssueQueueEntry *iqe;
     int current_issue_count = 0;
 
@@ -235,12 +235,12 @@ get_next_exec_stage(OOCore *core, int cur_stage_id, int fu_type)
 static void
 oo_core_execute_non_pipe(OOCore *core, int fu_type, CPUStage *stage)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s = core->simcpu->emu_cpu_state;
 
     if (stage->has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, stage->insn_latch_index);
         if (!stage->stage_exec_done)
         {
             execute_riscv_instruction(&e->ins, &s->fflags);
@@ -297,13 +297,13 @@ static void
 oo_core_execute_pipe(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
                 int max_clock_cycles, int max_stage_id)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     CPUStage *next;
     RISCVCPUState *s = core->simcpu->emu_cpu_state;
 
     if (stage->has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, stage->insn_latch_index);
         if (!stage->stage_exec_done)
         {
             execute_riscv_instruction(&e->ins, &s->fflags);
@@ -421,7 +421,7 @@ rob_can_commit(ROB *rob)
 int
 oo_core_rob_commit(OOCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     ROBEntry *rbe;
     RISCVCPUState *s;
     int commits = 0;
@@ -476,8 +476,8 @@ oo_core_rob_commit(OOCore *core)
                 write_stats_to_stats_display_shm(s);
             }
 
-            /* Free up imap entry */
-            e->status = IMAP_ENTRY_STATUS_FREE;
+            /* Free up insn_latch_pool entry */
+            e->status = INSN_LATCH_FREE;
 
             /* All the dependent instructions will have to lookup ARF for
              * operand value */

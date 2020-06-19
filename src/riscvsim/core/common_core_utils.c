@@ -38,7 +38,7 @@ void
 cpu_stage_flush(CPUStage *stage)
 {
     stage->has_data = FALSE;
-    stage->imap_index = -1;
+    stage->insn_latch_index = -1;
     stage->stage_exec_done = FALSE;
 }
 
@@ -54,23 +54,23 @@ exec_unit_flush(CPUStage *stage, int num_stages)
 }
 
 void
-speculative_cpu_stage_flush(CPUStage *stage, IMapEntry *imap)
+speculative_cpu_stage_flush(CPUStage *stage, InstructionLatch *insn_latch_pool)
 {
-    if (stage->imap_index != -1)
+    if (stage->insn_latch_index != -1)
     {
-        imap[stage->imap_index].status = IMAP_ENTRY_STATUS_FREE;
+        insn_latch_pool[stage->insn_latch_index].status = INSN_LATCH_FREE;
     }
     cpu_stage_flush(stage);
 }
 
 static int
-get_free_imap_entry(IMapEntry *imap)
+get_free_insn_latch_pool_entry(InstructionLatch *insn_latch_pool)
 {
     int i;
 
-    for (i = 0; i < NUM_IMAP_ENTRY; ++i)
+    for (i = 0; i < INSN_LATCH_POOL_SIZE; ++i)
     {
-        if (imap[i].status == IMAP_ENTRY_STATUS_FREE)
+        if (insn_latch_pool[i].status == INSN_LATCH_FREE)
         {
             return i;
         }
@@ -79,41 +79,41 @@ get_free_imap_entry(IMapEntry *imap)
     return -1;
 }
 
-IMapEntry *
-allocate_imap_entry(IMapEntry *imap)
+InstructionLatch *
+insn_latch_allocate(InstructionLatch *insn_latch_pool)
 {
-    IMapEntry *e;
-    int imap_index;
+    InstructionLatch *e;
+    int insn_latch_index;
 
-    imap_index = get_free_imap_entry(imap);
-    assert(imap_index != -1);
-    e = &imap[imap_index];
-    memset((void *)e, 0, sizeof(IMapEntry));
-    e->status = IMAP_ENTRY_STATUS_ALLOCATED;
-    e->imap_index = imap_index;
+    insn_latch_index = get_free_insn_latch_pool_entry(insn_latch_pool);
+    assert(insn_latch_index != -1);
+    e = &insn_latch_pool[insn_latch_index];
+    memset((void *)e, 0, sizeof(InstructionLatch));
+    e->status = INSN_LATCH_ALLOCATED;
+    e->insn_latch_index = insn_latch_index;
     return e;
 }
 
 void
-reset_imap(IMapEntry *imap)
+reset_insn_latch_pool(InstructionLatch *insn_latch_pool)
 {
     int i;
 
     /* Reset all the instruction map slots */
-    for (i = 0; i < NUM_IMAP_ENTRY; ++i)
+    for (i = 0; i < INSN_LATCH_POOL_SIZE; ++i)
     {
-        imap[i].status = IMAP_ENTRY_STATUS_FREE;
+        insn_latch_pool[i].status = INSN_LATCH_FREE;
     }
 }
 
-IMapEntry *
-get_imap_entry(IMapEntry *imap, int index)
+InstructionLatch *
+get_insn_latch(InstructionLatch *insn_latch_pool, int index)
 {
-    return (&imap[index]);
+    return (&insn_latch_pool[index]);
 }
 
 int
-code_tlb_access_and_ins_fetch(RISCVCPUState *s, IMapEntry *e)
+code_tlb_access_and_ins_fetch(RISCVCPUState *s, InstructionLatch *e)
 {
     RISCVSIMCPUState *simcpu = s->simcpu;
 
@@ -176,7 +176,7 @@ exception:
 }
 
 void
-do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
+do_fetch_stage_exec(RISCVCPUState *s, InstructionLatch *e)
 {
     /* Set default minimum page walk latency. If the page walk does occur,
      * hw_pg_tb_wlk_latency will be higher than this default value because it
@@ -241,7 +241,7 @@ do_fetch_stage_exec(RISCVCPUState *s, IMapEntry *e)
 }
 
 void
-do_decode_stage_exec(RISCVCPUState *s, IMapEntry *e)
+do_decode_stage_exec(RISCVCPUState *s, InstructionLatch *e)
 {
     /* For decoding floating point instructions */
     e->ins.current_fs = s->fs;
@@ -252,7 +252,7 @@ do_decode_stage_exec(RISCVCPUState *s, IMapEntry *e)
 }
 
 void
-set_exception_state(RISCVCPUState *s, const IMapEntry *e)
+set_exception_state(RISCVCPUState *s, const InstructionLatch *e)
 {
     s->sim_exception = TRUE;
     s->sim_epc = e->ins.pc;
@@ -263,7 +263,7 @@ set_exception_state(RISCVCPUState *s, const IMapEntry *e)
 }
 
 void
-set_timer_exception_state(RISCVCPUState *s, const IMapEntry *e)
+set_timer_exception_state(RISCVCPUState *s, const InstructionLatch *e)
 {
     uint32_t insn = e->ins.binary;
     target_ulong pc = e->ins.pc;
@@ -373,7 +373,7 @@ set_timer_exception_state(RISCVCPUState *s, const IMapEntry *e)
     }
 
 static int
-execute_atomic(RISCVCPUState *s, IMapEntry *e)
+execute_atomic(RISCVCPUState *s, InstructionLatch *e)
 {
     target_ulong val = 0, val2 = 0;
 
@@ -395,7 +395,7 @@ mmu_exception:
 }
 
 int
-execute_load_store(RISCVCPUState *s, IMapEntry *e)
+execute_load_store(RISCVCPUState *s, InstructionLatch *e)
 {
     target_ulong addr = e->ins.mem_addr;
 
@@ -518,7 +518,7 @@ exception:
 }
 
 int
-get_data_mem_access_latency(RISCVCPUState *s, IMapEntry *e)
+get_data_mem_access_latency(RISCVCPUState *s, InstructionLatch *e)
 {
     int latency = 0;
     RISCVSIMCPUState *simcpu = s->simcpu;
@@ -547,7 +547,7 @@ get_data_mem_access_latency(RISCVCPUState *s, IMapEntry *e)
 }
 
 void
-handle_bpu_frontend_probe(struct RISCVCPUState *s, IMapEntry *e)
+handle_bpu_frontend_probe(struct RISCVCPUState *s, InstructionLatch *e)
 {
     target_ulong bpu_target;
 
@@ -574,20 +574,20 @@ handle_bpu_frontend_probe(struct RISCVCPUState *s, IMapEntry *e)
 }
 
 void
-handle_no_bpu_frontend_probe(struct RISCVCPUState *s, IMapEntry *e)
+handle_no_bpu_frontend_probe(struct RISCVCPUState *s, InstructionLatch *e)
 {
     /* In the absence of BPU, no actions required */
     return;
 }
 
 int
-handle_branch_decode_no_bpu(struct RISCVCPUState *s, IMapEntry *e)
+handle_branch_decode_no_bpu(struct RISCVCPUState *s, InstructionLatch *e)
 {
     return FALSE;
 }
 
 int
-handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
+handle_branch_decode_with_bpu(struct RISCVCPUState *s, InstructionLatch *e)
 {
     target_ulong ras_target = 0;
 
@@ -638,7 +638,7 @@ handle_branch_decode_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
  * and updates the entry if BPU hit, corrects the control-flow in the case of
  * direction miss-prediction */
 static int
-handle_cond_bpu(RISCVCPUState *s, IMapEntry *e)
+handle_cond_bpu(RISCVCPUState *s, InstructionLatch *e)
 {
     target_ulong restore_pc;
     int pred = 0;
@@ -700,7 +700,7 @@ handle_cond_bpu(RISCVCPUState *s, IMapEntry *e)
  * and updates the entry if BPU hit, corrects the control-flow in the case of
  * target miss-prediction */
 static int
-handle_uncond_bpu(RISCVCPUState *s, IMapEntry *e)
+handle_uncond_bpu(RISCVCPUState *s, InstructionLatch *e)
 {
     RISCVSIMCPUState *simcpu = s->simcpu;
     int type = BRANCH_UNCOND;
@@ -734,7 +734,7 @@ handle_uncond_bpu(RISCVCPUState *s, IMapEntry *e)
 }
 
 int
-handle_branch_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
+handle_branch_with_bpu(struct RISCVCPUState *s, InstructionLatch *e)
 {
     switch (e->ins.branch_type)
     {
@@ -752,7 +752,7 @@ handle_branch_with_bpu(struct RISCVCPUState *s, IMapEntry *e)
 }
 
 int
-handle_branch_no_bpu(struct RISCVCPUState *s, IMapEntry *e)
+handle_branch_no_bpu(struct RISCVCPUState *s, InstructionLatch *e)
 {
     int mispredict = FALSE;
 
@@ -841,7 +841,7 @@ sim_print_exp_trace(struct RISCVCPUState *s)
 }
 
 void
-update_arch_reg_int(RISCVCPUState *s, IMapEntry *e)
+update_arch_reg_int(RISCVCPUState *s, InstructionLatch *e)
 {
     if (e->ins.rd)
     {
@@ -851,7 +851,7 @@ update_arch_reg_int(RISCVCPUState *s, IMapEntry *e)
 }
 
 void
-update_arch_reg_fp(RISCVCPUState *s, IMapEntry *e)
+update_arch_reg_fp(RISCVCPUState *s, InstructionLatch *e)
 {
     if (e->ins.f32_mask)
     {
@@ -870,7 +870,7 @@ update_arch_reg_fp(RISCVCPUState *s, IMapEntry *e)
 }
 
 void
-update_insn_commit_stats(RISCVCPUState *s, IMapEntry *e)
+update_insn_commit_stats(RISCVCPUState *s, InstructionLatch *e)
 {
     ++s->simcpu->stats[s->priv].ins_simulated;
     ++s->simcpu->stats[s->priv].ins_type[e->ins.type];
@@ -882,7 +882,7 @@ update_insn_commit_stats(RISCVCPUState *s, IMapEntry *e)
 }
 
 void
-setup_sim_trace_pkt(RISCVCPUState *s, IMapEntry *e)
+setup_sim_trace_pkt(RISCVCPUState *s, InstructionLatch *e)
 {
     s->simcpu->sim_trace_pkt.cycle = s->simcpu->clock;
     s->simcpu->sim_trace_pkt.e = e;
@@ -904,7 +904,7 @@ write_stats_to_stats_display_shm(RISCVCPUState *s)
 }
 
 int
-set_max_clock_cycles_for_non_pipe_fu(RISCVCPUState *s, int fu_type, IMapEntry *e)
+set_max_clock_cycles_for_non_pipe_fu(RISCVCPUState *s, int fu_type, InstructionLatch *e)
 {
     switch (fu_type)
     {

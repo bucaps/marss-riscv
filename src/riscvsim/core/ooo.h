@@ -38,13 +38,13 @@ typedef struct IssueQueueEntry
 {
     int valid;
     int ready;
-    IMapEntry *e;
+    InstructionLatch *e;
 } IssueQueueEntry;
 
 typedef struct ROBEntry
 {
     int ready;
-    IMapEntry *e;
+    InstructionLatch *e;
 } ROBEntry;
 
 typedef struct ReOrderBuffer
@@ -58,7 +58,7 @@ typedef struct LSQEntry
     int ready;
     int mem_request_sent;
     int mem_request_complete;
-    IMapEntry *e;
+    InstructionLatch *e;
 } LSQEntry;
 
 typedef struct LSQ
@@ -124,15 +124,15 @@ void oo_core_decode(OOCore *core);
 void oo_core_fetch(OOCore *core);
 
 /*----------  Out of order core utility functions  ----------*/
-void oo_process_branch(OOCore *core, IMapEntry *e);
+void oo_process_branch(OOCore *core, InstructionLatch *e);
 
 void iq_reset(IssueQueueEntry *iq_entry, int size);
 int iq_full(IssueQueueEntry *iq, int size);
 int iq_get_free_entry(IssueQueueEntry *iq, int size);
-void read_int_operand_from_rob_slot(OOCore *core, IMapEntry *e, int asrc,
+void read_int_operand_from_rob_slot(OOCore *core, InstructionLatch *e, int asrc,
                                     int psrc, int current_rob_idx,
                                     uint64_t *buffer, int *read_flag);
-void read_fp_operand_from_rob_slot(OOCore *core, IMapEntry *e, int asrc,
+void read_fp_operand_from_rob_slot(OOCore *core, InstructionLatch *e, int asrc,
                                    int psrc, int current_rob_idx,
                                    uint64_t *buffer, int *read_flag);
 int rob_entry_committed(ROB *rob, int src_idx, int current_idx);

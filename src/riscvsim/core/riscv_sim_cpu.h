@@ -44,13 +44,13 @@ typedef struct RISCVSIMCPUState
     /*----------  Common parameters for both core types  ----------*/
     target_ulong pc;        /* Next PC to fetch from */
     uint64_t clock;         /* Clock cycles elapsed */
-    IMapEntry *imap;        /* Instruction map to store data of active instructions */
+    InstructionLatch *insn_latch_pool;        /* Instruction map to store data of active instructions */
     SimStats *stats;        /* Simulation Stats */
     SimParams *params;      /* Simulation Parameters */
     BranchPredUnit *bpu;    /* Branch prediction unit */
-    int (*pfn_branch_handler)(struct RISCVCPUState *, IMapEntry *);
-    void (*pfn_branch_frontend_probe_handler)(struct RISCVCPUState *,IMapEntry *);
-    int (*pfn_branch_frontend_decode_handler)(struct RISCVCPUState *, IMapEntry *);
+    int (*pfn_branch_handler)(struct RISCVCPUState *, InstructionLatch *);
+    void (*pfn_branch_frontend_probe_handler)(struct RISCVCPUState *,InstructionLatch *);
+    int (*pfn_branch_frontend_decode_handler)(struct RISCVCPUState *, InstructionLatch *);
     MemoryHierarchy *mem_hierarchy;
     SimTracePacket sim_trace_pkt; /* Used to dump simulation trace */
 

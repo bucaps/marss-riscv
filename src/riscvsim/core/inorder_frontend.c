@@ -42,7 +42,7 @@
 void
 in_core_pcgen(INCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
@@ -54,19 +54,19 @@ in_core_pcgen(INCore *core)
             s->simcpu->pc
                 = (target_ulong)((uintptr_t)s->code_ptr + s->code_to_pc_addend);
 
-            /* Allocate an entry for this instruction in imap */
-            e = allocate_imap_entry(s->simcpu->imap);
+            /* Allocate an entry for this instruction in insn_latch_pool */
+            e = insn_latch_allocate(s->simcpu->insn_latch_pool);
 
-            /* Setup the allocated imap entry */
+            /* Setup the allocated insn_latch_pool entry */
             e->ins_dispatch_id = core->ins_dispatch_id++;
             e->ins.pc = s->simcpu->pc;
             e->ins.create_str = s->sim_params->create_ins_str;
 
             /* Store IMAP index in the stage and the actual decoded instruction
-             * info is stored in this imap entry.
+             * info is stored in this insn_latch_pool entry.
              * NOTE: This avoids copying of whole decoded instruction info when
              * instruction flows to next stage */
-            core->pcgen.imap_index = e->imap_index;
+            core->pcgen.insn_latch_index = e->insn_latch_index;
             core->pcgen.stage_exec_done = TRUE;
         }
 
@@ -76,7 +76,7 @@ in_core_pcgen(INCore *core)
         {
             core->pcgen.stage_exec_done = FALSE;
             core->fetch = core->pcgen;
-            core->pcgen.imap_index = -1;
+            core->pcgen.insn_latch_index = -1;
         }
     }
 }
@@ -90,13 +90,13 @@ in_core_pcgen(INCore *core)
 void
 in_core_fetch(INCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
     if (core->fetch.has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, core->fetch.imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, core->fetch.insn_latch_index);
         if (!core->fetch.stage_exec_done)
         {
             do_fetch_stage_exec(s,e);
@@ -110,7 +110,7 @@ in_core_fetch(INCore *core)
         }
         else
         {
-            e = get_imap_entry(s->simcpu->imap, core->fetch.imap_index);
+            e = get_insn_latch(s->simcpu->insn_latch_pool, core->fetch.insn_latch_index);
         }
 
         if (e->elasped_clock_cycles == e->max_clock_cycles)
@@ -228,11 +228,11 @@ read_fp_operand(INCore *core, int has_src, int *read_rs, int rs,
 static void
 set_waw_lock_int_dest(RISCVCPUState *s, CPUStage *stage, int rd)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
 
     if (stage->has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, stage->insn_latch_index);
         if (e->ins.has_dest && (e->ins.rd == rd))
         {
             e->keep_dest_busy = TRUE;
@@ -243,11 +243,11 @@ set_waw_lock_int_dest(RISCVCPUState *s, CPUStage *stage, int rd)
 static void
 set_waw_lock_fp_dest(RISCVCPUState *s, CPUStage *stage, int rd)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
 
     if (stage->has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, stage->imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, stage->insn_latch_index);
         if (e->ins.has_fp_dest && (e->ins.rd == rd))
         {
             e->keep_dest_busy = TRUE;
@@ -351,7 +351,7 @@ void
 in_core_decode(INCore *core)
 {
     int i;
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s;
     int ins_issue_index;
     int busy_stage_id = -1;
@@ -361,7 +361,7 @@ in_core_decode(INCore *core)
     s = core->simcpu->emu_cpu_state;
     if (core->decode.has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, core->decode.imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, core->decode.insn_latch_index);
         if (!core->decode.stage_exec_done)
         {
             if (!e->is_decoded)
@@ -371,9 +371,9 @@ in_core_decode(INCore *core)
                 {
                     /* RAS has redirected the control flow, so flush */
                     speculative_cpu_stage_flush(&core->fetch,
-                                                s->simcpu->imap);
+                                                s->simcpu->insn_latch_pool);
                     speculative_cpu_stage_flush(&core->pcgen,
-                                                s->simcpu->imap);
+                                                s->simcpu->insn_latch_pool);
                     core->pcgen.has_data = TRUE;
                 }
                 e->is_decoded = TRUE;

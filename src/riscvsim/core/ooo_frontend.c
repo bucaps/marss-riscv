@@ -37,7 +37,7 @@
 void
 oo_core_fetch(OOCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
@@ -49,23 +49,23 @@ oo_core_fetch(OOCore *core)
             s->simcpu->pc
                 = (target_ulong)((uintptr_t)s->code_ptr + s->code_to_pc_addend);
 
-            e = allocate_imap_entry(s->simcpu->imap);
+            e = insn_latch_allocate(s->simcpu->insn_latch_pool);
 
-            /* Setup the allocated imap entry */
+            /* Setup the allocated insn_latch_pool entry */
             e->ins.pc = s->simcpu->pc;
             e->ins.create_str = s->sim_params->create_ins_str;
 
             /* Store IMAP index in the stage and the actual decoded instruction
              * info is stored in this IMAP entry. This avoids copying of whole
              * decoded instruction info when instruction flows to next stage */
-            core->fetch.imap_index = e->imap_index;
+            core->fetch.insn_latch_index = e->insn_latch_index;
 
             do_fetch_stage_exec(s, e);
             core->fetch.stage_exec_done = TRUE;
         }
         else
         {
-            e = get_imap_entry(s->simcpu->imap, core->fetch.imap_index);
+            e = get_insn_latch(s->simcpu->insn_latch_pool, core->fetch.insn_latch_index);
         }
 
         if (e->elasped_clock_cycles == e->max_clock_cycles)
@@ -90,7 +90,7 @@ oo_core_fetch(OOCore *core)
                     e->max_clock_cycles = 0;
                     e->elasped_clock_cycles = 0;
                     core->decode = core->fetch;
-                    core->fetch.imap_index = -1;
+                    core->fetch.insn_latch_index = -1;
 
                     /* Stop fetching new instructions on a MMU exception */
                     if (e->ins.exception)
@@ -120,13 +120,13 @@ oo_core_fetch(OOCore *core)
 void
 oo_core_decode(OOCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
     if (core->decode.has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, core->decode.imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, core->decode.insn_latch_index);
 
         if (!core->decode.stage_exec_done)
         {
@@ -135,7 +135,7 @@ oo_core_decode(OOCore *core)
                 do_decode_stage_exec(s, e);
                 if (s->simcpu->pfn_branch_frontend_decode_handler(s, e))
                 {
-                    speculative_cpu_stage_flush(&core->fetch, s->simcpu->imap);
+                    speculative_cpu_stage_flush(&core->fetch, s->simcpu->insn_latch_pool);
                     core->fetch.has_data = TRUE;
                 }
                 e->is_decoded = TRUE;
@@ -166,7 +166,7 @@ oo_core_decode(OOCore *core)
 ==================================================*/
 
 static void
-rob_entry_create(ROB *rob, IMapEntry *e, int rob_entry_status)
+rob_entry_create(ROB *rob, InstructionLatch *e, int rob_entry_status)
 {
     int rob_idx;
 
@@ -177,7 +177,7 @@ rob_entry_create(ROB *rob, IMapEntry *e, int rob_entry_status)
 }
 
 static void
-iq_entry_create(IssueQueueEntry *iq, int iq_size, IMapEntry *e)
+iq_entry_create(IssueQueueEntry *iq, int iq_size, InstructionLatch *e)
 {
     int iq_idx;
 
@@ -189,7 +189,7 @@ iq_entry_create(IssueQueueEntry *iq, int iq_size, IMapEntry *e)
 }
 
 static void
-lsq_entry_create(LSQ *lsq, IMapEntry *e)
+lsq_entry_create(LSQ *lsq, InstructionLatch *e)
 {
     int lsq_idx;
 
@@ -202,7 +202,7 @@ lsq_entry_create(LSQ *lsq, IMapEntry *e)
 }
 
 static void
-update_rd_rat_mapping(OOCore *core, IMapEntry *e)
+update_rd_rat_mapping(OOCore *core, InstructionLatch *e)
 {
     /* INT destination */
     if (e->ins.has_dest)
@@ -225,7 +225,7 @@ update_rd_rat_mapping(OOCore *core, IMapEntry *e)
 }
 
 static int
-stall_insn_dispatch(OOCore *core, IMapEntry *e)
+stall_insn_dispatch(OOCore *core, InstructionLatch *e)
 {
     /* Before dispatching atomic instruction, make sure that all the prior
      * instructions are committed */
@@ -246,7 +246,7 @@ stall_insn_dispatch(OOCore *core, IMapEntry *e)
 }
 
 static void
-do_insn_rename_and_read_reg_file(OOCore *core, IMapEntry *e)
+do_insn_rename_and_read_reg_file(OOCore *core, InstructionLatch *e)
 {
     if (e->ins.has_src1)
     {
@@ -335,13 +335,13 @@ do_insn_rename_and_read_reg_file(OOCore *core, IMapEntry *e)
 void
 oo_core_dispatch(OOCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
     if (core->dispatch.has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, core->dispatch.imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, core->dispatch.insn_latch_index);
         if (!core->dispatch.stage_exec_done)
         {
             /* If this instruction has caused an exception, only create ROB

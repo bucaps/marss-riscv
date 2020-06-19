@@ -33,12 +33,12 @@
 void
 oo_core_lsu(OOCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     RISCVCPUState *s = core->simcpu->emu_cpu_state;
 
     if (core->lsu.has_data)
     {
-        e = get_imap_entry(s->simcpu->imap, core->lsu.imap_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool, core->lsu.insn_latch_index);
         if (!core->lsu.stage_exec_done)
         {
             s->hw_pg_tb_wlk_latency = 1;
@@ -119,7 +119,7 @@ oo_core_lsu(OOCore *core)
 static void
 process_lsq_entry_load(OOCore *core, LSQEntry *lsqe)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
 
     e = lsqe->e;
     if (!lsqe->mem_request_sent)
@@ -129,7 +129,7 @@ process_lsq_entry_load(OOCore *core, LSQEntry *lsqe)
             /* Send request from LSQ top to LSU */
             core->lsu.has_data = TRUE;
             core->lsu.stage_exec_done = FALSE;
-            core->lsu.imap_index = e->imap_index;
+            core->lsu.insn_latch_index = e->insn_latch_index;
             lsqe->mem_request_sent = TRUE;
         }
     }
@@ -163,7 +163,7 @@ process_lsq_entry_load(OOCore *core, LSQEntry *lsqe)
 static void
 process_lsq_entry_store(OOCore *core, LSQEntry *lsqe)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     ROBEntry *rbe;
 
     e = lsqe->e;
@@ -180,7 +180,7 @@ process_lsq_entry_store(OOCore *core, LSQEntry *lsqe)
                 /* Send request from LSQ top to LSU */
                 core->lsu.has_data = TRUE;
                 core->lsu.stage_exec_done = FALSE;
-                core->lsu.imap_index = e->imap_index;
+                core->lsu.insn_latch_index = e->insn_latch_index;
                 lsqe->mem_request_sent = TRUE;
             }
         }
@@ -211,7 +211,7 @@ process_lsq_entry_store(OOCore *core, LSQEntry *lsqe)
 void
 oo_core_lsq(OOCore *core)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
     LSQEntry *lsqe;
 
     if (!cq_empty(&core->lsq.cq))

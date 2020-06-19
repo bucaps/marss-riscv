@@ -49,8 +49,8 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
     simcpu->stats = (SimStats *)calloc(NUM_MAX_PRV_LEVELS, sizeof(SimStats));
     assert(simcpu->stats != NULL);
 
-    simcpu->imap = (IMapEntry *)calloc(NUM_IMAP_ENTRY, sizeof(IMapEntry));
-    assert(simcpu->imap);
+    simcpu->insn_latch_pool = (InstructionLatch *)calloc(INSN_LATCH_POOL_SIZE, sizeof(InstructionLatch));
+    assert(simcpu->insn_latch_pool);
 
     PRINT_PROG_TITLE_MSG("MARSS-RISCV: Micro-Architectural System Simulator for RISC-V");
     simcpu->mem_hierarchy = memory_hierarchy_init(simcpu->params);
@@ -108,7 +108,7 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
 void
 riscv_sim_cpu_reset(RISCVSIMCPUState *simcpu)
 {
-    reset_imap(simcpu->imap);
+    reset_insn_latch_pool(simcpu->insn_latch_pool);
     simcpu->mem_hierarchy->mem_controller->reset(simcpu->mem_hierarchy->mem_controller);
     simcpu->pfn_core_reset(simcpu->core);
 }
@@ -125,8 +125,8 @@ riscv_sim_cpu_free(RISCVSIMCPUState **simcpu)
     free((*simcpu)->stats);
     (*simcpu)->stats = NULL;
 
-    free((*simcpu)->imap);
-    (*simcpu)->imap = NULL;
+    free((*simcpu)->insn_latch_pool);
+    (*simcpu)->insn_latch_pool = NULL;
 
     memory_hierarchy_free(&((*simcpu)->mem_hierarchy));
 

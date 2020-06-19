@@ -31,16 +31,16 @@
 #include "riscv_sim_cpu.h"
 
 static void
-restore_cpu_frontend(OOCore *core, IMapEntry *e)
+restore_cpu_frontend(OOCore *core, InstructionLatch *e)
 {
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
 
     /* Flush front-end stages */
-    speculative_cpu_stage_flush(&core->fetch, s->simcpu->imap);
-    speculative_cpu_stage_flush(&core->decode, s->simcpu->imap);
-    speculative_cpu_stage_flush(&core->dispatch, s->simcpu->imap);
+    speculative_cpu_stage_flush(&core->fetch, s->simcpu->insn_latch_pool);
+    speculative_cpu_stage_flush(&core->decode, s->simcpu->insn_latch_pool);
+    speculative_cpu_stage_flush(&core->dispatch, s->simcpu->insn_latch_pool);
 
     /* Flush the memory transactions added by fetch stage */
     s->simcpu->mem_hierarchy->mem_controller->flush_cpu_stage_queue(
@@ -78,7 +78,7 @@ rob_entry_committed_after_rollback(ROB *rob, int src_idx)
 static void
 restore_rob_entry(OOCore *core, ROBEntry *rbe, uint64_t tag)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
 
     e = rbe->e;
     if (e->ins_dispatch_id > tag)
@@ -104,13 +104,13 @@ restore_rob_entry(OOCore *core, ROBEntry *rbe, uint64_t tag)
             assert(core->fp_rat[e->ins.rd].rob_idx != e->rob_idx);
         }
         /* Free up IMAP entry */
-        e->status = IMAP_ENTRY_STATUS_FREE;
+        e->status = INSN_LATCH_FREE;
     }
 }
 
 /* Can be optimized */
 static void
-restore_rob(OOCore *core, IMapEntry *e, uint64_t tag)
+restore_rob(OOCore *core, InstructionLatch *e, uint64_t tag)
 {
     int i;
 
@@ -155,19 +155,19 @@ restore_iq(IssueQueueEntry *iq, int size, uint64_t tag)
 }
 
 static void
-restore_fu(CPUStage *fu, int stages, uint64_t tag, IMapEntry *imap)
+restore_fu(CPUStage *fu, int stages, uint64_t tag, InstructionLatch *insn_latch_pool)
 {
     int i;
-    IMapEntry *e;
+    InstructionLatch *e;
 
     for (i = 0; i < stages; ++i)
     {
         if (fu[i].has_data)
         {
-            e = &imap[fu[i].imap_index];
+            e = &insn_latch_pool[fu[i].insn_latch_index];
             if (e->ins_dispatch_id > tag)
             {
-                speculative_cpu_stage_flush(&fu[i], imap);
+                speculative_cpu_stage_flush(&fu[i], insn_latch_pool);
             }
         }
     }
@@ -176,14 +176,14 @@ restore_fu(CPUStage *fu, int stages, uint64_t tag, IMapEntry *imap)
 static void
 restore_lsu(OOCore *core, uint64_t tag)
 {
-    IMapEntry *e;
+    InstructionLatch *e;
 
     if (core->lsu.has_data)
     {
-        e = &core->simcpu->imap[core->lsu.imap_index];
+        e = &core->simcpu->insn_latch_pool[core->lsu.insn_latch_index];
         if (e->ins_dispatch_id > tag)
         {
-            speculative_cpu_stage_flush(&core->lsu, core->simcpu->imap);
+            speculative_cpu_stage_flush(&core->lsu, core->simcpu->insn_latch_pool);
 
             /* Flush memory controller queues on flush */
             core->simcpu->mem_hierarchy->mem_controller->reset(
@@ -287,56 +287,56 @@ fix_rename_tables(OOCore *core, RenameTableEntry *rat, int num_regs)
 }
 
 static void
-reallocate_active_imap_entries(OOCore *core)
+reallocate_active_insn_latch_pool_entries(OOCore *core)
 {
     int i;
 
-    /* Set the imap entry status for active instructions as allocated */
+    /* Set the insn_latch_pool entry status for active instructions as allocated */
     if (core->rob.cq.rear >= core->rob.cq.front)
     {
         for (i = core->rob.cq.front; i <= core->rob.cq.rear; ++i)
         {
-            core->rob.entries[i].e->status = IMAP_ENTRY_STATUS_ALLOCATED;
+            core->rob.entries[i].e->status = INSN_LATCH_ALLOCATED;
         }
     }
     else
     {
         for (i = core->rob.cq.front; i < core->rob.cq.max_size; ++i)
         {
-            core->rob.entries[i].e->status = IMAP_ENTRY_STATUS_ALLOCATED;
+            core->rob.entries[i].e->status = INSN_LATCH_ALLOCATED;
         }
         for (i = 0; i <= core->rob.cq.rear; ++i)
         {
-            core->rob.entries[i].e->status = IMAP_ENTRY_STATUS_ALLOCATED;
+            core->rob.entries[i].e->status = INSN_LATCH_ALLOCATED;
         }
     }
 }
 
 static void
-rollback_speculated_cpu_state(OOCore *core, IMapEntry *e)
+rollback_speculated_cpu_state(OOCore *core, InstructionLatch *e)
 {
     restore_cpu_frontend(core, e);
     restore_rob(core, e, e->ins_dispatch_id);
     restore_iq(core->iq, core->simcpu->params->iq_size, e->ins_dispatch_id);
     restore_fu(core->ialu, core->simcpu->params->num_alu_stages,
-               e->ins_dispatch_id, core->simcpu->imap);
+               e->ins_dispatch_id, core->simcpu->insn_latch_pool);
     restore_fu(core->imul, core->simcpu->params->num_mul_stages,
-               e->ins_dispatch_id, core->simcpu->imap);
+               e->ins_dispatch_id, core->simcpu->insn_latch_pool);
     restore_fu(core->idiv, core->simcpu->params->num_div_stages,
-               e->ins_dispatch_id, core->simcpu->imap);
-    restore_fu(&core->fpu_alu, 1, e->ins_dispatch_id, core->simcpu->imap);
+               e->ins_dispatch_id, core->simcpu->insn_latch_pool);
+    restore_fu(&core->fpu_alu, 1, e->ins_dispatch_id, core->simcpu->insn_latch_pool);
     restore_fu(core->fpu_fma, core->simcpu->params->num_fpu_fma_stages,
-               e->ins_dispatch_id, core->simcpu->imap);
+               e->ins_dispatch_id, core->simcpu->insn_latch_pool);
     restore_lsq(core, e->ins_dispatch_id);
     restore_lsu(core, e->ins_dispatch_id);
     fix_rename_tables(core, core->int_rat, NUM_INT_REG);
     fix_rename_tables(core, core->fp_rat, NUM_FP_REG);
-    reset_imap(core->simcpu->imap);
-    reallocate_active_imap_entries(core);
+    reset_insn_latch_pool(core->simcpu->insn_latch_pool);
+    reallocate_active_insn_latch_pool_entries(core);
 }
 
 void
-oo_process_branch(OOCore *core, IMapEntry *e)
+oo_process_branch(OOCore *core, InstructionLatch *e)
 {
     e->mispredict
         = core->simcpu->pfn_branch_handler(core->simcpu->emu_cpu_state, e);
