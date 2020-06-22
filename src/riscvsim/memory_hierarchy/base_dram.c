@@ -40,7 +40,7 @@ read_complete_callback(target_ulong addr, StageMemAccessQueue *f,
     for (i = 0; i < f->cur_idx; ++i)
     {
         if ((f->entry[i].valid) && (f->entry[i].addr == addr)
-            && (f->entry[i].type == Read))
+            && (f->entry[i].type == MEM_ACCESS_READ))
         {
             f->entry[i].valid = FALSE;
             --f->cur_size;
@@ -51,7 +51,7 @@ read_complete_callback(target_ulong addr, StageMemAccessQueue *f,
     for (i = 0; i < b->cur_idx; ++i)
     {
         if ((b->entry[i].valid) && (b->entry[i].addr == addr)
-            && (b->entry[i].type == Read))
+            && (b->entry[i].type == MEM_ACCESS_READ))
         {
             b->entry[i].valid = FALSE;
             --b->cur_size;
@@ -69,7 +69,7 @@ write_complete_callback(target_ulong addr, StageMemAccessQueue *f,
     for (i = 0; i < f->cur_idx; ++i)
     {
         if ((f->entry[i].valid) && (f->entry[i].addr == addr)
-            && (f->entry[i].type == Write))
+            && (f->entry[i].type == MEM_ACCESS_WRITE))
         {
             f->entry[i].valid = FALSE;
             --f->cur_size;
@@ -80,7 +80,7 @@ write_complete_callback(target_ulong addr, StageMemAccessQueue *f,
     for (i = 0; i < b->cur_idx; ++i)
     {
         if ((b->entry[i].valid) && (b->entry[i].addr == addr)
-            && (b->entry[i].type == Write))
+            && (b->entry[i].type == MEM_ACCESS_WRITE))
         {
             b->entry[i].valid = FALSE;
             --b->cur_size;
@@ -89,13 +89,13 @@ write_complete_callback(target_ulong addr, StageMemAccessQueue *f,
     }
 }
 
-static int
-base_dram_can_accept_request(BaseDram *d)
+int
+base_dram_can_accept_request(const BaseDram *d)
 {
     return !d->mem_access_active;
 }
 
-static void
+void
 base_dram_send_request(BaseDram *d, PendingMemAccessEntry *e)
 {
     uint64_t current_page_num;
@@ -128,7 +128,7 @@ base_dram_send_request(BaseDram *d, PendingMemAccessEntry *e)
      * we don't want the pipeline stage to wait for write to complete.
      * But, simulate this write delay asynchronously via the memory
      * controller */
-    if (e->type == Write)
+    if (e->type == MEM_ACCESS_WRITE)
     {
         write_complete_callback(e->addr, d->frontend_mem_access_queue,
                                 d->backend_mem_access_queue);
@@ -139,7 +139,7 @@ base_dram_send_request(BaseDram *d, PendingMemAccessEntry *e)
     d->elasped_clock_cycles = 1;
 }
 
-static int
+int
 base_dram_clock(BaseDram *d)
 {
     if (d->mem_access_active)
@@ -150,7 +150,7 @@ base_dram_clock(BaseDram *d)
             d->max_clock_cycles = 0;
             d->elasped_clock_cycles = 0;
 
-            if (d->active_mem_request->type == Read)
+            if (d->active_mem_request->type == MEM_ACCESS_READ)
             {
                 read_complete_callback(d->active_mem_request->addr,
                                        d->frontend_mem_access_queue,
@@ -169,7 +169,7 @@ base_dram_clock(BaseDram *d)
     return FALSE;
 }
 
-static void
+void
 base_dram_reset(BaseDram *d)
 {
     d->elasped_clock_cycles = 0;
@@ -192,13 +192,7 @@ base_dram_create(const SimParams *p, StageMemAccessQueue *f,
     d->mem_access_latency = p->mem_access_latency;
     d->frontend_mem_access_queue = f;
     d->backend_mem_access_queue = b;
-
-    d->can_accept_request = &base_dram_can_accept_request;
-    d->send_request = &base_dram_send_request;
-    d->clock = &base_dram_clock;
-    d->reset = &base_dram_reset;
-
-    d->reset(d);
+    base_dram_reset(d);
     return d;
 }
 

@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,24 +26,24 @@
  */
 #include "ooo.h"
 #include "../../riscv_cpu_priv.h"
-#include "../decoder/riscv_ins_execute_lib.h"
 #include "../utils/circular_queue.h"
 #include "riscv_sim_cpu.h"
 
 static void
-restore_cpu_frontend(OOCore *core, InstructionLatch *e)
+restore_cpu_frontend(OOCore *core, const InstructionLatch *e)
 {
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
 
     /* Flush front-end stages */
-    speculative_cpu_stage_flush(&core->fetch, s->simcpu->insn_latch_pool);
-    speculative_cpu_stage_flush(&core->decode, s->simcpu->insn_latch_pool);
-    speculative_cpu_stage_flush(&core->dispatch, s->simcpu->insn_latch_pool);
+    cpu_stage_flush_free_insn_latch(&core->fetch, s->simcpu->insn_latch_pool);
+    cpu_stage_flush_free_insn_latch(&core->decode, s->simcpu->insn_latch_pool);
+    cpu_stage_flush_free_insn_latch(&core->dispatch,
+                                    s->simcpu->insn_latch_pool);
 
     /* Flush the memory transactions added by fetch stage */
-    s->simcpu->mem_hierarchy->mem_controller->flush_cpu_stage_queue(
+    mem_controller_reset_cpu_stage_queue(
         &s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue);
 
     /* Set the new target address into fetch and enable fetch unit to start
@@ -55,7 +55,7 @@ restore_cpu_frontend(OOCore *core, InstructionLatch *e)
 }
 
 static int
-rob_entry_committed_after_rollback(ROB *rob, int src_idx)
+rob_entry_committed_after_rollback(const ROB *rob, int src_idx)
 {
     if (rob->cq.rear >= rob->cq.front)
     {
@@ -103,12 +103,12 @@ restore_rob_entry(OOCore *core, ROBEntry *rbe, uint64_t tag)
             }
             assert(core->fp_rat[e->ins.rd].rob_idx != e->rob_idx);
         }
-        /* Free up IMAP entry */
+        /* Free up latch */
         e->status = INSN_LATCH_FREE;
     }
 }
 
-/* Can be optimized */
+/* TODO: Can be optimized */
 static void
 restore_rob(OOCore *core, InstructionLatch *e, uint64_t tag)
 {
@@ -155,7 +155,8 @@ restore_iq(IssueQueueEntry *iq, int size, uint64_t tag)
 }
 
 static void
-restore_fu(CPUStage *fu, int stages, uint64_t tag, InstructionLatch *insn_latch_pool)
+restore_fu(CPUStage *fu, int stages, uint64_t tag,
+           InstructionLatch *insn_latch_pool)
 {
     int i;
     InstructionLatch *e;
@@ -167,7 +168,7 @@ restore_fu(CPUStage *fu, int stages, uint64_t tag, InstructionLatch *insn_latch_
             e = &insn_latch_pool[fu[i].insn_latch_index];
             if (e->ins_dispatch_id > tag)
             {
-                speculative_cpu_stage_flush(&fu[i], insn_latch_pool);
+                cpu_stage_flush_free_insn_latch(&fu[i], insn_latch_pool);
             }
         }
     }
@@ -183,17 +184,17 @@ restore_lsu(OOCore *core, uint64_t tag)
         e = &core->simcpu->insn_latch_pool[core->lsu.insn_latch_index];
         if (e->ins_dispatch_id > tag)
         {
-            speculative_cpu_stage_flush(&core->lsu, core->simcpu->insn_latch_pool);
+            cpu_stage_flush_free_insn_latch(&core->lsu,
+                                            core->simcpu->insn_latch_pool);
 
             /* Flush memory controller queues on flush */
-            core->simcpu->mem_hierarchy->mem_controller->reset(
-                core->simcpu->mem_hierarchy->mem_controller);
+            mem_controller_reset(core->simcpu->mem_hierarchy->mem_controller);
         }
     }
 }
 
 static int
-is_lsq_entry_speculated(LSQEntry *lsqe, uint64_t tag)
+is_lsq_entry_speculated(const LSQEntry *lsqe, uint64_t tag)
 {
     if (lsqe->e->ins_dispatch_id > tag)
     {
@@ -265,8 +266,9 @@ restore_lsq(OOCore *core, uint64_t tag)
     }
 }
 
-/** After rollback of mis-speculated instructions, fix the rename table entries
- * pointing to restored physical registers which are already committed  */
+/* After the rollback of miss speculated instructions, fix the rename table
+ * entries pointing to restored physical registers which are already committed
+ */
 static void
 fix_rename_tables(OOCore *core, RenameTableEntry *rat, int num_regs)
 {
@@ -291,7 +293,8 @@ reallocate_active_insn_latch_pool_entries(OOCore *core)
 {
     int i;
 
-    /* Set the insn_latch_pool entry status for active instructions as allocated */
+    /* Set the insn_latch_pool entry status for active instructions as allocated
+     */
     if (core->rob.cq.rear >= core->rob.cq.front)
     {
         for (i = core->rob.cq.front; i <= core->rob.cq.rear; ++i)
@@ -324,7 +327,8 @@ rollback_speculated_cpu_state(OOCore *core, InstructionLatch *e)
                e->ins_dispatch_id, core->simcpu->insn_latch_pool);
     restore_fu(core->idiv, core->simcpu->params->num_div_stages,
                e->ins_dispatch_id, core->simcpu->insn_latch_pool);
-    restore_fu(&core->fpu_alu, 1, e->ins_dispatch_id, core->simcpu->insn_latch_pool);
+    restore_fu(&core->fpu_alu, 1, e->ins_dispatch_id,
+               core->simcpu->insn_latch_pool);
     restore_fu(core->fpu_fma, core->simcpu->params->num_fpu_fma_stages,
                e->ins_dispatch_id, core->simcpu->insn_latch_pool);
     restore_lsq(core, e->ins_dispatch_id);
@@ -338,8 +342,8 @@ rollback_speculated_cpu_state(OOCore *core, InstructionLatch *e)
 void
 oo_process_branch(OOCore *core, InstructionLatch *e)
 {
-    e->mispredict
-        = core->simcpu->pfn_branch_handler(core->simcpu->emu_cpu_state, e);
+    e->mispredict = core->simcpu->bpu_execute_stage_handler(
+        core->simcpu->emu_cpu_state, e);
 
     if (e->mispredict)
     {

@@ -38,6 +38,7 @@ typedef struct EvictPolicy
     /* MRU bit map for all the ways in a set */
     uint64_t *sets;
 
+    /* This pointers are set according to eviction policy used */
     void (*reset)(struct EvictPolicy *p);
     void (*use)(struct EvictPolicy *p, int set, int way);
     int (*evict)(struct EvictPolicy *p, int set);
@@ -45,5 +46,4 @@ typedef struct EvictPolicy
 
 EvictPolicy *evict_policy_create(int sets, int ways, int policy_type);
 void evict_policy_free(EvictPolicy **);
-
 #endif /* _EVICT_POLICY_H_ */

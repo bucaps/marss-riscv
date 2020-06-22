@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -38,7 +38,8 @@
 #include <string.h>
 
 #include "../riscv_sim_typedefs.h"
-#include "../utils/sim_params_stats.h"
+#include "../utils/sim_params.h"
+#include "../utils/sim_stats.h"
 #include "adaptive_predictor.h"
 #include "bht.h"
 #include "btb.h"
@@ -59,20 +60,19 @@ typedef struct BranchPredUnit
     Ras *ras;
     AdaptivePredictor *ap;
     SimStats *stats;
-    int bpu_type;
 
-    void (*probe)(struct BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p,
-                  int priv);
-    void (*add)(struct BranchPredUnit *u, target_ulong pc, int type,
-                BPUResponsePkt *p, int priv, int fret);
-    void (*update)(struct BranchPredUnit *u, target_ulong pc,
-                   target_ulong target, int pred, int type, BPUResponsePkt *p,
-                   int priv);
-    void (*flush)(struct BranchPredUnit *u);
-    target_ulong (*get_target)(struct BranchPredUnit *u, target_ulong pc,
-                               BtbEntry *btb_entry);
+    /* Predictor type: bimodal or adaptive */
+    int bpu_type;
 } BranchPredUnit;
 
 BranchPredUnit *bpu_init(const SimParams *p, SimStats *s);
+target_ulong bpu_get_target(BranchPredUnit *u, target_ulong pc,
+                            BtbEntry *btb_entry);
+void bpu_probe(BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p, int priv);
+void bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p,
+             int priv, int fret);
+void bpu_update(BranchPredUnit *u, target_ulong pc, target_ulong target,
+                int pred, int type, BPUResponsePkt *p, int priv);
+void bpu_flush(BranchPredUnit *u);
 void bpu_free(BranchPredUnit **u);
 #endif

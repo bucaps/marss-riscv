@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,7 +27,6 @@
 #include <stdio.h>
 
 #include "../../riscv_cpu_priv.h"
-#include "../decoder/riscv_ins_execute_lib.h"
 #include "../utils/circular_queue.h"
 #include "ooo.h"
 #include "riscv_sim_cpu.h"
@@ -87,26 +86,24 @@ issue_ins_to_exec_unit(OOCore *core, InstructionLatch *e)
 }
 
 static void
-read_int_operand(OOCore *core, int has_src, int *read_src, int arch_src,
-                 int phy_src, int current_rob_idx, uint64_t *buffer,
-                 InstructionLatch *e)
+read_int_operand(const OOCore *core, int has_src, int *read_src, int arch_src,
+                 int phy_src, int current_rob_idx, uint64_t *buffer)
 {
     if (has_src && !(*read_src))
     {
-        read_int_operand_from_rob_slot(core, e, arch_src, phy_src,
-                                       current_rob_idx, buffer, read_src);
+        read_int_operand_from_rob_slot(core, arch_src, phy_src, current_rob_idx,
+                                       buffer, read_src);
     }
 }
 
 static void
-read_fp_operand(OOCore *core, int has_src, int *read_src, int arch_src,
-                int phy_src, int current_rob_idx, uint64_t *buffer,
-                InstructionLatch *e)
+read_fp_operand(const OOCore *core, int has_src, int *read_src, int arch_src,
+                int phy_src, int current_rob_idx, uint64_t *buffer)
 {
     if (has_src && !(*read_src))
     {
-        read_fp_operand_from_rob_slot(core, e, arch_src, phy_src,
-                                      current_rob_idx, buffer, read_src);
+        read_fp_operand_from_rob_slot(core, arch_src, phy_src, current_rob_idx,
+                                      buffer, read_src);
     }
 }
 
@@ -156,19 +153,19 @@ process_iq(OOCore *core, IssueQueueEntry *iq, int iq_size, int max_issue_ports)
                 /* IQ entry not ready, try to read sources */
                 read_int_operand(core, e->ins.has_src1, &e->read_rs1,
                                  e->ins.rs1, e->ins.prs1, e->rob_idx,
-                                 &e->ins.rs1_val, e);
+                                 &e->ins.rs1_val);
                 read_int_operand(core, e->ins.has_src2, &e->read_rs2,
                                  e->ins.rs2, e->ins.prs2, e->rob_idx,
-                                 &e->ins.rs2_val, e);
+                                 &e->ins.rs2_val);
                 read_fp_operand(core, e->ins.has_fp_src1, &e->read_rs1,
                                 e->ins.rs1, e->ins.prs1, e->rob_idx,
-                                &e->ins.rs1_val, e);
+                                &e->ins.rs1_val);
                 read_fp_operand(core, e->ins.has_fp_src2, &e->read_rs2,
                                 e->ins.rs2, e->ins.prs2, e->rob_idx,
-                                &e->ins.rs2_val, e);
+                                &e->ins.rs2_val);
                 read_fp_operand(core, e->ins.has_fp_src3, &e->read_rs3,
                                 e->ins.rs3, e->ins.prs3, e->rob_idx,
-                                &e->ins.rs3_val, e);
+                                &e->ins.rs3_val);
 
                 if (e->read_rs1 && e->read_rs2 && e->read_rs3)
                 {
@@ -202,7 +199,7 @@ oo_core_issue(OOCore *core)
 =            Instruction Execution Stage            =
 ===================================================*/
 static CPUStage *
-get_next_exec_stage(OOCore *core, int cur_stage_id, int fu_type)
+get_next_exec_pipe_stage(const OOCore *core, int cur_stage_id, int fu_type)
 {
     CPUStage *stage = NULL;
 
@@ -353,7 +350,7 @@ oo_core_execute_pipe(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stag
             else
             {
                 /* Pass the instruction into next stage for this FU */
-                next = get_next_exec_stage(core, cur_stage_id, fu_type);
+                next = get_next_exec_pipe_stage(core, cur_stage_id, fu_type);
                 if (!next->has_data)
                 {
                     e->elasped_clock_cycles = 1;
@@ -408,7 +405,7 @@ oo_core_execute_all(OOCore *core)
 ========================================*/
 
 static int
-rob_can_commit(ROB *rob)
+rob_can_commit(const ROB *rob)
 {
     if (!cq_empty(&rob->cq) && (rob->entries[cq_front(&rob->cq)].ready))
     {
@@ -434,7 +431,7 @@ oo_core_rob_commit(OOCore *core)
         assert(rbe->ready);
         if (e->ins.exception)
         {
-            set_exception_state(s, e);
+            sim_exception_set(s->simcpu->exception, e);
             return -1;
         }
         else
@@ -468,12 +465,13 @@ oo_core_rob_commit(OOCore *core)
             /* Dump commit trace if trace mode enabled */
             if (s->simcpu->params->do_sim_trace)
             {
-                setup_sim_trace_pkt(s, e);
+                sim_trace_commit(s->simcpu->trace,
+                                               s->simcpu->clock, s->priv, e);
             }
 
             if (s->sim_params->enable_stats_display)
             {
-                write_stats_to_stats_display_shm(s);
+                write_stats_to_stats_display_shm(s->simcpu);
             }
 
             /* Free up insn_latch_pool entry */
@@ -487,9 +485,9 @@ oo_core_rob_commit(OOCore *core)
             cq_dequeue(&core->rob.cq);
 
             /* Check for timeout */
-            if ((--s->sim_n_cycles) == 0)
+            if ((--s->n_cycles) == 0)
             {
-                set_timer_exception_state(s, e);
+                sim_exception_set_timeout(s->simcpu->exception, e);
                 return -1;
             }
 

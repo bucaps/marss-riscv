@@ -462,3 +462,79 @@ JSONValue json_parse_value_len(const char *p, int len)
     free(str);
     return val;
 }
+
+void __attribute__((format(printf, 1, 2))) vm_error(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+#ifdef EMSCRIPTEN
+    vprintf(fmt, ap);
+#else
+    vfprintf(stderr, fmt, ap);
+#endif
+    va_end(ap);
+}
+
+int vm_get_int(JSONValue obj, const char *name, int *pval)
+{ 
+    JSONValue val;
+    val = json_object_get(obj, name);
+    if (json_is_undefined(val)) {
+        vm_error("expecting '%s' property\n", name);
+        return -1;
+    }
+    if (val.type != JSON_INT) {
+        vm_error("%s: integer expected\n", name);
+        return -1;
+    }
+    *pval = val.u.int32;
+    return 0;
+}
+
+int vm_get_int_opt(JSONValue obj, const char *name, int *pval, int def_val)
+{ 
+    JSONValue val;
+    val = json_object_get(obj, name);
+    if (json_is_undefined(val)) {
+        *pval = def_val;
+        return 0;
+    }
+    if (val.type != JSON_INT) {
+        vm_error("%s: integer expected\n", name);
+        return -1;
+    }
+    *pval = val.u.int32;
+    return 0;
+}
+
+static int vm_get_str2(JSONValue obj, const char *name, const char **pstr,
+                      BOOL is_opt)
+{ 
+    JSONValue val;
+    val = json_object_get(obj, name);
+    if (json_is_undefined(val)) {
+        if (is_opt) {
+            *pstr = NULL;
+            return 0;
+        } else {
+            vm_error("expecting '%s' property\n", name);
+            return -1;
+        }
+    }
+    if (val.type != JSON_STR) {
+        vm_error("%s: string expected\n", name);
+        return -1;
+    }
+    *pstr = val.u.str->data;
+    return 0;
+}
+
+int vm_get_str(JSONValue obj, const char *name, const char **pstr)
+{ 
+    return vm_get_str2(obj, name, pstr, FALSE);
+}
+
+int vm_get_str_opt(JSONValue obj, const char *name, const char **pstr)
+{ 
+    return vm_get_str2(obj, name, pstr, TRUE);
+}

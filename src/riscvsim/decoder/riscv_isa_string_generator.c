@@ -5,7 +5,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -105,10 +105,11 @@ static const char fp_reg[][6] = {
     "ft11"  // fp31
 };
 
-typedef struct CsrName {
-  int i;
-  const char *name;
-  int n;
+typedef struct CsrName
+{
+    int i;
+    const char *name;
+    int n;
 } CsrName;
 
 static const CsrName csr_names[] = {
@@ -150,7 +151,7 @@ static const CsrName csr_names[] = {
 };
 
 static const char size_suffix[8][3] = {"b", "h", "w", "d", "q", "5", "6", "7"};
-static const char* const aqrl_suffix[4] = {"", ".rl", ".aq", ".aqrl"};
+static const char *const aqrl_suffix[4] = {"", ".rl", ".aq", ".aqrl"};
 static const char get_flen_suffix[][3] = {"", ".s", ".d"};
 
 static void
@@ -468,7 +469,8 @@ set_op_32_str(RVInstruction *i)
 static void
 set_branch_str(RVInstruction *i)
 {
-    const char* const branches[8] = {"beq", "bne", 0, 0, "blt", "bge", "bltu", "bgeu"};
+    const char *const branches[8]
+        = {"beq", "bne", 0, 0, "blt", "bge", "bltu", "bgeu"};
     const char *s;
 
     if (i->funct3 < 8)
@@ -476,8 +478,8 @@ set_branch_str(RVInstruction *i)
         s = branches[i->funct3];
         if (s != 0)
         {
-            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%s,%d",
-                     s, reg[i->rs1], reg[i->rs2], i->imm);
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%s,%d", s,
+                     reg[i->rs1], reg[i->rs2], i->imm);
         }
     }
 }
@@ -711,7 +713,7 @@ set_ext_c_q2_str(RVInstruction *i)
         case 1: /* c.fldsp */
         {
             snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "c.fldsp %s,%d(sp)",
-                     fp_reg[i->rd],i->imm);
+                     fp_reg[i->rd], i->imm);
             break;
         }
 #endif
@@ -862,12 +864,12 @@ set_load_str(RVInstruction *i)
         }
         default:
         {
-                return;
+            return;
         }
     }
 
     snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s%s %s,%d(%s)", name,
-    (i->is_unsigned ? "u" : ""), reg[i->rd], i->imm, reg[i->rs1]);
+             (i->is_unsigned ? "u" : ""), reg[i->rd], i->imm, reg[i->rs1]);
 }
 
 static void
@@ -897,11 +899,14 @@ set_store_str(RVInstruction *i)
             name = "sd";
             break;
         }
-        default: { return; }
+        default:
+        {
+            return;
+        }
     }
 
-    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%d(%s)",
-    name, reg[i->rs2], i->imm, reg[i->rs1]);
+    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%d(%s)", name,
+             reg[i->rs2], i->imm, reg[i->rs1]);
 }
 
 static void
@@ -921,66 +926,69 @@ set_csr_str(RVInstruction *i)
 
     switch (funct3)
     {
-      case 1:
-      {
-        name = "csrrw";
-        break;
-      }
-      case 2:
-      {
-        name = "csrrs";
-        break;
-      }
-      case 3:
-      {
-        name = "csrrc";
-        break;
-      }
-      case 0:
-      {
-        switch (imm)
+        case 1:
         {
-          case 0x000: /* ecall */
-          {
-            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "ecall");
+            name = "csrrw";
             break;
-          }
-          case 0x001: /* ebreak */
-          {
-            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "ebreak");
-            break;
-          }
-          case 0x102: /* sret */
-          {
-            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "sret");
-            break;
-          }
-          case 0x302: /* mret */
-          {
-            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "mret");
-            break;
-          }
-          case 0x105: /* wfi */
-          {
-            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "wfi");
-            break;
-          }
-          default: {
-            if ((imm >> 5) == 0x09)
-            {
-              /* sfence.vma */
-              snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "sfence.vma");
-            }
-            break;
-          }
         }
-        return;
+        case 2:
+        {
+            name = "csrrs";
+            break;
+        }
+        case 3:
+        {
+            name = "csrrc";
+            break;
+        }
+        case 0:
+        {
+            switch (imm)
+            {
+                case 0x000: /* ecall */
+                {
+                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "ecall");
+                    break;
+                }
+                case 0x001: /* ebreak */
+                {
+                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "ebreak");
+                    break;
+                }
+                case 0x102: /* sret */
+                {
+                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "sret");
+                    break;
+                }
+                case 0x302: /* mret */
+                {
+                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "mret");
+                    break;
+                }
+                case 0x105: /* wfi */
+                {
+                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "wfi");
+                    break;
+                }
+                default:
+                {
+                    if ((imm >> 5) == 0x09)
+                    {
+                        /* sfence.vma */
+                        snprintf(i->str, RISCV_INS_STR_MAX_LENGTH,
+                                 "sfence.vma");
+                    }
+                    break;
+                }
+            }
+            return;
         }
     }
 
     for (csr = csr_names; csr->i != 0 || csr->name != 0; csr++)
     {
-      if ((imm & ~csr->n) == csr->i) break;
+        if ((imm & ~csr->n) == csr->i)
+            break;
     }
 
     if (csr->name != 0)
@@ -988,13 +996,13 @@ set_csr_str(RVInstruction *i)
         snprintf(cname, sizeof(cname), csr->name, (imm & csr->n));
         if (has_imm)
         {
-            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%si %s,%s,%d",
-                name, reg[i->rd], cname, i->rs1);
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%si %s,%s,%d", name,
+                     reg[i->rd], cname, i->rs1);
         }
         else
         {
-            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%s,%s",
-                name, reg[i->rd], cname, reg[i->rs1]);
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s %s,%s,%s", name,
+                     reg[i->rd], cname, reg[i->rs1]);
         }
     }
 }
@@ -1018,7 +1026,7 @@ set_fence_str(RVInstruction *i)
 }
 
 void
-get_riscv_ins_str(RVInstruction *i)
+generate_riscv_instruction_string(RVInstruction *i)
 {
     int32_t rm;
 
@@ -1059,8 +1067,8 @@ get_riscv_ins_str(RVInstruction *i)
 
         case LUI_MASK:
         {
-            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "lui %s,0x%x", reg[i->rd],
-                     i->imm);
+            snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "lui %s,0x%x",
+                     reg[i->rd], i->imm);
             break;
         }
 
@@ -1105,24 +1113,27 @@ get_riscv_ins_str(RVInstruction *i)
         case ATOMIC_MASK:
         {
             uint32_t funct7 = (i->binary >> 27) & 0x1F;
-	    const char *size = size_suffix[(i->binary >> 12) & 7];
-	    const char *aqrl = aqrl_suffix[(i->binary >> 25) & 3];
-	    if (funct7 == 2)	/* lr.[wd] */
-	    {
-		snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "lr.%s%s %s,(%s)",
-			 size, aqrl, reg[i->rd], reg[i->rs1]);
-	    }
-	    else
-	    {
-		const char * const names[32] = {"amoadd", "amoswap", 0, "sc",
-				"amoxor",0,0,0, "amoor",0,0,0, "amoand",0,0,0,
-				"amomin",0,0,0, "amomax",0,0,0, "amominu",0,0,0, "amomaxu",0,0,0};
-		const char *name = names[funct7];
-		if (name != 0)
-		{
-                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "%s.%s%s %s,%s,(%s)",
-                             name, size, aqrl, reg[i->rd], reg[i->rs2], reg[i->rs1]);
-		}
+            const char *size = size_suffix[(i->binary >> 12) & 7];
+            const char *aqrl = aqrl_suffix[(i->binary >> 25) & 3];
+            if (funct7 == 2) /* lr.[wd] */
+            {
+                snprintf(i->str, RISCV_INS_STR_MAX_LENGTH, "lr.%s%s %s,(%s)",
+                         size, aqrl, reg[i->rd], reg[i->rs1]);
+            }
+            else
+            {
+                const char *const names[32]
+                    = {"amoadd",  "amoswap", 0, "sc", "amoxor",  0, 0, 0,
+                       "amoor",   0,         0, 0,    "amoand",  0, 0, 0,
+                       "amomin",  0,         0, 0,    "amomax",  0, 0, 0,
+                       "amominu", 0,         0, 0,    "amomaxu", 0, 0, 0};
+                const char *name = names[funct7];
+                if (name != 0)
+                {
+                    snprintf(i->str, RISCV_INS_STR_MAX_LENGTH,
+                             "%s.%s%s %s,%s,(%s)", name, size, aqrl, reg[i->rd],
+                             reg[i->rs2], reg[i->rs1]);
+                }
             }
             break;
         }
@@ -1282,10 +1293,10 @@ get_riscv_ins_str(RVInstruction *i)
             switch (i->funct7)
             {
 #define F_SIZE 32
-#include "fpa_str_creator_template.h"
+#include "fp_string_generator_template.h"
 #if SIM_FLEN >= 64
 #define F_SIZE 64
-#include "fpa_str_creator_template.h"
+#include "fp_string_generator_template.h"
 #endif
             }
             break;

@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -29,52 +29,59 @@
  */
 #include "bpu.h"
 
-static void
+void
 bpu_flush(BranchPredUnit *u)
 {
-    u->btb->flush(u->btb);
+    btb_flush(u->btb);
 
     switch (u->bpu_type)
     {
         case BPU_TYPE_BIMODAL:
         {
-            u->bht->flush(u->bht);
+            bht_flush(u->bht);
             break;
         }
 
         case BPU_TYPE_ADAPTIVE:
         {
-            u->ap->flush(u->ap);
+            adaptive_predictor_flush(u->ap);
             break;
         }
     }
 
     if (u->ras)
     {
-        u->ras->flush(u->ras);
+        ras_flush(u->ras);
     }
 }
 
 /* Probes the BPU for given pc. */
-static void
+void
 bpu_probe(BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p, int priv)
 {
-    p->ap_probe_status = BPU_HIT;
-    p->btb_probe_status = u->btb->probe(u->btb, pc, &p->btb_entry);
+    /* Check if the PC is present in BTB */
+    p->btb_probe_status = btb_probe(u->btb, pc, &p->btb_entry);
+    ++(u->stats[priv].btb_probes);
+
+    /* Check if the PC is present in Adaptive Predictor */
+    if (u->ap)
+    {
+        p->ap_probe_status = adaptive_predictor_probe(u->ap, pc);
+    }
+
+    /* If the PC present in BTB is a unconditional branch, mark ap_probe_status
+     * as HIT */
     if (p->btb_probe_status == BPU_HIT)
     {
         ++(u->stats[priv].btb_hits);
-    }
-    ++(u->stats[priv].btb_probes);
 
-    /* TODO: verify */
-    if (u->ap && ((p->btb_probe_status == BPU_MISS)
-                  || (p->btb_entry->type == BRANCH_COND)))
-    {
-        p->ap_probe_status = u->ap->probe(u->ap, pc);
+        if (p->btb_entry->type == BRANCH_UNCOND)
+        {
+            p->ap_probe_status = BPU_HIT;
+        }
     }
 
-    p->bpu_probe_status = p->btb_probe_status && p->ap_probe_status;
+    p->bpu_probe_status = p->btb_probe_status & p->ap_probe_status;
 }
 
 /**
@@ -82,7 +89,7 @@ bpu_probe(BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p, int priv)
  * are checked before returning the target address. If prediction is
  * taken,target address is returned, else 0 is returned.
  */
-static target_ulong
+target_ulong
 bpu_get_target(BranchPredUnit *u, target_ulong pc, BtbEntry *btb_entry)
 {
     switch (btb_entry->type)
@@ -102,7 +109,7 @@ bpu_get_target(BranchPredUnit *u, target_ulong pc, BtbEntry *btb_entry)
             {
                 case BPU_TYPE_BIMODAL:
                 {
-                    if (u->bht->get_prediction(u->bht, pc) > 1)
+                    if (bht_get_prediction(u->bht, pc) > 1)
                     {
                         return btb_entry->target;
                     }
@@ -111,7 +118,7 @@ bpu_get_target(BranchPredUnit *u, target_ulong pc, BtbEntry *btb_entry)
 
                 case BPU_TYPE_ADAPTIVE:
                 {
-                    if (u->ap->get_prediction(u->ap, pc))
+                    if (adaptive_predictor_get_prediction(u->ap, pc))
                     {
                         return btb_entry->target;
                     }
@@ -126,7 +133,7 @@ bpu_get_target(BranchPredUnit *u, target_ulong pc, BtbEntry *btb_entry)
     return 0;
 }
 
-static void
+void
 bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p,
         int priv, int fret)
 {
@@ -134,11 +141,13 @@ bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p,
     if (!p->btb_probe_status)
     {
         /* If using return address stack, don't add function returns to BTB */
-        if (!(u->ras && fret))
+        if (u->ras && fret)
         {
-            u->btb->add(u->btb, pc, type);
-            ++(u->stats[priv].btb_inserts);
+            return;
         }
+
+        btb_add(u->btb, pc, type);
+        ++(u->stats[priv].btb_inserts);
     }
 
     switch (u->bpu_type)
@@ -147,7 +156,7 @@ bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p,
         {
             if (type == BRANCH_COND)
             {
-                u->bht->add(u->bht, pc);
+                bht_add(u->bht, pc);
             }
             break;
         }
@@ -159,20 +168,20 @@ bpu_add(BranchPredUnit *u, target_ulong pc, int type, BPUResponsePkt *p,
              */
             if ((type == BRANCH_COND) && !p->ap_probe_status)
             {
-                u->ap->add(u->ap, pc);
+                adaptive_predictor_add(u->ap, pc);
             }
             break;
         }
     }
 }
 
-static void
+void
 bpu_update(BranchPredUnit *u, target_ulong pc, target_ulong target, int pred,
            int type, BPUResponsePkt *p, int priv)
 {
     if (p->btb_probe_status)
     {
-        u->btb->update(p->btb_entry, target, type);
+        btb_update(p->btb_entry, target, type);
         ++(u->stats[priv].btb_updates);
     }
 
@@ -182,7 +191,7 @@ bpu_update(BranchPredUnit *u, target_ulong pc, target_ulong target, int pred,
         {
             if (type == BRANCH_COND)
             {
-                u->bht->update(u->bht, pc, pred);
+                bht_update(u->bht, pc, pred);
             }
             break;
         }
@@ -193,7 +202,7 @@ bpu_update(BranchPredUnit *u, target_ulong pc, target_ulong target, int pred,
              * must be also be updated, but only for conditional branches */
             if ((type == BRANCH_COND) && p->ap_probe_status)
             {
-                u->ap->update(u->ap, pc, pred);
+                adaptive_predictor_update(u->ap, pc, pred);
             }
             break;
         }
@@ -235,11 +244,6 @@ bpu_init(const SimParams *p, SimStats *s)
         u->ras = ras_init(p);
     }
 
-    u->probe = &bpu_probe;
-    u->add = &bpu_add;
-    u->update = &bpu_update;
-    u->flush = &bpu_flush;
-    u->get_target = &bpu_get_target;
     return u;
 }
 

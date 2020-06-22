@@ -1,9 +1,9 @@
 /**
- * RISCV Instruction String Generator
+ * TinyEMU memory map wrapper
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -27,10 +27,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef _RISCV_INS_STR_CREATOR_H_
-#define _RISCV_INS_STR_CREATOR_H_
+#ifndef _TEMU_MEM_MAP_WRAPPER_H_
+#define _TEMU_MEM_MAP_WRAPPER_H_
 
-#include "riscv_instruction.h"
-void get_riscv_ins_str(RVInstruction *i);
+#include "../utils/cpu_latches.h"
 
+struct RISCVCPUState;
+
+/* Wrapper over TinyEMU memory map used by the simulator to fetch instructions
+ * and read/write data (loads, stores and atomics) from the emulated guest
+ * physical memory */
+typedef struct TemuMemMapWrapper
+{
+    int (*read_insn)(struct RISCVCPUState *s, InstructionLatch *e);
+    int (*exec_load_store_atomic)(struct RISCVCPUState *s, InstructionLatch *e);
+} TemuMemMapWrapper;
+
+TemuMemMapWrapper *temu_mem_map_wrapper_init();
+void temu_mem_map_wrapper_free(TemuMemMapWrapper **t);
 #endif

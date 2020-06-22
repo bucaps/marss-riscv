@@ -5,7 +5,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include "cutils.h"
 #include "iomem.h"
-#include "riscvsim/utils/sim_params_stats.h"
+#include "riscvsim/utils/sim_params.h"
 
 #define MIP_USIP (1 << 0)
 #define MIP_SSIP (1 << 1)
@@ -70,8 +70,7 @@ typedef struct {
     const RISCVCPUClass *class_ptr;
 } RISCVCPUCommonState;
 
-void reset_simulation_stats(RISCVCPUState *s);
-int switch_to_cpu_simulation(RISCVCPUState *s);
+
 int riscv_cpu_get_max_xlen(void);
 
 extern const RISCVCPUClass riscv_cpu_class32;

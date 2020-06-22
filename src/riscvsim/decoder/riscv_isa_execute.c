@@ -1,11 +1,11 @@
 /**
- * RISCV Instruction Execution Library
+ * RISCV Instruction Execution Logic
  *
  * Copyright (c) 2016-2017 Fabrice Bellard
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -911,10 +911,10 @@ execute_riscv_instruction(RVInstruction *i, uint32_t *fflags)
             switch (i->funct7)
             {
 #define F_SIZE 32
-#include "execute_fpa_template.h"
+#include "fp_execute_template.h"
 #if SIM_FLEN >= 64
 #define F_SIZE 64
-#include "execute_fpa_template.h"
+#include "fp_execute_template.h"
 #endif
             }
             break;

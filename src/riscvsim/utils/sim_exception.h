@@ -1,12 +1,9 @@
 /**
- * RISCV Instruction Execution Library
+ * Exception context setup during simulation
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
- * State University of New York at Binghamton
- *
- * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
+ * Copyright (c) 2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,13 +24,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef _RISCV_ISA_EXECUTE_LIB_H_
-#define _RISCV_ISA_EXECUTE_LIB_H_
-
+#ifndef _SIM_EXCEPTION_H_
+#define _SIM_EXCEPTION_H_
 #include <inttypes.h>
 
-#include "riscv_instruction.h"
+#include "../riscv_sim_macros.h"
+#include "cpu_latches.h"
 
-void execute_riscv_instruction(RVInstruction *i, uint32_t *fflags);
+typedef struct SimException
+{
+    int pending;
+    int cause;
+    int cpu_stage;
+    target_ulong pc;
+    uint32_t insn;
+    char insn_str[RISCV_INS_STR_MAX_LENGTH];
+} SimException;
 
+SimException *sim_exception_init();
+void sim_exception_set(SimException *s, const InstructionLatch *e);
+void sim_exception_set_timeout(SimException *s, const InstructionLatch *e);
+void sim_exception_free(SimException **s);
 #endif

@@ -37,7 +37,7 @@
 #include "riscv_cpu.h"
 #include "virtio.h"
 #include "machine.h"
-#include "riscvsim/utils/sim_params_stats.h"
+#include "riscvsim/utils/sim_params.h"
 
 #define UART_RX_BUFSIZE 16
 

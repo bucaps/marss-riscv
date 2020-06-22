@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -31,7 +31,7 @@
 #define _MemoryHierarchy_H_
 
 #include "../riscv_sim_typedefs.h"
-#include "../utils/sim_params_stats.h"
+#include "../utils/sim_params.h"
 #include "cache.h"
 #include "memory_controller.h"
 
@@ -46,12 +46,15 @@ typedef struct MemoryHierarchy
     /* If caches are enabled */
     int cache_line_size;
 
+    /* Pointers are set based on whether caches are enabled or disabled */
     int (*insn_read_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
                            int bytes, int cpu_stage_id, int priv);
     int (*data_read_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
                            int bytes, int cpu_stage_id, int priv);
     int (*data_write_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
                             int bytes, int cpu_stage_id, int priv);
+
+    /* Page table entries are not cached */
     int (*pte_read_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
                           int bytes, int cpu_stage_id, int priv);
     int (*pte_write_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,

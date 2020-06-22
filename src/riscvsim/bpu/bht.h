@@ -28,7 +28,7 @@
 #define _BHT_H_
 
 #include "../riscv_sim_typedefs.h"
-#include "../utils/sim_params_stats.h"
+#include "../utils/sim_params.h"
 
 typedef struct BhtEntry
 {
@@ -40,13 +40,12 @@ typedef struct Bht
     BhtEntry *bht_entry;
     int bht_index_bits;
     int bht_size;
-
-    void (*flush)(struct Bht *b);
-    void (*add)(struct Bht *b, target_ulong pc);
-    void (*update)(struct Bht *b, target_ulong pc, int pred);
-    int (*get_prediction)(struct Bht *b, target_ulong pc);
 } Bht;
 
 Bht *bht_init(const SimParams *p);
+int bht_get_prediction(const Bht *b, target_ulong pc);
+void bht_add(Bht *b, target_ulong pc);
+void bht_update(Bht *b, target_ulong pc, int pred);
+void bht_flush(Bht *b);
 void bht_free(Bht **b);
 #endif

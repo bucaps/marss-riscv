@@ -24,6 +24,8 @@
 #ifndef JSON_H
 #define JSON_H
 
+#include "cutils.h"
+
 typedef enum {
     JSON_STR,
     JSON_INT,
@@ -129,4 +131,10 @@ const char *json_get_error(JSONValue val);
 JSONValue json_parse_value(const char *p);
 JSONValue json_parse_value_len(const char *p, int len);
 
+void __attribute__((format(printf, 1, 2))) vm_error(const char *fmt, ...);
+
+int vm_get_int(JSONValue obj, const char *name, int *pval);
+int vm_get_int_opt(JSONValue obj, const char *name, int *pval, int def_val);
+int vm_get_str(JSONValue obj, const char *name, const char **pstr);
+int vm_get_str_opt(JSONValue obj, const char *name, const char **pstr);
 #endif /* JSON_H */

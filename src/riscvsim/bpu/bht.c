@@ -51,8 +51,8 @@ update_two_bit_counter(int *ctr, int pred)
     }
 }
 
-static int
-bht_get_pred(Bht *b, target_ulong pc)
+int
+bht_get_prediction(const Bht *b, target_ulong pc)
 {
     int idx;
 
@@ -60,7 +60,7 @@ bht_get_pred(Bht *b, target_ulong pc)
     return b->bht_entry[idx].pred;
 }
 
-static void
+void
 bht_add(Bht *b, target_ulong pc)
 {
     int idx;
@@ -71,7 +71,7 @@ bht_add(Bht *b, target_ulong pc)
     b->bht_entry[idx].pred = 1;
 }
 
-static void
+void
 bht_update(Bht *b, target_ulong pc, int pred)
 {
     int idx;
@@ -80,7 +80,7 @@ bht_update(Bht *b, target_ulong pc, int pred)
     update_two_bit_counter(&b->bht_entry[idx].pred, pred);
 }
 
-static void
+void
 bht_flush(Bht *b)
 {
     int i;
@@ -104,10 +104,6 @@ bht_init(const SimParams *p)
     assert(b->bht_entry);
 
     b->bht_index_bits = GET_NUM_BITS(b->bht_size);
-    b->flush = &bht_flush;
-    b->add = &bht_add;
-    b->update = &bht_update;
-    b->get_prediction = &bht_get_pred;
     return b;
 }
 

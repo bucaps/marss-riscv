@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -35,64 +35,67 @@
 #include "memory_hierarchy.h"
 
 static int
-mem_hierarchy_insn_read(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
-                        int bytes, int stage_id, int priv)
+mem_hierarchy_cache_disabled_read(MemoryHierarchy *mem_hierarchy,
+                                  target_ulong paddr, int bytes, int stage_id,
+                                  int priv)
 {
-    if (mem_hierarchy->p->enable_l1_caches)
-    {
-        return mem_hierarchy->icache->read(mem_hierarchy->icache, paddr, bytes,
-                                           (void *)&stage_id, priv);
-    }
-
-    mem_hierarchy->mem_controller->create_mem_request(
-        mem_hierarchy->mem_controller, paddr, bytes, Read, (void *)&stage_id);
+    mem_controller_create_mem_request(mem_hierarchy->mem_controller, paddr,
+                                      bytes, MEM_ACCESS_READ,
+                                      (void *)&stage_id);
     return 1;
 }
 
 static int
-mem_hierarchy_data_read(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
-                        int bytes, int stage_id, int priv)
+mem_hierarchy_cache_disabled_write(MemoryHierarchy *mem_hierarchy,
+                                   target_ulong paddr, int bytes, int stage_id,
+                                   int priv)
 {
-    if (mem_hierarchy->p->enable_l1_caches)
-    {
-        return mem_hierarchy->dcache->read(mem_hierarchy->dcache, paddr, bytes,
-                                           (void *)&stage_id, priv);
-    }
-
-    mem_hierarchy->mem_controller->create_mem_request(
-        mem_hierarchy->mem_controller, paddr, bytes, Read, (void *)&stage_id);
+    mem_controller_create_mem_request(mem_hierarchy->mem_controller, paddr,
+                                      bytes, MEM_ACCESS_WRITE,
+                                      (void *)&stage_id);
     return 1;
 }
 
 static int
-mem_hierarchy_data_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
-                         int bytes, int stage_id, int priv)
+mem_hierarchy_icache_read(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
+                          int bytes, int stage_id, int priv)
 {
-    if (mem_hierarchy->p->enable_l1_caches)
-    {
-        return mem_hierarchy->dcache->write(mem_hierarchy->dcache, paddr, bytes,
-                                            (void *)&stage_id, priv);
-    }
+    return cache_read(mem_hierarchy->icache, paddr, bytes, (void *)&stage_id,
+                      priv);
+}
 
-    mem_hierarchy->mem_controller->create_mem_request(
-        mem_hierarchy->mem_controller, paddr, bytes, Write, (void *)&stage_id);
-    return 1;
+static int
+mem_hierarchy_dcache_read(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
+                          int bytes, int stage_id, int priv)
+{
+    return cache_read(mem_hierarchy->dcache, paddr, bytes, (void *)&stage_id,
+                      priv);
+}
+
+static int
+mem_hierarchy_dcache_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
+                           int bytes, int stage_id, int priv)
+{
+    return cache_write(mem_hierarchy->dcache, paddr, bytes, (void *)&stage_id,
+                       priv);
 }
 
 static int
 mem_hierarchy_pte_read(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
                        int bytes, int stage_id, int priv)
 {
-    return mem_hierarchy->mem_controller->create_mem_request_pte(
-        mem_hierarchy->mem_controller, paddr, bytes, Read, (void *)&stage_id);
+    return mem_controller_create_mem_request_pte(mem_hierarchy->mem_controller,
+                                                 paddr, bytes, MEM_ACCESS_READ,
+                                                 (void *)&stage_id);
 }
 
 static int
 mem_hierarchy_pte_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
                         int bytes, int stage_id, int priv)
 {
-    return mem_hierarchy->mem_controller->create_mem_request_pte(
-        mem_hierarchy->mem_controller, paddr, bytes, Write, (void *)&stage_id);
+    return mem_controller_create_mem_request_pte(mem_hierarchy->mem_controller,
+                                                 paddr, bytes, MEM_ACCESS_WRITE,
+                                                 (void *)&stage_id);
 }
 
 MemoryHierarchy *
@@ -115,8 +118,8 @@ memory_hierarchy_init(const SimParams *p)
             = p->words_per_cache_line * sizeof(target_ulong);
 
         /* If caches are enabled, set burst length to cache line size */
-        mem_hierarchy->mem_controller->set_burst_length(
-            mem_hierarchy->mem_controller, mem_hierarchy->cache_line_size);
+        mem_controller_set_burst_length(mem_hierarchy->mem_controller,
+                                        mem_hierarchy->cache_line_size);
 
         /* If DRAMSim2 memory model is used, its burst length must be equal to
          * cache line size */
@@ -164,9 +167,19 @@ memory_hierarchy_init(const SimParams *p)
             mem_hierarchy->mem_controller);
     }
 
-    mem_hierarchy->insn_read_delay = &mem_hierarchy_insn_read;
-    mem_hierarchy->data_read_delay = &mem_hierarchy_data_read;
-    mem_hierarchy->data_write_delay = &mem_hierarchy_data_write;
+    if (p->enable_l1_caches)
+    {
+        mem_hierarchy->insn_read_delay = &mem_hierarchy_icache_read;
+        mem_hierarchy->data_read_delay = &mem_hierarchy_dcache_read;
+        mem_hierarchy->data_write_delay = &mem_hierarchy_dcache_write;
+    }
+    else
+    {
+        mem_hierarchy->insn_read_delay = &mem_hierarchy_cache_disabled_read;
+        mem_hierarchy->data_read_delay = &mem_hierarchy_cache_disabled_read;
+        mem_hierarchy->data_write_delay = &mem_hierarchy_cache_disabled_write;
+    }
+
     mem_hierarchy->pte_read_delay = &mem_hierarchy_pte_read;
     mem_hierarchy->pte_write_delay = &mem_hierarchy_pte_write;
 

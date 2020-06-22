@@ -29,7 +29,7 @@
 
 #include "../riscv_sim_macros.h"
 #include "../riscv_sim_typedefs.h"
-#include "../utils/sim_params_stats.h"
+#include "../utils/sim_params.h"
 
 typedef struct Ras
 {
@@ -39,13 +39,12 @@ typedef struct Ras
     int max_size;
     target_ulong empty_reg;
     target_ulong *entry;
-
-    void (*push)(struct Ras *ras, target_ulong pc);
-    void (*flush)(struct Ras *ras);
-    int (*empty)(struct Ras *ras);
-    target_ulong (*pop)(struct Ras *ras);
 } Ras;
 
 Ras *ras_init(const SimParams *p);
+target_ulong ras_pop(Ras *ras);
+int ras_empty(const Ras *ras);
+void ras_push(Ras *ras, target_ulong pc);
+void ras_flush(Ras *ras);
 void ras_free(Ras **ras);
 #endif

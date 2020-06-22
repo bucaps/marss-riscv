@@ -5,7 +5,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -54,15 +54,15 @@ in_core_pcgen(INCore *core)
             s->simcpu->pc
                 = (target_ulong)((uintptr_t)s->code_ptr + s->code_to_pc_addend);
 
-            /* Allocate an entry for this instruction in insn_latch_pool */
+            /* Allocate a latch for this instruction from insn_latch_pool */
             e = insn_latch_allocate(s->simcpu->insn_latch_pool);
 
-            /* Setup the allocated insn_latch_pool entry */
+            /* Setup the allocated latch */
             e->ins_dispatch_id = core->ins_dispatch_id++;
             e->ins.pc = s->simcpu->pc;
             e->ins.create_str = s->sim_params->create_ins_str;
 
-            /* Store IMAP index in the stage and the actual decoded instruction
+            /* Store latch index in the stage and the actual decoded instruction
              * info is stored in this insn_latch_pool entry.
              * NOTE: This avoids copying of whole decoded instruction info when
              * instruction flows to next stage */
@@ -96,32 +96,34 @@ in_core_fetch(INCore *core)
     s = core->simcpu->emu_cpu_state;
     if (core->fetch.has_data)
     {
-        e = get_insn_latch(s->simcpu->insn_latch_pool, core->fetch.insn_latch_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool,
+                           core->fetch.insn_latch_index);
         if (!core->fetch.stage_exec_done)
         {
-            do_fetch_stage_exec(s,e);
+            fetch_cpu_stage_exec(s, e);
             if (e->ins.exception)
             {
                 /* Stop pcgen stage and save exception context */
                 cpu_stage_flush(&core->pcgen);
-                set_exception_state(s, e);
+                sim_exception_set(s->simcpu->exception, e);
             }
             core->fetch.stage_exec_done = TRUE;
         }
         else
         {
-            e = get_insn_latch(s->simcpu->insn_latch_pool, core->fetch.insn_latch_index);
+            e = get_insn_latch(s->simcpu->insn_latch_pool,
+                               core->fetch.insn_latch_index);
         }
 
         if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
-            /* Number of CPU cycles spent by this instruction in fetch stage
-             * equals lookup delay for this instruction */
+            /* Number of CPU cycles spent by this instruction in the memory
+             * stage equals to cache-lookup delay for this instruction */
 
-            /* Check if the dram accesses, if required for this instruction,
-             * are completed */
-            if (!s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue
-                     .cur_size)
+            /* Wait on memory controller callback for any pending memory
+             * accesses */
+            if (!s->simcpu->mem_hierarchy->mem_controller
+                     ->frontend_mem_access_queue.cur_size)
             {
                 /* Stop fetching new instructions on a MMU exception */
                 if (e->ins.exception)
@@ -134,8 +136,8 @@ in_core_fetch(INCore *core)
                      * decode stage */
                     if (!core->decode.has_data)
                     {
-                        s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue
-                            .cur_idx
+                        s->simcpu->mem_hierarchy->mem_controller
+                            ->frontend_mem_access_queue.cur_idx
                             = 0;
 
                         core->fetch.stage_exec_done = FALSE;
@@ -165,7 +167,7 @@ in_core_fetch(INCore *core)
 ================================================*/
 
 static void
-read_int_operand(INCore *core, int has_src, int *read_rs, int rs,
+read_int_operand(const INCore *core, int has_src, int *read_rs, int rs,
                  uint64_t *buffer, int *reg_file_read_done)
 {
     int i;
@@ -195,7 +197,7 @@ read_int_operand(INCore *core, int has_src, int *read_rs, int rs,
 }
 
 static void
-read_fp_operand(INCore *core, int has_src, int *read_rs, int rs,
+read_fp_operand(const INCore *core, int has_src, int *read_rs, int rs,
                 uint64_t *buffer, int *reg_file_read_done)
 {
     int i;
@@ -256,7 +258,7 @@ set_waw_lock_fp_dest(RISCVCPUState *s, CPUStage *stage, int rd)
 }
 
 static int
-execute_stage_busy(INCore *core, int* busy_stage_id)
+execute_stage_busy(const INCore *core, int *busy_stage_id)
 {
     int i;
 
@@ -307,7 +309,7 @@ execute_stage_busy(INCore *core, int* busy_stage_id)
 }
 
 static int
-target_fu_pipelined(INCore *core, int fu_type)
+target_fu_pipelined(const INCore *core, int fu_type)
 {
     int num_stages = 1;
 
@@ -361,19 +363,20 @@ in_core_decode(INCore *core)
     s = core->simcpu->emu_cpu_state;
     if (core->decode.has_data)
     {
-        e = get_insn_latch(s->simcpu->insn_latch_pool, core->decode.insn_latch_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool,
+                           core->decode.insn_latch_index);
         if (!core->decode.stage_exec_done)
         {
             if (!e->is_decoded)
             {
-                do_decode_stage_exec(s, e);
-                if (s->simcpu->pfn_branch_frontend_decode_handler(s, e))
+                decode_cpu_stage_exec(s, e);
+                if (s->simcpu->bpu_decode_stage_handler(s, e))
                 {
                     /* RAS has redirected the control flow, so flush */
-                    speculative_cpu_stage_flush(&core->fetch,
-                                                s->simcpu->insn_latch_pool);
-                    speculative_cpu_stage_flush(&core->pcgen,
-                                                s->simcpu->insn_latch_pool);
+                    cpu_stage_flush_free_insn_latch(&core->fetch,
+                                                    s->simcpu->insn_latch_pool);
+                    cpu_stage_flush_free_insn_latch(&core->pcgen,
+                                                    s->simcpu->insn_latch_pool);
                     core->pcgen.has_data = TRUE;
                 }
                 e->is_decoded = TRUE;
@@ -382,7 +385,7 @@ in_core_decode(INCore *core)
             /* Handle exception caused during decoding */
             if (unlikely(e->ins.exception))
             {
-                set_exception_state(s, e);
+                sim_exception_set(s->simcpu->exception, e);
                 cpu_stage_flush(&core->pcgen);
                 cpu_stage_flush(&core->fetch);
                 cpu_stage_flush(&core->decode);
@@ -423,18 +426,15 @@ in_core_decode(INCore *core)
                     set_waw_lock_int_dest(s, &core->commit, e->ins.rd);
                     set_waw_lock_int_dest(s, &core->memory, e->ins.rd);
                     set_waw_lock_int_dest(s, &core->fpu_alu, e->ins.rd);
-                    for (i = s->simcpu->params->num_div_stages - 1; i >= 0;
-                         i--)
+                    for (i = s->simcpu->params->num_div_stages - 1; i >= 0; i--)
                     {
                         set_waw_lock_int_dest(s, &core->idiv[i], e->ins.rd);
                     }
-                    for (i = s->simcpu->params->num_mul_stages - 1; i >= 0;
-                         i--)
+                    for (i = s->simcpu->params->num_mul_stages - 1; i >= 0; i--)
                     {
                         set_waw_lock_int_dest(s, &core->imul[i], e->ins.rd);
                     }
-                    for (i = s->simcpu->params->num_alu_stages - 1; i >= 0;
-                         i--)
+                    for (i = s->simcpu->params->num_alu_stages - 1; i >= 0; i--)
                     {
                         set_waw_lock_int_dest(s, &core->ialu[i], e->ins.rd);
                     }
@@ -447,8 +447,8 @@ in_core_decode(INCore *core)
                 {
                     set_waw_lock_fp_dest(s, &core->commit, e->ins.rd);
                     set_waw_lock_fp_dest(s, &core->memory, e->ins.rd);
-                    for (i = s->simcpu->params->num_fpu_fma_stages - 1;
-                         i >= 0; i--)
+                    for (i = s->simcpu->params->num_fpu_fma_stages - 1; i >= 0;
+                         i--)
                     {
                         set_waw_lock_fp_dest(s, &core->fpu_fma[i], e->ins.rd);
                     }
@@ -532,9 +532,9 @@ in_core_decode(INCore *core)
         }
 
         /* Add sequence number of this instruction to memory selection queue */
-        ins_issue_index = cq_enqueue(&core->ins_dispatch_queue.cq);
+        ins_issue_index = cq_enqueue(&core->ex_to_mem_queue.cq);
         assert(ins_issue_index != -1);
-        core->ins_dispatch_queue.data[ins_issue_index] = e->ins_dispatch_id;
+        core->ex_to_mem_queue.data[ins_issue_index] = e->ins_dispatch_id;
         cpu_stage_flush(&core->decode);
     }
 exit_decode:

@@ -69,7 +69,7 @@ dramsim_wrapper::read_complete(unsigned id, uint64_t addr, uint64_t clock_cycle)
     {
         if ((frontend_mem_access_queue->entry[i].valid)
             && (frontend_mem_access_queue->entry[i].addr == addr)
-            && (frontend_mem_access_queue->entry[i].type == Read))
+            && (frontend_mem_access_queue->entry[i].type == MEM_ACCESS_READ))
         {
             frontend_mem_access_queue->entry[i].valid = 0;
             --frontend_mem_access_queue->cur_size;
@@ -81,7 +81,7 @@ dramsim_wrapper::read_complete(unsigned id, uint64_t addr, uint64_t clock_cycle)
     {
         if ((backend_mem_access_queue->entry[i].valid)
             && (backend_mem_access_queue->entry[i].addr == addr)
-            && (backend_mem_access_queue->entry[i].type == Read))
+            && (backend_mem_access_queue->entry[i].type == MEM_ACCESS_READ))
         {
             backend_mem_access_queue->entry[i].valid = 0;
             --backend_mem_access_queue->cur_size;
@@ -100,7 +100,7 @@ dramsim_wrapper::write_complete(unsigned id, uint64_t addr,
     {
         if ((frontend_mem_access_queue->entry[i].valid)
             && (frontend_mem_access_queue->entry[i].addr == addr)
-            && (frontend_mem_access_queue->entry[i].type == Write))
+            && (frontend_mem_access_queue->entry[i].type == MEM_ACCESS_WRITE))
         {
             frontend_mem_access_queue->entry[i].valid = 0;
             --frontend_mem_access_queue->cur_size;
@@ -112,7 +112,7 @@ dramsim_wrapper::write_complete(unsigned id, uint64_t addr,
     {
         if ((backend_mem_access_queue->entry[i].valid)
             && (backend_mem_access_queue->entry[i].addr == addr)
-            && (backend_mem_access_queue->entry[i].type == Write))
+            && (backend_mem_access_queue->entry[i].type == MEM_ACCESS_WRITE))
         {
             backend_mem_access_queue->entry[i].valid = 0;
             --backend_mem_access_queue->cur_size;

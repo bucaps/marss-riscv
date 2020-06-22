@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -32,17 +32,23 @@
 
 #include "../bpu/bpu.h"
 #include "../utils/circular_queue.h"
-#include "common_core_utils.h"
-#include "../utils/sim_params_stats.h"
+#include "../utils/cpu_latches.h"
+#include "../utils/sim_params.h"
 
 /* Forward declare */
 struct RISCVSIMCPUState;
 
-typedef struct InsDispatchQueue
+/* Every instruction issued from the decode stage is assigned a unique
+ * sequential ID known as ins_dispatch_id. This ID is appended to
+ * ex_to_mem_queue. This ID (returned from the ex_to_mem_queue top) is used by
+ * memory stage to select the earliest instruction in sequence when multiple
+ * functional units (if parallel FUs enabled) try to send their respective
+ * instructions to the memory stage in the same cycle  */
+typedef struct ExToMemQueue
 {
     CQ cq;
-    uint64_t data[INCORE_NUM_INS_DISPATCH_QUEUE_ENTRY];
-} InsDispatchQueue;
+    uint64_t data[INCORE_EX_TO_MEM_QUEUE_SIZE];
+} ExToMemQueue;
 
 typedef struct DataFWDLatch
 {
@@ -70,9 +76,9 @@ typedef struct INCore
     DataFWDLatch fwd_latch[NUM_FWD_BUS];
 
     /*----------  EX to Mem Queue  ----------*/
-    InsDispatchQueue ins_dispatch_queue;
+    ExToMemQueue ex_to_mem_queue;
 
-    /*----------  Execution units  ----------*/
+    /*----------  Execution units/EX stage ----------*/
     CPUStage *ialu;
     CPUStage *imul;
     CPUStage *idiv;
@@ -82,11 +88,6 @@ typedef struct INCore
     /*----------  Pointer to 5 or 6 stage run() function  ----------*/
     int (*pfn_incore_run_internal)(struct INCore *core);
 
-    /*----------  Unique ID for every instruction   ----------*/
-    /* As every instruction is issued from decode stage, it is
-     * assigned a unique ID. This ID is used by memory stage to select earliest
-     * instruction in sequence, when multiple functional units try to send their
-     * respective instructions to memory stage */
     uint64_t ins_dispatch_id;
 
     struct RISCVSIMCPUState *simcpu; /* Pointer to parent */

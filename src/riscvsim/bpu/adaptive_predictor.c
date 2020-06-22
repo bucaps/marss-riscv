@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -45,19 +45,19 @@
 #define PRED_TAKEN 0x1
 
 static uint32_t
-xor_aliasing_func(AdaptivePredictor *a, uint32_t hr, target_ulong pc)
+xor_aliasing_func(const AdaptivePredictor *a, uint32_t hr, target_ulong pc)
 {
     return GET_INDEX(hr ^ pc, a->hreg_bits);
 }
 
 static uint32_t
-and_aliasing_func(AdaptivePredictor *a, uint32_t hr, target_ulong pc)
+and_aliasing_func(const AdaptivePredictor *a, uint32_t hr, target_ulong pc)
 {
     return GET_INDEX(hr & pc, a->hreg_bits);
 }
 
 static uint32_t
-none_aliasing_func(AdaptivePredictor *a, uint32_t hr, target_ulong pc)
+none_aliasing_func(const AdaptivePredictor *a, uint32_t hr, target_ulong pc)
 {
     return GET_INDEX(hr, a->hreg_bits);
 }
@@ -83,7 +83,7 @@ update_two_bit_counter(int *ctr, int pred)
 
 /* Returns BPU_HIT if given pc is present in GHT */
 static int
-adaptive_predictor_ght_probe(AdaptivePredictor *a, target_ulong pc)
+adaptive_predictor_ght_probe(const AdaptivePredictor *a, target_ulong pc)
 {
     int index = GET_INDEX(pc >> 1, a->ght_index_bits);
 
@@ -97,7 +97,7 @@ adaptive_predictor_ght_probe(AdaptivePredictor *a, target_ulong pc)
 
 /* Returns BPU_HIT if given pc is present in PHT */
 static int
-adaptive_predictor_pht_probe(AdaptivePredictor *a, target_ulong pc)
+adaptive_predictor_pht_probe(const AdaptivePredictor *a, target_ulong pc)
 {
     int index = GET_INDEX(pc >> 1, a->pht_index_bits);
 
@@ -113,8 +113,8 @@ adaptive_predictor_pht_probe(AdaptivePredictor *a, target_ulong pc)
  * Based on the adaptive predictor scheme, probe either GHT
  * or PHT or both.
  */
-static int
-adaptive_predictor_probe(AdaptivePredictor *a, target_ulong pc)
+int
+adaptive_predictor_probe(const AdaptivePredictor *a, target_ulong pc)
 {
     switch (a->type)
     {
@@ -145,8 +145,8 @@ adaptive_predictor_probe(AdaptivePredictor *a, target_ulong pc)
  * Based on the adaptive predictor scheme, return the
  * prediction.
  */
-static int
-adaptive_predictor_get_prediction(AdaptivePredictor *a, target_ulong pc)
+int
+adaptive_predictor_get_prediction(const AdaptivePredictor *a, target_ulong pc)
 {
     int l1_index;
     int l2_index;
@@ -211,7 +211,7 @@ adaptive_predictor_get_prediction(AdaptivePredictor *a, target_ulong pc)
  * 2-bit saturating counter array in the allocated PHT entry get default values
  * of 0 (strongly not taken).
  */
-static void
+void
 adaptive_predictor_add(AdaptivePredictor *a, target_ulong pc)
 {
     int l1_index;
@@ -256,7 +256,7 @@ adaptive_predictor_add(AdaptivePredictor *a, target_ulong pc)
  * update history register in GHT. Update to history register is performed
  * by left-shifting the current branch outcome into its previous value.
  */
-static void
+void
 adaptive_predictor_update(AdaptivePredictor *a, target_ulong pc, int pred)
 {
     int l1_index;
@@ -305,7 +305,7 @@ adaptive_predictor_update(AdaptivePredictor *a, target_ulong pc, int pred)
     }
 }
 
-static void
+void
 adaptive_predictor_flush(AdaptivePredictor *a)
 {
     int i;
@@ -388,11 +388,6 @@ adaptive_predictor_init(const SimParams *p)
         a->type = PAP;
     }
 
-    a->probe = &adaptive_predictor_probe;
-    a->get_prediction = &adaptive_predictor_get_prediction;
-    a->add = &adaptive_predictor_add;
-    a->update = &adaptive_predictor_update;
-    a->flush = &adaptive_predictor_flush;
     return a;
 }
 

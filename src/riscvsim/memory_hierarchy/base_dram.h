@@ -29,7 +29,7 @@
 
 #include "../../cutils.h"
 #include "../riscv_sim_typedefs.h"
-#include "../utils/sim_params_stats.h"
+#include "../utils/sim_params.h"
 #include "memory_controller_utils.h"
 
 typedef struct BaseDram
@@ -59,15 +59,13 @@ typedef struct BaseDram
      * pipeline stages */
     StageMemAccessQueue *frontend_mem_access_queue;
     StageMemAccessQueue *backend_mem_access_queue;
-
-    int (*clock)(struct BaseDram *d);
-    int (*can_accept_request)(struct BaseDram *d);
-    void (*send_request)(struct BaseDram *d, PendingMemAccessEntry *e);
-    void (*reset)(struct BaseDram *d);
 } BaseDram;
 
 BaseDram *base_dram_create(const SimParams *p, StageMemAccessQueue *f,
                            StageMemAccessQueue *b);
+int base_dram_can_accept_request(const BaseDram *d);
+int base_dram_clock(BaseDram *d);
+void base_dram_reset(BaseDram *d);
+void base_dram_send_request(BaseDram *d, PendingMemAccessEntry *e);
 void base_dram_free(BaseDram **d);
-
 #endif /* _BASE_DRAM_H_ */

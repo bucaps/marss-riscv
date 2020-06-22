@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -98,7 +98,7 @@ cq_dequeue(CQ *p)
 }
 
 int
-cq_empty(CQ *p)
+cq_empty(const CQ *p)
 {
     if (p->front == -1)
     {
@@ -108,7 +108,7 @@ cq_empty(CQ *p)
 }
 
 int
-cq_full(CQ *p)
+cq_full(const CQ *p)
 {
     if ((p->front == 0 && (p->rear == (p->max_size - 1)))
         || ((p->max_size > 1)
@@ -127,13 +127,13 @@ cq_reset(CQ *p)
 }
 
 int
-cq_front(CQ *p)
+cq_front(const CQ *p)
 {
     return p->front;
 }
 
 int
-cq_rear(CQ *p)
+cq_rear(const CQ *p)
 {
     return p->rear;
 }

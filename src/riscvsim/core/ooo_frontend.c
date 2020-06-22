@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,7 +26,6 @@
  */
 #include "ooo.h"
 #include "../../riscv_cpu_priv.h"
-#include "../decoder/riscv_isa_decoder_lib.h"
 #include "../utils/circular_queue.h"
 #include "riscv_sim_cpu.h"
 
@@ -51,16 +50,16 @@ oo_core_fetch(OOCore *core)
 
             e = insn_latch_allocate(s->simcpu->insn_latch_pool);
 
-            /* Setup the allocated insn_latch_pool entry */
+            /* Setup the allocated latch */
             e->ins.pc = s->simcpu->pc;
             e->ins.create_str = s->sim_params->create_ins_str;
 
-            /* Store IMAP index in the stage and the actual decoded instruction
-             * info is stored in this IMAP entry. This avoids copying of whole
+            /* Store latch index in the stage and the actual decoded instruction
+             * info is stored in this latch entry. This avoids copying of whole
              * decoded instruction info when instruction flows to next stage */
             core->fetch.insn_latch_index = e->insn_latch_index;
 
-            do_fetch_stage_exec(s, e);
+            fetch_cpu_stage_exec(s, e);
             core->fetch.stage_exec_done = TRUE;
         }
         else
@@ -71,12 +70,12 @@ oo_core_fetch(OOCore *core)
         if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
             /* Number of CPU cycles spent by this instruction in fetch stage
-             * equals lookup delay for this instruction */
+             * equals cache lookup delay for this instruction */
 
-            /* Check if all the dram accesses, if required for this instruction,
-             * are complete */
-            if (!s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue
-                     .cur_size)
+            /* Wait on memory controller callback for any pending memory
+             * accesses */
+            if (!s->simcpu->mem_hierarchy->mem_controller
+                     ->frontend_mem_access_queue.cur_size)
             {
                 /* If the next stage is available, send this instruction to next
                    stage, else stall fetch */
@@ -132,10 +131,10 @@ oo_core_decode(OOCore *core)
         {
             if (!e->ins.exception && !e->is_decoded)
             {
-                do_decode_stage_exec(s, e);
-                if (s->simcpu->pfn_branch_frontend_decode_handler(s, e))
+                decode_cpu_stage_exec(s, e);
+                if (s->simcpu->bpu_decode_stage_handler(s, e))
                 {
-                    speculative_cpu_stage_flush(&core->fetch, s->simcpu->insn_latch_pool);
+                    cpu_stage_flush_free_insn_latch(&core->fetch, s->simcpu->insn_latch_pool);
                     core->fetch.has_data = TRUE;
                 }
                 e->is_decoded = TRUE;
@@ -225,7 +224,7 @@ update_rd_rat_mapping(OOCore *core, InstructionLatch *e)
 }
 
 static int
-stall_insn_dispatch(OOCore *core, InstructionLatch *e)
+stall_insn_dispatch(const OOCore *core, const InstructionLatch *e)
 {
     /* Before dispatching atomic instruction, make sure that all the prior
      * instructions are committed */

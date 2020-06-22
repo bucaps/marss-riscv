@@ -53,7 +53,7 @@
 #include "slirp/libslirp.h"
 #endif
 
-#include "riscvsim/utils/sim_params_stats.h"
+#include "riscvsim/utils/sim_params.h"
 
 #ifndef _WIN32
 typedef struct {
@@ -607,24 +607,25 @@ void virt_machine_run(VirtMachine *m)
 /*******************************************************/
 
 static struct option options[] = {
-    { "help", no_argument, NULL, 'h' },
-    { "ctrlc", no_argument },
-    { "rw", no_argument },
-    { "ro", no_argument },
-    { "append", required_argument },
-    { "no-accel", no_argument },
-    { "simstart", no_argument },
-    { "stats-display", no_argument },
-    { "mem-model", required_argument },
-    { "build-preload", required_argument },
-    { "flush-sim-mem", no_argument },
-    { "sim-trace", no_argument },
-    { NULL },
+    {"help", no_argument, NULL, 'h'},
+    {"ctrlc", no_argument},
+    {"rw", no_argument},
+    {"ro", no_argument},
+    {"append", required_argument},
+    {"no-accel", no_argument},
+    {"simstart", no_argument},
+    {"stats-display", no_argument},
+    {"mem-model", required_argument},
+    {"build-preload", required_argument},
+    {"flush-sim-mem", no_argument},
+    {"flush-bpu", no_argument},
+    {"sim-trace", no_argument},
+    {NULL},
 };
 
 void help(void)
 {
-    printf("marss-riscv version " CONFIG_VERSION ", Copyright (c) 2017-2019 Gaurav Kothari, Parikshit Sarnaik, Gokturk Yuksek\n"
+    printf("marss-riscv version " CONFIG_VERSION ", Copyright (c) 2017-2020 Gaurav Kothari, Parikshit Sarnaik, Gokturk Yuksek\n"
            "temu version 2018-09-23, Copyright (c) 2016-2017 Fabrice Bellard\n"
            "usage: marss-riscv [options] config_file\n"
            "options are:\n"
@@ -636,7 +637,8 @@ void help(void)
            "-simstart                   start (boot kernel) in simulation mode\n"
            "-stats-display              dump simulation performance stats to a shared memory location, read by stats-display tool\n"
            "-mem-model [base|dramsim2]  type of simulated memory model\n"
-           "-flush-sim-mem              Clear simulator memory hierarchy on every new simulation run\n"
+           "-flush-sim-mem              flush simulator memory hierarchy on every new simulation run\n"
+           "-flush-bpu                  flush branch prediction unit on every new simulation run\n"
            "-sim-trace                  Generate instruction commit trace during simulation\n"
            "\n"
            "Console keys:\n"
@@ -667,11 +669,12 @@ int main(int argc, char **argv)
     BOOL allow_ctrlc;
     BlockDeviceModeEnum drive_mode;
     VirtMachineParams p_s, *p = &p_s;
-    int marss_start_in_sim = 0;
-    int marss_stats_display = 0;
+    int marss_start_in_sim = FALSE;
+    int marss_stats_display = FALSE;
     int marss_mem_model = MEM_MODEL_BASE;
-    int marss_flush_mem = FALSE;
+    int marss_flush_sim_mem_on_simstart = FALSE;
     int marss_do_sim_trace = FALSE;
+    int marss_flush_bpu_on_simstart = FALSE;
 
     ram_size = -1;
     allow_ctrlc = FALSE;
@@ -727,9 +730,12 @@ int main(int argc, char **argv)
                 build_preload_file = optarg;
                 break;
             case 10: /* flush-sim-mem */
-                marss_flush_mem = TRUE;
+                marss_flush_sim_mem_on_simstart = TRUE;
                 break;
-            case 11: /* sim-trace */
+            case 11: /* flush-bpu */
+                marss_flush_bpu_on_simstart = TRUE;
+                break;
+            case 12: /* sim-trace */
                 marss_do_sim_trace = TRUE;
                 break;
             default:
@@ -777,7 +783,8 @@ int main(int argc, char **argv)
 
     p->sim_params->start_in_sim = marss_start_in_sim;
     p->sim_params->enable_stats_display = marss_stats_display;
-    p->sim_params->flush_sim_mem = marss_flush_mem;
+    p->sim_params->flush_sim_mem_on_simstart = marss_flush_sim_mem_on_simstart;
+    p->sim_params->flush_bpu_on_simstart = marss_flush_bpu_on_simstart;
     p->sim_params->do_sim_trace = marss_do_sim_trace;
 
     /* open the files & devices */

@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -61,9 +61,9 @@ in_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
     assert(core->fpu_fma);
 
     /* Create FU to Memory selection queue */
-    cq_init(&core->ins_dispatch_queue.cq, INCORE_NUM_INS_DISPATCH_QUEUE_ENTRY);
-    memset((void *)core->ins_dispatch_queue.data, 0,
-           sizeof(uint64_t) * INCORE_NUM_INS_DISPATCH_QUEUE_ENTRY);
+    cq_init(&core->ex_to_mem_queue.cq, INCORE_EX_TO_MEM_QUEUE_SIZE);
+    memset((void *)core->ex_to_mem_queue.data, 0,
+           sizeof(uint64_t) * INCORE_EX_TO_MEM_QUEUE_SIZE);
 
     /* Set pointer to 5 or 6 stage run() function */
     switch (p->num_cpu_stages)
@@ -114,15 +114,16 @@ in_core_reset(void *core_type)
     }
 
     /* Reset execution units */
-    exec_unit_flush(core->ialu, core->simcpu->params->num_alu_stages);
-    exec_unit_flush(core->imul, core->simcpu->params->num_mul_stages);
-    exec_unit_flush(core->idiv, core->simcpu->params->num_div_stages);
-    exec_unit_flush(core->fpu_fma, core->simcpu->params->num_fpu_fma_stages);
+    cpu_stage_flush_pipe(core->ialu, core->simcpu->params->num_alu_stages);
+    cpu_stage_flush_pipe(core->imul, core->simcpu->params->num_mul_stages);
+    cpu_stage_flush_pipe(core->idiv, core->simcpu->params->num_div_stages);
+    cpu_stage_flush_pipe(core->fpu_fma,
+                         core->simcpu->params->num_fpu_fma_stages);
     cpu_stage_flush(&core->fpu_alu);
 
     /* Reset EX to Memory queue */
     core->ins_dispatch_id = 0;
-    cq_reset(&core->ins_dispatch_queue.cq);
+    cq_reset(&core->ex_to_mem_queue.cq);
 
     /* Reset Data FWD latches */
     memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
@@ -146,13 +147,14 @@ in_core_free(void *core_type)
 }
 
 static int
-in_core_pipeline_drained(INCore *core)
+in_core_pipeline_drained(const INCore *core)
 {
     int i;
     RISCVSIMCPUState *simcpu = core->simcpu;
 
     if (core->pcgen.has_data || core->fetch.has_data || core->decode.has_data
-        || core->fpu_alu.has_data || core->memory.has_data || core->commit.has_data)
+        || core->fpu_alu.has_data || core->memory.has_data
+        || core->commit.has_data)
     {
         return PIPELINE_NOT_DRAINED;
     }
@@ -201,20 +203,21 @@ in_core_run(void *core_type)
     while (1)
     {
         /* Advance DRAM clock */
-        s->simcpu->mem_hierarchy->mem_controller->clock(s->simcpu->mem_hierarchy->mem_controller);
+        s->simcpu->mem_hierarchy->mem_controller->clock(
+            s->simcpu->mem_hierarchy->mem_controller);
 
         /* For 5-stage pipeline calls in_core_run_5_stage(), For 6-stage
          * pipeline calls in_core_run_6_stage() */
         if (core->pfn_incore_run_internal(core))
         {
-            return s->sim_exception_cause;
+            return s->simcpu->exception->cause;
         }
 
         /* If an exception occurred and pipeline is drained, safely exit from
          * simulation */
-        if (s->sim_exception && in_core_pipeline_drained(core))
+        if (s->simcpu->exception->pending && in_core_pipeline_drained(core))
         {
-            return s->sim_exception_cause;
+            return s->simcpu->exception->cause;
         }
 
         /* Advance simulation cycle */

@@ -36,18 +36,18 @@
 #include "dramsim_wrapper_c_connector.h"
 #include "memory_controller.h"
 
-static void
+void
 mem_controller_reset(MemoryController *m)
 {
-    m->flush_cpu_stage_queue(&m->frontend_mem_access_queue);
-    m->flush_cpu_stage_queue(&m->backend_mem_access_queue);
-    m->flush_mem_request_queue(m);
+    mem_controller_reset_cpu_stage_queue(&m->frontend_mem_access_queue);
+    mem_controller_reset_cpu_stage_queue(&m->backend_mem_access_queue);
+    mem_controller_reset_mem_request_queue(m);
 
     switch (m->dram_model_type)
     {
         case MEM_MODEL_BASE:
         {
-            m->base_dram->reset(m->base_dram);
+            base_dram_reset(m->base_dram);
             break;
         }
         case MEM_MODEL_DRAMSIM:
@@ -63,21 +63,21 @@ mem_controller_reset(MemoryController *m)
     }
 }
 
-static void
+void
 mem_controller_set_burst_length(MemoryController *m, int burst_length)
 {
     m->burst_length = burst_length;
 }
 
-static void
-mem_controller_flush_cpu_stage_queue(StageMemAccessQueue *q)
+void
+mem_controller_reset_cpu_stage_queue(StageMemAccessQueue *q)
 {
     q->cur_idx = 0;
     q->cur_size = 0;
 }
 
-static void
-mem_controller_flush_mem_request_queue(MemoryController *m)
+void
+mem_controller_reset_mem_request_queue(MemoryController *m)
 {
     cq_reset(&m->mem_request_queue.cq);
 }
@@ -92,7 +92,7 @@ fill_memory_request_entry(PendingMemAccessEntry *e, target_ulong paddr,
     e->valid = TRUE;
 }
 
-static int
+int
 mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
                                   int bytes_to_access, MemAccessType type,
                                   void *p_mem_access_info)
@@ -154,7 +154,7 @@ mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
     return 0;
 }
 
-static int
+int
 mem_controller_create_mem_request_pte(MemoryController *m, target_ulong paddr,
                                       int bytes_to_access, MemAccessType type,
                                       void *p_mem_access_info)
@@ -205,16 +205,16 @@ mem_controller_clock_base(MemoryController *m)
 {
     PendingMemAccessEntry *e;
 
-    if (m->base_dram->can_accept_request(m->base_dram))
+    if (base_dram_can_accept_request(m->base_dram))
     {
         if (!cq_empty(&m->mem_request_queue.cq))
         {
             e = &m->mem_request_queue.entry[cq_front(&m->mem_request_queue.cq)];
-            m->base_dram->send_request(m->base_dram, e);
+            base_dram_send_request(m->base_dram, e);
         }
     }
 
-    if (m->base_dram->clock(m->base_dram))
+    if (base_dram_clock(m->base_dram))
     {
         cq_dequeue(&m->mem_request_queue.cq);
     }
@@ -266,13 +266,6 @@ mem_controller_init(const SimParams *p)
     memset((void *)m->mem_request_queue.entry, 0,
            sizeof(PendingMemAccessEntry) * MEM_REQUEST_QUEUE_SIZE);
 
-    m->reset = &mem_controller_reset;
-    m->flush_cpu_stage_queue = &mem_controller_flush_cpu_stage_queue;
-    m->flush_mem_request_queue = &mem_controller_flush_mem_request_queue;
-    m->set_burst_length = &mem_controller_set_burst_length;
-    m->create_mem_request = &mem_controller_create_mem_request;
-    m->create_mem_request_pte = &mem_controller_create_mem_request_pte;
-
     PRINT_INIT_MSG("Setting up dram");
 
     switch (m->dram_model_type)
@@ -281,7 +274,7 @@ mem_controller_init(const SimParams *p)
         {
             PRINT_INIT_MSG("Setting up base dram model");
             m->clock = &mem_controller_clock_base;
-            m->set_burst_length(m, p->burst_length);
+            mem_controller_set_burst_length(m, p->burst_length);
             m->base_dram = base_dram_create(p, &m->frontend_mem_access_queue,
                                             &m->backend_mem_access_queue);
             break;
@@ -295,7 +288,7 @@ mem_controller_init(const SimParams *p)
                 &m->frontend_mem_access_queue, &m->backend_mem_access_queue);
 
             m->clock = &mem_controller_clock_dramsim;
-            m->set_burst_length(m, dramsim_get_burst_size());
+            mem_controller_set_burst_length(m, dramsim_get_burst_size());
             break;
         }
         default:

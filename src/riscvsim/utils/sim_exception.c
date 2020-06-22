@@ -1,5 +1,5 @@
 /**
- * Return address stack
+ * Exception context setup during simulation
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
@@ -27,87 +27,59 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "ras.h"
+#include "../../cutils.h"
+#include "sim_exception.h"
 
 void
-ras_flush(Ras *ras)
+sim_exception_set(SimException *s, const InstructionLatch *e)
 {
-    ras->cur_size = 0;
-    ras->sptop = ras->max_size - 1;
-    ras->spfill = 0;
-    ras->empty_reg = 0;
-}
-
-int
-ras_empty(const Ras *ras)
-{
-    return (!ras->cur_size);
+    s->pending = TRUE;
+    s->pc = e->ins.pc;
+    s->cause = e->ins.exception_cause;
+    s->insn = e->ins.binary;
+    strncpy(s->insn_str, e->ins.str, RISCV_INS_STR_MAX_LENGTH);
+    s->insn_str[RISCV_INS_STR_MAX_LENGTH - 1] = '\0';
 }
 
 void
-ras_push(Ras *ras, target_ulong pc)
+sim_exception_set_timeout(SimException *s, const InstructionLatch *e)
 {
-    ras->entry[ras->spfill] = pc;
-    ras->sptop = ras->spfill;
-    ras->spfill++;
-    ras->cur_size++;
+    s->pending = TRUE;
+    s->cause = SIM_TIMEOUT_EXCEPTION;
 
-    /* Overflow */
-    if (ras->spfill >= ras->max_size)
+    /* In case if the committed instruction was a branch, after processing
+       the timer, we must resume at this branch's target if it was taken */
+    if (unlikely(e->ins.is_branch && e->is_branch_taken))
     {
-        ras->spfill = 0;
+        s->pc = e->branch_target;
+    }
+    else
+    {
+        /* Else resume at next PC in sequence */
+        if ((e->ins.binary & 3) != 3)
+        {
+            s->pc = e->ins.pc + 2; /* Current instruction is compressed */
+        }
+        else
+        {
+            s->pc = e->ins.pc + 4;
+        }
     }
 }
 
-target_ulong
-ras_pop(Ras *ras)
+SimException *
+sim_exception_init()
 {
-    target_ulong ret_addr;
+    SimException *s;
 
-    if (ras_empty(ras))
-    {
-        /* For empty RAS, return the last popped address in RAS empty register*/
-        return ras->empty_reg;
-    }
-
-    ret_addr = ras->entry[ras->sptop];
-    ras->spfill = ras->sptop;
-    ras->sptop--;
-    ras->cur_size--;
-
-    /* Underflow */
-    if (ras->sptop < 0)
-    {
-        ras->sptop = ras->max_size - 1;
-    }
-
-    /* save pop address into empty register */
-    ras->empty_reg = ret_addr;
-    return ret_addr;
-}
-
-Ras *
-ras_init(const SimParams *p)
-{
-    Ras *r;
-
-    r = calloc(1, sizeof(Ras));
-    assert(r);
-
-    r->entry = calloc(p->ras_size, sizeof(target_ulong));
-    assert(r->entry);
-
-    r->max_size = p->ras_size;
-    ras_flush(r);
-    return r;
+    s = calloc(1, sizeof(SimException));
+    assert(s);
+    return s;
 }
 
 void
-ras_free(Ras **ras)
+sim_exception_free(SimException **s)
 {
-    free((*ras)->entry);
-    (*ras)->entry = NULL;
-
-    free(*ras);
-    *ras = NULL;
+    free(*s);
+    *s = NULL;
 }

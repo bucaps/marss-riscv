@@ -1,11 +1,11 @@
 /**
- * RISC-V Instruction Decoding Library
+ * RISC-V Instruction Decoding Logic
  *
  * Copyright (c) 2016-2017 Fabrice Bellard
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -36,7 +36,6 @@
 
 #include "../../cutils.h"
 #include "../riscv_sim_typedefs.h"
-#include "riscv_ins_str_creator.h"
 #include "riscv_instruction.h"
 
 static inline int32_t
@@ -1128,10 +1127,10 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 switch (ins->funct7)
                 {
 #define F_SIZE 32
-#include "decode_fpa_template.h"
+#include "fp_decode_template.h"
 #if SIM_FLEN >= 64
 #define F_SIZE 64
-#include "decode_fpa_template.h"
+#include "fp_decode_template.h"
 #endif
                     default:
                         goto exception;
@@ -1148,7 +1147,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
     /* Generate instruction string */
     if (ins->create_str)
     {
-        get_riscv_ins_str(ins);
+        generate_riscv_instruction_string(ins);
     }
     return;
 exception:

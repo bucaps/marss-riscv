@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -31,7 +31,7 @@
 #define _ADAPTIVE_PREDICTOR_H_
 
 #include "../riscv_sim_typedefs.h"
-#include "../utils/sim_params_stats.h"
+#include "../utils/sim_params.h"
 
 /* Adaptive Predictor Level 1: Global History Table (GHT) Entry */
 typedef struct GHTEntry
@@ -53,21 +53,30 @@ typedef struct AdaptivePredictor
     PHTEntry *pht;           /* PHT */
     int ght_size;            /* Number of entries in GHT */
     int pht_size;            /* Number of entries in PHT */
-    uint32_t ght_index_bits; /* Number of lowest bits of PC required to index into GHT */
-    uint32_t pht_index_bits; /* Number of lowest bits of PC required to index into PHT */
-    uint32_t hreg_bits;      /* Number of bits in history register present in GHT entry */
-    int type;                /* Type of adaptive predictor scheme used (GAg, GAp, PAg, PAp),
-                                based on ght_size and pht_size*/
-    uint32_t (*pfn_ap_aliasing_func)(struct AdaptivePredictor *a, uint32_t hr,
-                                     target_ulong pc); /* Type of aliasing function (and, xor or none) to apply for GAg based schemes */
+    uint32_t ght_index_bits; /* Number of lowest bits of PC required to index
+                                into GHT */
+    uint32_t pht_index_bits; /* Number of lowest bits of PC required to index
+                                into PHT */
 
-    int (*probe)(struct AdaptivePredictor *a, target_ulong pc);
-    int (*get_prediction)(struct AdaptivePredictor *a, target_ulong pc);
-    void (*add)(struct AdaptivePredictor *a, target_ulong pc);
-    void (*update)(struct AdaptivePredictor *a, target_ulong pc, int pred);
-    void (*flush)(struct AdaptivePredictor *a);
+    /* Number of bits in history register present in GHT entry */
+    uint32_t hreg_bits;
+
+    /* Type of adaptive predictor scheme used (GAg, GAp, PAg, PAp), based on
+     * ght_size and pht_size*/
+    int type;
+
+    /* Type of aliasing function (and, xor or none) to apply for GAg based
+     * schemes */
+    uint32_t (*pfn_ap_aliasing_func)(const struct AdaptivePredictor *a,
+                                     uint32_t hr, target_ulong pc);
 } AdaptivePredictor;
 
-AdaptivePredictor * adaptive_predictor_init(const SimParams *p);
+AdaptivePredictor *adaptive_predictor_init(const SimParams *p);
 void adaptive_predictor_free(AdaptivePredictor **a);
+void adaptive_predictor_add(AdaptivePredictor *a, target_ulong pc);
+void adaptive_predictor_update(AdaptivePredictor *a, target_ulong pc, int pred);
+void adaptive_predictor_flush(AdaptivePredictor *a);
+int adaptive_predictor_probe(const AdaptivePredictor *a, target_ulong pc);
+int adaptive_predictor_get_prediction(const AdaptivePredictor *a,
+                                      target_ulong pc);
 #endif

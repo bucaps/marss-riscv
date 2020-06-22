@@ -1,12 +1,9 @@
 /**
- * RISC-V Instruction Decoding Library
+ * Simulation Trace Generator Utility
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
- * State University of New York at Binghamton
- *
- * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
+ * Copyright (c) 2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,13 +24,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef _RISCV_ISA_DECODER_LIB_H_
-#define _RISCV_ISA_DECODER_LIB_H_
+#ifndef _SIM_TRACE_H_
+#define _SIM_TRACE_H_
 
 #include <inttypes.h>
+#include <stdio.h>
 
-#include "riscv_instruction.h"
+#include "cpu_latches.h"
+#include "sim_exception.h"
 
-void decode_riscv_binary(RVInstruction *, uint32_t);
+typedef struct SimTrace
+{
+    FILE *trace_fp;
+} SimTrace;
 
+SimTrace *sim_trace_init();
+void sim_trace_start(SimTrace *s, const char *filename);
+void sim_trace_stop(SimTrace *s);
+void sim_trace_commit(const SimTrace *s, uint64_t clock_cycle, int cpu_mode,
+                      InstructionLatch *e);
+void sim_trace_exception(const SimTrace *s, uint64_t clock_cycle, int cpu_mode,
+                         SimException *e);
+void sim_trace_free(SimTrace **s);
 #endif

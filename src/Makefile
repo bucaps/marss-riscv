@@ -5,7 +5,7 @@
 #
 # MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
 #
-# Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+# Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
 # State University of New York at Binghamton
 #
 # Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -59,6 +59,10 @@ ifdef CONFIG_FS_NET
 PROGS+=build_filelist splitimg
 endif
 
+# For colored compile messages
+GREEN:= $(shell tput -Txterm setaf 2)
+RESET := $(shell tput -Txterm sgr0)
+
 # ===============================================================================================
 # Top-level object variables needed by the simulator
 
@@ -70,12 +74,12 @@ SIM_OBJ_FILE=riscvsim.o
 CFLAGS+=-DMAX_XLEN=$(CONFIG_XLEN)
 
 # Simulator Object Files
-SIM_UTILS:=$(addprefix riscvsim/utils/, evict_policy.o circular_queue.o sim_params_stats.o)
-SIM_DECODER_OBJS:=$(addprefix riscvsim/decoder/, riscv_ins_str_creator.o riscv_isa_decoder.o riscv_ins_execute.o)
+SIM_UTILS:=$(addprefix riscvsim/utils/, sim_exception.o sim_trace.o cpu_latches.o evict_policy.o circular_queue.o sim_params.o sim_stats.o)
+SIM_DECODER_OBJS:=$(addprefix riscvsim/decoder/, riscv_isa_string_generator.o riscv_isa_decoder.o riscv_isa_execute.o)
 SIM_BPU_OBJS:=$(addprefix riscvsim/bpu/, ras.o bht.o btb.o adaptive_predictor.o bpu.o)
-SIM_MEM_HY_OBJS:=$(addprefix riscvsim/memory_hierarchy/, base_dram.o memory_hierarchy.o memory_controller.o cache.o )
+SIM_MEM_HY_OBJS:=$(addprefix riscvsim/memory_hierarchy/, temu_mem_map_wrapper.o base_dram.o memory_hierarchy.o memory_controller.o cache.o )
 SIM_IN_CORE_OBJS:=$(addprefix riscvsim/core/, inorder_frontend.o inorder_backend.o inorder.o)
-SIM_CORE_OBJS:=$(addprefix riscvsim/core/, common_core_utils.o  riscv_sim_cpu.o)
+SIM_CORE_OBJS:=$(addprefix riscvsim/core/, riscv_sim_cpu.o)
 SIM_OO_CORE_OBJS:=$(addprefix riscvsim/core/, ooo_frontend.o ooo_branch.o ooo_lsu.o ooo_backend.o ooo.o)
 SIM_OBJS:=$(SIM_UTILS) $(SIM_DECODER_OBJS) $(SIM_BPU_OBJS) $(SIM_MEM_HY_OBJS) $(SIM_CORE_OBJS) $(SIM_IN_CORE_OBJS) $(SIM_OO_CORE_OBJS)
 
@@ -130,15 +134,16 @@ riscvsim.o: $(SIM_OBJS)
 	$(LD) -r -o $@ $^ $(SIM_LIBS)
 
 # Simulation statistics display utility
-stats-display: stats_display.c
-	$(CC) stats_display.c -o stats-display -lrt
+stats-display: stats_display.o
+	$(CC) -o stats-display stats_display.o -lrt
 # ===============================================================================================
 
 marss-riscv$(EXE): $(SIM_OBJ_FILE) $(EMU_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS) -L. -ldramsim_wrapper_c_connector -Wl,-rpath=.
 
 riscv_cpu.o: riscv_cpu.c
-	$(CC) $(CFLAGS) -DMAX_XLEN=$(CONFIG_XLEN) -c -o $@ $<
+	@$(CC) $(CFLAGS) -DMAX_XLEN=$(CONFIG_XLEN) -c -o $@ $<
+	@echo "${GREEN}compiling:${RESET}: $<"
 
 build_filelist: build_filelist.o fs_utils.o cutils.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
@@ -151,7 +156,8 @@ install: $(PROGS)
 	$(INSTALL) -m755 $(PROGS) "$(DESTDIR)$(bindir)"
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	@$(CC) $(CFLAGS) -c -o $@ $<
+	@echo "${GREEN}compiling:${RESET} $<"
 
 clean:
 	rm -f *.o *.d *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/bpu/*.d riscvsim/core/*.d  riscvsim/decoder/*.d riscvsim/utils/*.d  riscvsim/memory_hierarchy/*.d $(DRAMSIM2_OBJS) $(SIM_OBJS)

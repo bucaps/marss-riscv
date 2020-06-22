@@ -5,7 +5,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -242,98 +242,22 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
     code_end = NULL;
     code_to_pc_addend = s->pc;
 
-    if (s->start_simulation)
-    {
-        s->simulation = TRUE;
-        s->start_simulation = FALSE;
-        s->simcpu->clock = 0;
-
-        /* Reset simulation stats */
-        sim_stats_reset(s->simcpu->stats);
-
-        START_SIM_TIMER(s->sim_start);
-
-        /* Reset BPU at every new simulation run */
-        if (s->sim_params->enable_bpu)
-        {
-            s->simcpu->bpu->flush(s->simcpu->bpu);
-        }
-
-        /* Reset Caches at every new simulation run */
-        if (s->sim_params->enable_l1_caches)
-        {
-            s->simcpu->mem_hierarchy->icache->reset_stats(s->simcpu->mem_hierarchy->icache);
-            s->simcpu->mem_hierarchy->dcache->reset_stats(s->simcpu->mem_hierarchy->dcache);
-
-            if (s->sim_params->flush_sim_mem)
-            {
-                s->simcpu->mem_hierarchy->icache->flush(s->simcpu->mem_hierarchy->icache);
-                s->simcpu->mem_hierarchy->dcache->flush(s->simcpu->mem_hierarchy->dcache);
-            }
-
-            if (s->sim_params->enable_l2_cache)
-            {
-                s->simcpu->mem_hierarchy->l2_cache->reset_stats(s->simcpu->mem_hierarchy->l2_cache);
-
-                if (s->sim_params->flush_sim_mem)
-                {
-                    s->simcpu->mem_hierarchy->l2_cache->flush(s->simcpu->mem_hierarchy->l2_cache);
-                }
-            }
-        }
-
-        /* Reset DRAMs at every new simulation run */
-        switch (s->simcpu->mem_hierarchy->mem_controller->dram_model_type)
-        {
-            case MEM_MODEL_BASE:
-            {
-                break;
-            }
-            case MEM_MODEL_DRAMSIM:
-            {
-                dramsim_wrapper_destroy();
-                dramsim_wrapper_init(
-                    s->sim_params->dramsim_ini_file,
-                    s->sim_params->dramsim_system_ini_file,
-                    s->sim_params->dramsim_stats_dir, s->sim_params->core_name,
-                    s->sim_params->guest_ram_size,
-                    &s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue,
-                    &s->simcpu->mem_hierarchy->mem_controller->backend_mem_access_queue);
-                break;
-            }
-        }
-
-        /* Open trace file if running in trace mode */
-        if (s->simcpu->params->do_sim_trace)
-        {
-            s->sim_trace = fopen(s->sim_params->sim_trace_file, "w");
-            assert(s->sim_trace);
-            s->sim_params->create_ins_str = TRUE;
-        }
-
-        fprintf(stderr, "(marss-riscv): Switching to full-system simulation "
-                        "mode at pc = 0x%" PR_target_ulong "\n",
-                s->pc);
-    }
-
-    if (s->simulation)
+    if (s->simcpu->simulation)
     {
         /* Prepare the simulation context */
         s->code_ptr = code_ptr;
         s->code_end = code_end;
         s->code_to_pc_addend = code_to_pc_addend;
-        s->sim_n_cycles = s->n_cycles;
 
         /* Switch to simulation */
-        sim_exit_status = switch_to_cpu_simulation(s);
+        sim_exit_status = riscv_sim_cpu_switch_to_cpu_simulation(s->simcpu);
 
         /* Exit from simulation due to an exception */
-        s->n_cycles = s->sim_n_cycles;
         code_ptr = NULL;
         code_end = NULL;
 
         /* Set PC to the instruction which caused exception */
-        code_to_pc_addend = s->sim_epc;
+        code_to_pc_addend = s->simcpu->exception->pc;
         // s->pc = s->sim_epc;
 
         /* Process exception and replay the instruction in the emulator (only
@@ -345,7 +269,8 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                 /* Illegal opcode */
                 if (s->simcpu->params->do_sim_trace)
                 {
-                    sim_print_exp_trace(s);
+                    sim_trace_exception(s->simcpu->trace, s->simcpu->clock,
+                                        s->priv, s->simcpu->exception);
                 }
                 goto illegal_insn;
                 break;
@@ -355,7 +280,7 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
             {
                 /* Includes SYSTEM opcode instructions (eg, ecall,ebreak) which
                  * we simulate.in a single cycle  */
-                s->return_to_sim = 1;
+                s->simcpu->return_to_sim = TRUE;
                 ++s->simcpu->stats[s->priv].ins_simulated;
 
                 /* For counting system opcode instructions, because stats for
@@ -366,7 +291,8 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
 
                 if (s->simcpu->params->do_sim_trace)
                 {
-                    sim_print_exp_trace(s);
+                    sim_trace_exception(s->simcpu->trace, s->simcpu->clock,
+                                        s->priv, s->simcpu->exception);
                 }
                 break;
             }
@@ -379,7 +305,8 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                 assert(s->n_cycles == 0);
                 if (s->simcpu->params->do_sim_trace)
                 {
-                    sim_print_exp_trace(s);
+                    sim_trace_exception(s->simcpu->trace, s->simcpu->clock,
+                                        s->priv, s->simcpu->exception);
                 }
                 break;
             }
@@ -388,7 +315,8 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
             {
                 if (s->simcpu->params->do_sim_trace)
                 {
-                    sim_print_exp_trace(s);
+                    sim_trace_exception(s->simcpu->trace, s->simcpu->clock,
+                                        s->priv, s->simcpu->exception);
                 }
                 /* Directly go to mmu_exception as TLB lookup is finished on
                  * simulation side and the relevant exception cause (page fault,
@@ -1427,13 +1355,12 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                 val2 = (intx_t)val2;
                 switch (run_mode) {
                     case MODE_SIM_START: {
-                        start_system_simulation(s, GET_PC() + 4,
-                                            GET_INSN_COUNTER());
+                        riscv_sim_cpu_start(s->simcpu, GET_PC() + 4);
                         s->pc = GET_PC() + 4;
                         goto the_end;
                     }
                     case MODE_SIM_STOP: {
-                        stop_system_simulation(s, GET_PC(), GET_INSN_COUNTER());
+                        riscv_sim_cpu_stop(s->simcpu, GET_PC());
                         s->pc = GET_PC() + 4;
                         goto the_end;
                     }
@@ -1466,7 +1393,7 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                 case 0x000: /* ecall */
                     if (insn & 0x000fff80)
                         goto illegal_insn;
-                    if (s->simulation)
+                    if (s->simcpu->simulation)
                     {
                         ++s->simcpu->stats[s->priv].ecall;
                     }
@@ -1901,15 +1828,15 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
     jump_insn: ;
 
         /* Return to simulation as complex opcode emulation is complete */
-        if (s->return_to_sim)
+        if (s->simcpu->return_to_sim)
         {
-            s->return_to_sim = 0;
+            s->simcpu->return_to_sim = FALSE;
             s->pc = GET_PC();
             goto the_end;
         }
 
         /* Control should never reach here during simulation */
-        if (s->simulation)
+        if (s->simcpu->simulation)
         {
             assert(0);
         }

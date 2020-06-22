@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -30,8 +30,9 @@
 #ifndef _RISCV_INSTRUCTION_H_
 #define _RISCV_INSTRUCTION_H_
 
-#include "../riscv_sim_typedefs.h"
 #include <inttypes.h>
+
+#include "../riscv_sim_typedefs.h"
 
 typedef struct RVInstruction
 {
@@ -68,7 +69,7 @@ typedef struct RVInstruction
 
     /* Rounding Mode, used by floating Point */
     uint32_t rm;
-    
+
     /* Instruction string */
     char str[RISCV_INS_STR_MAX_LENGTH];
     int create_str;
@@ -120,4 +121,10 @@ typedef struct RVInstruction
     int type;
     int data_class;
 } RVInstruction;
+
+/* Decode RISC-V instruction in binary format and fill the decoded information
+ * in RVInstruction struct */
+void decode_riscv_binary(RVInstruction *, uint32_t);
+void generate_riscv_instruction_string(RVInstruction *i);
+void execute_riscv_instruction(RVInstruction *i, uint32_t *fflags);
 #endif /* End RVInstruction */

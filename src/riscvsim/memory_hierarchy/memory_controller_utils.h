@@ -30,10 +30,9 @@
 #include "../riscv_sim_typedefs.h"
 
 /* Memory operation type */
-typedef enum MemAccessType
-{
-    Read = 0x0,
-    Write = 0x1,
+typedef enum MemAccessType {
+    MEM_ACCESS_READ = 0x0,
+    MEM_ACCESS_WRITE = 0x1,
 } MemAccessType;
 
 typedef struct PendingMemAccessEntry

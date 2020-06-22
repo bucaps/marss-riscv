@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -59,12 +59,13 @@ read_data_internal(const Cache *c, target_ulong paddr, int bytes_to_read,
     /* Read from next-level cache if present, otherwise from memory */
     if (NULL != c->next_level_cache)
     {
-        return c->read(c->next_level_cache, paddr, bytes_to_read,
-                       p_mem_access_info, priv);
+        return cache_read(c->next_level_cache, paddr, bytes_to_read,
+                          p_mem_access_info, priv);
     }
 
-    return c->mem_controller->create_mem_request(
-        c->mem_controller, paddr, bytes_to_read, Read, p_mem_access_info);
+    return mem_controller_create_mem_request(c->mem_controller, paddr,
+                                             bytes_to_read, MEM_ACCESS_READ,
+                                             p_mem_access_info);
 }
 
 static int
@@ -110,7 +111,7 @@ read_no_allocate_handler(const Cache *c, target_ulong paddr, int bytes_to_read,
     return read_data_internal(c, paddr, bytes_to_read, p_mem_access_info, priv);
 }
 
-static int
+int
 cache_read(const Cache *c, target_ulong paddr, int bytes_to_read,
            void *p_mem_access_info, int priv)
 {
@@ -220,12 +221,13 @@ writethrough_handler(const Cache *c, target_ulong paddr, int bytes_to_write,
     /* Propagate write to next-level cache if available, memory otherwise */
     if (NULL != c->next_level_cache)
     {
-        return c->write(c->next_level_cache, paddr, bytes_to_write,
-                        p_mem_access_info, priv);
+        return cache_write(c->next_level_cache, paddr, bytes_to_write,
+                           p_mem_access_info, priv);
     }
 
-    return c->mem_controller->create_mem_request(
-        c->mem_controller, paddr, bytes_to_write, Write, p_mem_access_info);
+    return mem_controller_create_mem_request(c->mem_controller, paddr,
+                                             bytes_to_write, MEM_ACCESS_WRITE,
+                                             p_mem_access_info);
 }
 
 static int
@@ -274,12 +276,13 @@ write_no_allocate_handler(const Cache *c, target_ulong paddr,
      * available, memory otherwise */
     if (NULL != c->next_level_cache)
     {
-        return c->write(c->next_level_cache, paddr, bytes_to_write,
-                        p_mem_access_info, priv);
+        return cache_write(c->next_level_cache, paddr, bytes_to_write,
+                           p_mem_access_info, priv);
     }
 
-    return c->mem_controller->create_mem_request(
-        c->mem_controller, paddr, bytes_to_write, Write, p_mem_access_info);
+    return mem_controller_create_mem_request(c->mem_controller, paddr,
+                                             bytes_to_write, MEM_ACCESS_WRITE,
+                                             p_mem_access_info);
 }
 
 static int
@@ -296,16 +299,16 @@ writeback_victim_evict_handler(const Cache *c, CacheBlk *pBlk, int set, int way,
         {
             if (NULL != c->next_level_cache)
             {
-                latency += c->write(c->next_level_cache,
-                                    (pBlk->tag << c->word_bits),
-                                    (WORD_SIZE * c->max_words_per_blk),
-                                    p_mem_access_info, priv);
+                latency += cache_write(c->next_level_cache,
+                                       (pBlk->tag << c->word_bits),
+                                       (WORD_SIZE * c->max_words_per_blk),
+                                       p_mem_access_info, priv);
             }
             else
             {
-                latency += c->mem_controller->create_mem_request(
+                latency += mem_controller_create_mem_request(
                     c->mem_controller, pBlk->tag << c->word_bits,
-                    (WORD_SIZE * c->max_words_per_blk), Write,
+                    (WORD_SIZE * c->max_words_per_blk), MEM_ACCESS_WRITE,
                     p_mem_access_info);
             }
         }
@@ -325,7 +328,7 @@ writethrough_victim_evict_handler(const Cache *c, CacheBlk *pBlk, int set,
     return 0;
 }
 
-static int
+int
 cache_write(const Cache *c, target_ulong paddr, int bytes_to_write,
             void *p_mem_access_info, int priv)
 {
@@ -415,7 +418,7 @@ cache_write(const Cache *c, target_ulong paddr, int bytes_to_write,
     return latency;
 }
 
-static void
+void
 cache_flush(Cache *c)
 {
     int i;
@@ -428,18 +431,19 @@ cache_flush(Cache *c)
     }
 }
 
-static const CacheStats *
+const CacheStats *
 cache_get_stats(const Cache *c)
 {
     return (const CacheStats *)(c->stats);
 }
 
-static void
+void
 cache_reset_stats(Cache *c)
 {
     memset((void *)c->stats, 0, NUM_MAX_PRV_LEVELS * sizeof(CacheStats));
 }
 
+#if 0
 static void
 cache_print_config(const Cache *c)
 {
@@ -468,6 +472,7 @@ cache_print_config(const Cache *c)
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 }
+#endif
 
 static int
 get_num_cache_blks(int size_kb, int cache_line_size)
@@ -589,13 +594,6 @@ cache_init(CacheTypes type, CacheLevels level, int size_kb, int cache_line_size,
             break;
         }
     }
-
-    c->read = &cache_read;
-    c->write = &cache_write;
-    c->flush = &cache_flush;
-    c->print_config = &cache_print_config;
-    c->reset_stats = &cache_reset_stats;
-    c->get_stats = &cache_get_stats;
 
     return c;
 }

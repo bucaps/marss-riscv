@@ -5,7 +5,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -88,7 +88,7 @@
 #define NUM_FP_REG 32
 #define NUM_FU 5 /* ALU, MUL, DIV, FP ALU, FP FMA */
 #define NUM_FWD_BUS 6 /* Total 6 forwarding buses, 5 for functional units  and 1 for memory stage */
-#define INCORE_NUM_INS_DISPATCH_QUEUE_ENTRY 16
+#define INCORE_EX_TO_MEM_QUEUE_SIZE 16
 #define SPEC_REG_STATE_ENTRY 128
 
 #define RISCV_INS_STR_MAX_LENGTH 64
@@ -144,8 +144,6 @@
 #define SIM_COMPLEX_OPCODE 0x2
 #define SIM_TIMEOUT_EXCEPTION 0x3
 #define SIM_MMU_EXCEPTION 0x4
-
-#define REALTIME_STATS_CLOCK_CYCLES_INTERVAL 500000
 
 /* Instruction types processed by FPU ALU. This is used to set the latencies. */
 #define FU_FPU_ALU_FADD 0x0

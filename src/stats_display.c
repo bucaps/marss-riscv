@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -41,7 +41,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "riscvsim/utils/sim_params_stats.h"
+#include "riscvsim/utils/sim_params.h"
+#include "riscvsim/utils/sim_stats.h"
 
 #define GET_TOTAL_STAT(attr) (s[0].attr + s[1].attr + s[2].attr + s[3].attr)
 
@@ -87,8 +88,9 @@ retry:
     }
     if (noent_print)
         fprintf(stderr, "\n");
-    if ((s = (SimStats *)mmap(NULL, NUM_MAX_PRV_LEVELS * sizeof(SimStats), PROT_READ | PROT_WRITE,
-                              MAP_SHARED, stats_shm_fd, 0))
+    if ((s = (SimStats *)mmap(NULL, NUM_MAX_PRV_LEVELS * sizeof(SimStats),
+                              PROT_READ | PROT_WRITE, MAP_SHARED, stats_shm_fd,
+                              0))
         == MAP_FAILED)
     {
         fprintf(stderr, "cannot mmap shm %s:", MARSS_STATS_SHM_NAME);
@@ -103,7 +105,6 @@ print_header()
            "MARSS-RISCV : Micro-Architectural System Simulator for RISC-V");
     printf("%s\n\n", "Terminal based Simulation Statistics Viewer");
 }
-
 
 static void
 print_ins_stats()
@@ -127,9 +128,13 @@ print_bpu_stats()
 {
     uint64_t btb_probes = GET_TOTAL_STAT(btb_probes);
     uint64_t btb_hits = GET_TOTAL_STAT(btb_hits);
-    uint64_t correct_pred = GET_TOTAL_STAT(bpu_cond_correct) + GET_TOTAL_STAT(bpu_uncond_correct);
-    uint64_t incorrect_pred = GET_TOTAL_STAT(bpu_cond_incorrect) + GET_TOTAL_STAT(bpu_uncond_incorrect);
-    uint64_t total_branches = GET_TOTAL_STAT(ins_type[INS_TYPE_COND_BRANCH]) + GET_TOTAL_STAT(ins_type[INS_TYPE_JAL]) + GET_TOTAL_STAT(ins_type[INS_TYPE_JALR]);
+    uint64_t correct_pred
+        = GET_TOTAL_STAT(bpu_cond_correct) + GET_TOTAL_STAT(bpu_uncond_correct);
+    uint64_t incorrect_pred = GET_TOTAL_STAT(bpu_cond_incorrect)
+                              + GET_TOTAL_STAT(bpu_uncond_incorrect);
+    uint64_t total_branches = GET_TOTAL_STAT(ins_type[INS_TYPE_COND_BRANCH])
+                              + GET_TOTAL_STAT(ins_type[INS_TYPE_JAL])
+                              + GET_TOTAL_STAT(ins_type[INS_TYPE_JALR]);
 
     printf("%-22s : %-22" PRIu64 "\n", "btb-probes", btb_probes);
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "btb-hits", btb_hits,
@@ -169,11 +174,16 @@ print_tlb_stats()
 static void
 print_caches_stats()
 {
-    uint64_t icache_hit = GET_TOTAL_STAT(icache_read) - GET_TOTAL_STAT(icache_read_miss);
-    uint64_t dcache_read_hit = GET_TOTAL_STAT(dcache_read) - GET_TOTAL_STAT(dcache_read_miss);
-    uint64_t dcache_write_hit = GET_TOTAL_STAT(dcache_write) - GET_TOTAL_STAT(dcache_write_miss);
-    uint64_t l2_cache_read_hit = GET_TOTAL_STAT(l2_cache_read) - GET_TOTAL_STAT(l2_cache_read_miss);
-    uint64_t l2_cache_write_hit = GET_TOTAL_STAT(l2_cache_write) - GET_TOTAL_STAT(l2_cache_write_miss);
+    uint64_t icache_hit
+        = GET_TOTAL_STAT(icache_read) - GET_TOTAL_STAT(icache_read_miss);
+    uint64_t dcache_read_hit
+        = GET_TOTAL_STAT(dcache_read) - GET_TOTAL_STAT(dcache_read_miss);
+    uint64_t dcache_write_hit
+        = GET_TOTAL_STAT(dcache_write) - GET_TOTAL_STAT(dcache_write_miss);
+    uint64_t l2_cache_read_hit
+        = GET_TOTAL_STAT(l2_cache_read) - GET_TOTAL_STAT(l2_cache_read_miss);
+    uint64_t l2_cache_write_hit
+        = GET_TOTAL_STAT(l2_cache_write) - GET_TOTAL_STAT(l2_cache_write_miss);
 
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "icache-hits", icache_hit,
            ((double)icache_hit / (double)GET_TOTAL_STAT(icache_read)) * 100);
@@ -190,11 +200,13 @@ print_caches_stats()
 
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "l2-shared-read-hits",
            l2_cache_read_hit,
-           ((double)l2_cache_read_hit / (double)GET_TOTAL_STAT(l2_cache_read)) * 100);
+           ((double)l2_cache_read_hit / (double)GET_TOTAL_STAT(l2_cache_read))
+               * 100);
 
     printf("%-22s : %-22" PRIu64 " (%0.2lf %%)\n", "l2-shared-write-hits",
            l2_cache_write_hit,
-           ((double)l2_cache_write_hit / (double)GET_TOTAL_STAT(l2_cache_write)) * 100);
+           ((double)l2_cache_write_hit / (double)GET_TOTAL_STAT(l2_cache_write))
+               * 100);
 
     printf("\n");
 }
@@ -223,6 +235,7 @@ main(int argc, char const *argv[])
         print_header();
         print_ins_stats();
         print_bpu_stats();
+        print_tlb_stats();
         print_caches_stats();
         print_exception_stats();
         usleep(100000);

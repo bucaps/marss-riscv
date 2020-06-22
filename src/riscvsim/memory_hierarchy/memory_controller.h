@@ -35,7 +35,7 @@
 #include "../../cutils.h"
 #include "../riscv_sim_typedefs.h"
 #include "../utils/circular_queue.h"
-#include "../utils/sim_params_stats.h"
+#include "../utils/sim_params.h"
 #include "base_dram.h"
 #include "memory_controller_utils.h"
 
@@ -69,20 +69,23 @@ typedef struct MemoryController
     /* Simplistic base DRAM model */
     BaseDram *base_dram;
 
-    void (*reset)(struct MemoryController *m);
+    /* Points to clock function of base dram model or dramsim2 */
     void (*clock)(struct MemoryController *m);
-    void (*flush_cpu_stage_queue)(StageMemAccessQueue *q);
-    void (*flush_mem_request_queue)(struct MemoryController *m);
-    void (*set_burst_length)(struct MemoryController *m, int burst_length);
-    int (*create_mem_request)(struct MemoryController *m, target_ulong paddr,
-                              int bytes_to_access, MemAccessType op_type,
-                              void *p_mem_access_info);
-    int (*create_mem_request_pte)(struct MemoryController *m,
-                                  target_ulong paddr, int bytes_to_access,
-                                  MemAccessType op_type,
-                                  void *p_mem_access_info);
 } MemoryController;
 
 MemoryController *mem_controller_init(const SimParams *p);
 void mem_controller_free(MemoryController **m);
+void mem_controller_reset(MemoryController *m);
+void mem_controller_reset_cpu_stage_queue(StageMemAccessQueue *q);
+void mem_controller_reset_mem_request_queue(MemoryController *m);
+void mem_controller_set_burst_length(MemoryController *m, int burst_length);
+int mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
+                                      int bytes_to_access,
+                                      MemAccessType op_type,
+                                      void *p_mem_access_info);
+int mem_controller_create_mem_request_pte(MemoryController *m,
+                                          target_ulong paddr,
+                                          int bytes_to_access,
+                                          MemAccessType op_type,
+                                          void *p_mem_access_info);
 #endif

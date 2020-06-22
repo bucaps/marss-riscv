@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -57,8 +57,7 @@ oo_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
         = (RenameTableEntry *)calloc(NUM_FP_REG, sizeof(RenameTableEntry));
 
     /* Create IQ */
-    core->iq
-        = (IssueQueueEntry *)calloc(p->iq_size, sizeof(IssueQueueEntry));
+    core->iq = (IssueQueueEntry *)calloc(p->iq_size, sizeof(IssueQueueEntry));
 
     /* Create execution units */
     core->ialu = (CPUStage *)calloc(p->num_alu_stages, sizeof(CPUStage));
@@ -116,10 +115,11 @@ oo_core_reset(void *core_type)
     iq_reset(core->iq, core->simcpu->params->iq_size);
 
     /* Reset execution units */
-    exec_unit_flush(core->ialu, core->simcpu->params->num_alu_stages);
-    exec_unit_flush(core->imul, core->simcpu->params->num_mul_stages);
-    exec_unit_flush(core->idiv, core->simcpu->params->num_div_stages);
-    exec_unit_flush(core->fpu_fma, core->simcpu->params->num_fpu_fma_stages);
+    cpu_stage_flush_pipe(core->ialu, core->simcpu->params->num_alu_stages);
+    cpu_stage_flush_pipe(core->imul, core->simcpu->params->num_mul_stages);
+    cpu_stage_flush_pipe(core->idiv, core->simcpu->params->num_div_stages);
+    cpu_stage_flush_pipe(core->fpu_fma,
+                         core->simcpu->params->num_fpu_fma_stages);
     cpu_stage_flush(&core->fpu_alu);
 }
 
@@ -137,7 +137,7 @@ iq_reset(IssueQueueEntry *iq_entry, int size)
 }
 
 int
-iq_full(IssueQueueEntry *iq, int size)
+iq_full(const IssueQueueEntry *iq, int size)
 {
     int i;
 
@@ -153,7 +153,7 @@ iq_full(IssueQueueEntry *iq, int size)
 }
 
 int
-iq_get_free_entry(IssueQueueEntry *iq, int size)
+iq_get_free_entry(const IssueQueueEntry *iq, int size)
 {
     int i;
 
@@ -210,7 +210,7 @@ oo_core_run(void *core_type)
 
         if (oo_core_rob_commit(core))
         {
-            return core->simcpu->emu_cpu_state->sim_exception_cause;
+            return core->simcpu->emu_cpu_state->simcpu->exception->cause;
         }
 
         oo_core_lsq(core);
@@ -236,7 +236,7 @@ oo_core_run(void *core_type)
 /** When trying to read operand from ROB index, this checks whether the given
  * ROB index is already committed  */
 int
-rob_entry_committed(ROB *rob, int src_idx, int current_idx)
+rob_entry_committed(const ROB *rob, int src_idx, int current_idx)
 {
     if (rob->cq.rear >= rob->cq.front)
     {
@@ -248,7 +248,8 @@ rob_entry_committed(ROB *rob, int src_idx, int current_idx)
     else
     {
         if ((current_idx >= rob->cq.front) && (current_idx < rob->cq.max_size)
-            && (src_idx >= rob->cq.front) && (src_idx < rob->cq.max_size) && (src_idx < current_idx))
+            && (src_idx >= rob->cq.front) && (src_idx < rob->cq.max_size)
+            && (src_idx < current_idx))
         {
             return FALSE;
         }
@@ -263,7 +264,7 @@ rob_entry_committed(ROB *rob, int src_idx, int current_idx)
 }
 
 void
-read_int_operand_from_rob_slot(OOCore *core, InstructionLatch *e, int arch_src,
+read_int_operand_from_rob_slot(const OOCore *core, int arch_src,
                                int src_rob_idx, int current_rob_idx,
                                uint64_t *buffer, int *read_flag)
 {
@@ -292,9 +293,9 @@ read_int_operand_from_rob_slot(OOCore *core, InstructionLatch *e, int arch_src,
 }
 
 void
-read_fp_operand_from_rob_slot(OOCore *core, InstructionLatch *e, int arch_src,
-                               int src_rob_idx, int current_rob_idx,
-                               uint64_t *buffer, int *read_flag)
+read_fp_operand_from_rob_slot(const OOCore *core, int arch_src, int src_rob_idx,
+                              int current_rob_idx, uint64_t *buffer,
+                              int *read_flag)
 {
     ROBEntry *rbe;
 

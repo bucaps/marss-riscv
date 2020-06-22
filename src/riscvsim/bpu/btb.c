@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -34,7 +34,7 @@
 
 #include "btb.h"
 
-static void
+void
 btb_flush(BranchTargetBuffer *b)
 {
     int i;
@@ -51,7 +51,7 @@ btb_flush(BranchTargetBuffer *b)
  * the BTB entry containing this PC to the out parameter (btb_entry), else
  * return BPU_MISS
  */
-static int
+int
 btb_probe(BranchTargetBuffer *b, target_ulong pc, BtbEntry **btb_entry)
 {
     int j;
@@ -79,7 +79,7 @@ btb_probe(BranchTargetBuffer *b, target_ulong pc, BtbEntry **btb_entry)
  * the entry in it's place. This is done from the decode stage
  * of the pipeline.
  */
-static void
+void
 btb_add(BranchTargetBuffer *b, target_ulong pc, int type)
 {
     int set_addr = GET_SET_ADDR(pc >> 1, b->set_bits);
@@ -96,7 +96,7 @@ btb_add(BranchTargetBuffer *b, target_ulong pc, int type)
  * the branch outcome. This is done from the memory stage of the pipeline,
  * where the branches are resolved.
  */
-static void
+void
 btb_update(BtbEntry *btb_entry, target_ulong target, int type)
 {
     btb_entry->target = target;
@@ -124,10 +124,6 @@ btb_init(const SimParams *p)
         b->data[i] = (BtbEntry *)calloc(b->ways, sizeof(BtbEntry));
         assert(b->data[i]);
     }
-    b->probe = &btb_probe;
-    b->add = &btb_add;
-    b->update = &btb_update;
-    b->flush = &btb_flush;
     return b;
 }
 

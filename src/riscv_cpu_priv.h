@@ -5,7 +5,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -35,11 +35,11 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <stdio.h>
-#include <time.h>
 #include "riscv_cpu.h"
 #include "cutils.h"
-#include "riscvsim/utils/sim_params_stats.h"
+
 #include "riscvsim/core/riscv_sim_cpu.h"
+#include "riscvsim/utils/sim_params.h"
 
 #define __exception __attribute__((warn_unused_result))
 
@@ -124,11 +124,6 @@
 #define PG_MASK ((1 << PG_SHIFT) - 1)
 #define TLB_SIZE (s->sim_params->tlb_size)
 
-#define START_SIM_TIMER(start) clock_gettime(CLOCK_MONOTONIC, &start)
-#define STOP_SIM_TIMER(end) clock_gettime(CLOCK_MONOTONIC, &end)
-#define GET_SIM_TIMER_DIFF(start, end)                                             \
-  (1000000000L * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec)
-
 typedef struct {
     target_ulong vaddr;
     uintptr_t mem_addend;
@@ -199,51 +194,28 @@ typedef struct RISCVCPUState {
     TLBEntry *tlb_write;
     TLBEntry *tlb_code;
 
-    int32_t sim_n_cycles; /* only used inside the CPU simulator loop */
-
-    struct timespec sim_start, sim_end; /* to measure simulation time */
-
     /* used to fetch instructions from TinyEMU memory map */
     uint8_t *code_ptr, *code_end;
     target_ulong code_to_pc_addend;
 
-    /* Note: These physical addresses are from TinyEMU physical memory map defined in virt_machine.c.
-       They are used for look-up into cache hierarchy by the simulated core. */
-    target_ulong code_guest_paddr; /* keep track of the physical address of the current instruction fetched */
-    target_ulong data_guest_paddr; /* Keep track of the physical address of the current load-store memory access */
-    int is_device_io;              /* keep track whether the current data memory access was a device IO or RAM IO */
+    /* These are the physical addresses for current instruction and data memory
+     * from TinyEMU physical memory map defined in virt_machine.c. They are used
+     * for look-up into memory hierarchy by the simulated core. */
+    target_ulong code_guest_paddr;
+    target_ulong data_guest_paddr;
+
+    /* Track whether the current data memory access was a device IO or RAM IO */
+    int is_device_io;
 
     int hw_pg_tb_wlk_latency;   /* latency for reading/writing page table entries during page walk */
     int hw_pg_tb_wlk_stage_id;  /* id of the stage (FETCH, MEMORY) which initiated page table walk */
     int ins_tlb_lookup_accounted;
     int ins_tlb_hit_accounted;
 
+    SimParams *sim_params;
+
     /* simulated RISC-V core*/
     RISCVSIMCPUState *simcpu;
-
-    FILE* sim_trace;
-
-    /* used for setting up shared memory area to dump stats into, which can be
-     read by stats-display tool */
-    int stats_shm_fd;
-    char stats_shm_name[256];
-    SimStats *stats_shm_ptr;
-
-    /* set when an exception is encountered in simulation mode */
-    int sim_exception;
-    target_ulong sim_epc;
-    int sim_exception_cause;
-    int sim_exception_stage;
-    uint32_t sim_exception_ins;
-    char sim_epc_str[RISCV_INS_STR_MAX_LENGTH];
-
-    /* simulation control */
-    int start_simulation;
-    int stop_simulation;
-    int simulation;
-    int return_to_sim;
-
-    SimParams *sim_params;
   } RISCVCPUState;
 
 /* Note: Below declared functions are accessed from both simulation and emulation side */
@@ -274,7 +246,7 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
                                                                                \
         s->is_device_io = 0;                                                   \
         tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);                         \
-        if (s->simulation)                                                     \
+        if (s->simcpu->simulation)                                             \
         {                                                                      \
             ++s->simcpu->stats[s->priv].load_tlb_lookups;                      \
         }                                                                      \
@@ -283,7 +255,7 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
         {                                                                      \
             *pval = *(uint_type *)(s->tlb_read[tlb_idx].mem_addend             \
                                    + (uintptr_t)addr);                         \
-            if (s->simulation)                                                 \
+            if (s->simcpu->simulation)                                         \
             {                                                                  \
                 ++s->simcpu->stats[s->priv].load_tlb_hits;                     \
             }                                                                  \
@@ -313,7 +285,7 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
                                                                                \
         s->is_device_io = 0;                                                   \
         tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);                         \
-        if (s->simulation)                                                     \
+        if (s->simcpu->simulation)                                             \
         {                                                                      \
             ++s->simcpu->stats[s->priv].store_tlb_lookups;                     \
         }                                                                      \
@@ -322,7 +294,7 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
         {                                                                      \
             *(uint_type *)(s->tlb_write[tlb_idx].mem_addend + (uintptr_t)addr) \
                 = val;                                                         \
-            if (s->simulation)                                                 \
+            if (s->simcpu->simulation)                                         \
             {                                                                  \
                 ++s->simcpu->stats[s->priv].store_tlb_hits;                    \
             }                                                                  \

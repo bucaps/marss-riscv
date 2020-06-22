@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,8 +28,8 @@
 #define _OOO_H_
 
 #include "../utils/circular_queue.h"
-#include "../utils/sim_params_stats.h"
-#include "common_core_utils.h"
+#include "../utils/cpu_latches.h"
+#include "../utils/sim_params.h"
 
 /* Forward declare */
 struct RISCVSIMCPUState;
@@ -84,8 +84,8 @@ typedef struct OOCore
     RenameTableEntry *int_rat;
     RenameTableEntry *fp_rat;
 
-    ROB rob;                  /* Reorder buffer */
-    LSQ lsq;                  /* Load-Store Queue */
+    ROB rob; /* Reorder buffer */
+    LSQ lsq; /* Load-Store Queue */
 
     /*----------  Issue Queues  ----------*/
     IssueQueueEntry *iq;
@@ -127,13 +127,13 @@ void oo_core_fetch(OOCore *core);
 void oo_process_branch(OOCore *core, InstructionLatch *e);
 
 void iq_reset(IssueQueueEntry *iq_entry, int size);
-int iq_full(IssueQueueEntry *iq, int size);
-int iq_get_free_entry(IssueQueueEntry *iq, int size);
-void read_int_operand_from_rob_slot(OOCore *core, InstructionLatch *e, int asrc,
-                                    int psrc, int current_rob_idx,
-                                    uint64_t *buffer, int *read_flag);
-void read_fp_operand_from_rob_slot(OOCore *core, InstructionLatch *e, int asrc,
-                                   int psrc, int current_rob_idx,
-                                   uint64_t *buffer, int *read_flag);
-int rob_entry_committed(ROB *rob, int src_idx, int current_idx);
+int iq_full(const IssueQueueEntry *iq, int size);
+int iq_get_free_entry(const IssueQueueEntry *iq, int size);
+void read_int_operand_from_rob_slot(const OOCore *core, int asrc, int psrc,
+                                    int current_rob_idx, uint64_t *buffer,
+                                    int *read_flag);
+void read_fp_operand_from_rob_slot(const OOCore *core, int asrc, int psrc,
+                                   int current_rob_idx, uint64_t *buffer,
+                                   int *read_flag);
+int rob_entry_committed(const ROB *rob, int src_idx, int current_idx);
 #endif

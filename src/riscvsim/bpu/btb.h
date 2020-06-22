@@ -3,7 +3,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -32,7 +32,7 @@
 
 #include "../riscv_sim_typedefs.h"
 #include "../utils/evict_policy.h"
-#include "../utils/sim_params_stats.h"
+#include "../utils/sim_params.h"
 
 typedef struct BtbEntry
 {
@@ -44,20 +44,18 @@ typedef struct BtbEntry
 typedef struct BranchTargetBuffer
 {
     BtbEntry **data;
-    int rand_evict;    /* If non-zero, uses random eviction policy for BTB, instead of LRU */
     int size;          /* Number of entries in BTB */
     int sets;          /* Number of BTB sets */
-    uint32_t set_bits; /* Number of lowest bits of PC required to index into a set */
+    uint32_t set_bits; /* Number of bit required to index into a set */
     int ways;          /* Number of ways in each set */
     EvictPolicy *evict_policy;
-
-    int (*probe)(struct BranchTargetBuffer *b, target_ulong pc,
-                 BtbEntry **btb_entry);
-    void (*add)(struct BranchTargetBuffer *b, target_ulong pc, int type);
-    void (*update)(struct BtbEntry *btb_entry, target_ulong target, int type);
-    void (*flush)(struct BranchTargetBuffer *b);
 } BranchTargetBuffer;
 
 BranchTargetBuffer *btb_init(const SimParams *p);
+int btb_probe(BranchTargetBuffer *b, target_ulong pc, BtbEntry **btb_entry);
+void btb_add(BranchTargetBuffer *b, target_ulong pc, int type);
+void btb_update(BtbEntry *btb_entry, target_ulong target, int type);
+void btb_free(BranchTargetBuffer **b);
+void btb_flush(BranchTargetBuffer *b);
 void btb_free(BranchTargetBuffer **b);
 #endif

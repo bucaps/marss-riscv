@@ -5,7 +5,7 @@
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
- * Copyright (c) 2017-2019 Gaurav Kothari {gkothar1@binghamton.edu}
+ * Copyright (c) 2017-2020 Gaurav Kothari {gkothar1@binghamton.edu}
  * State University of New York at Binghamton
  *
  * Copyright (c) 2018-2019 Parikshit Sarnaik {psarnai1@binghamton.edu}
@@ -34,7 +34,6 @@
 #include <string.h>
 
 #include "../../riscv_cpu_priv.h"
-#include "../decoder/riscv_ins_execute_lib.h"
 #include "../memory_hierarchy/memory_controller.h"
 #include "../utils/circular_queue.h"
 #include "inorder.h"
@@ -45,7 +44,7 @@
 =================================================*/
 
 static CPUStage *
-get_next_exec_stage(INCore *core, int cur_stage_id, int fu_type)
+get_next_exec_pipe_stage(const INCore *core, int cur_stage_id, int fu_type)
 {
     CPUStage *stage = NULL;
 
@@ -76,7 +75,8 @@ get_next_exec_stage(INCore *core, int cur_stage_id, int fu_type)
 }
 
 static void
-do_exec_insn(RISCVCPUState *s, INCore *core, InstructionLatch *e, int fu_type)
+exec_insn_and_invalidate_rd(RISCVCPUState *s, INCore *core, InstructionLatch *e,
+                            int fu_type)
 {
     if (e->ins.has_dest)
     {
@@ -96,7 +96,7 @@ do_exec_insn(RISCVCPUState *s, INCore *core, InstructionLatch *e, int fu_type)
 }
 
 static void
-do_fwd_data_from_ex_to_drf(INCore *core, InstructionLatch *e, int fu_type)
+fwd_data_from_ex_to_decode(INCore *core, InstructionLatch *e, int fu_type)
 {
     if (!e->data_fwd_done
         && !(e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
@@ -115,12 +115,12 @@ do_fwd_data_from_ex_to_drf(INCore *core, InstructionLatch *e, int fu_type)
 static void
 push_insn_from_ex_to_mem(INCore *core, InstructionLatch *e, CPUStage *stage)
 {
-    if (core->ins_dispatch_queue.data[cq_front(&core->ins_dispatch_queue.cq)]
+    if (core->ex_to_mem_queue.data[cq_front(&core->ex_to_mem_queue.cq)]
         == e->ins_dispatch_id)
     {
         if (!core->memory.has_data)
         {
-            cq_dequeue(&core->ins_dispatch_queue.cq);
+            cq_dequeue(&core->ex_to_mem_queue.cq);
             e->elasped_clock_cycles = 0;
             e->data_fwd_done = FALSE;
             stage->stage_exec_done = FALSE;
@@ -133,8 +133,8 @@ push_insn_from_ex_to_mem(INCore *core, InstructionLatch *e, CPUStage *stage)
 static void
 in_core_execute_non_pipe(INCore *core, int fu_type, CPUStage *stage)
 {
-    InstructionLatch *e;
     RISCVCPUState *s;
+    InstructionLatch *e;
 
     s = core->simcpu->emu_cpu_state;
     if (stage->has_data)
@@ -143,15 +143,16 @@ in_core_execute_non_pipe(INCore *core, int fu_type, CPUStage *stage)
         ++s->simcpu->stats[s->priv].exec_unit_delay;
         if (!stage->stage_exec_done)
         {
-            do_exec_insn(s, core, e, fu_type);
-            e->max_clock_cycles = set_max_clock_cycles_for_non_pipe_fu(s, fu_type, e);
+            exec_insn_and_invalidate_rd(s, core, e, fu_type);
+            e->max_clock_cycles
+                = set_max_clock_cycles_for_non_pipe_fu(s, fu_type, e);
             assert(e->max_clock_cycles);
             stage->stage_exec_done = TRUE;
         }
 
         if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
-            do_fwd_data_from_ex_to_drf(core, e, fu_type);
+            fwd_data_from_ex_to_decode(core, e, fu_type);
             push_insn_from_ex_to_mem(core, e, stage);
         }
         else
@@ -162,12 +163,12 @@ in_core_execute_non_pipe(INCore *core, int fu_type, CPUStage *stage)
 }
 
 static void
-in_core_execute_pipe(INCore *core, int cur_stage_id, int fu_type, CPUStage *stage,
-                int max_clock_cycles, int max_stage_id)
+in_core_execute_pipe(INCore *core, int cur_stage_id, int fu_type,
+                     CPUStage *stage, int max_clock_cycles, int max_stage_id)
 {
-    InstructionLatch *e;
     CPUStage *next;
     RISCVCPUState *s;
+    InstructionLatch *e;
 
     s = core->simcpu->emu_cpu_state;
     if (stage->has_data)
@@ -176,22 +177,22 @@ in_core_execute_pipe(INCore *core, int cur_stage_id, int fu_type, CPUStage *stag
         ++s->simcpu->stats[s->priv].exec_unit_delay;
         if (!stage->stage_exec_done)
         {
-            do_exec_insn(s, core, e, fu_type);
+            exec_insn_and_invalidate_rd(s, core, e, fu_type);
             stage->stage_exec_done = TRUE;
         }
 
         if (e->elasped_clock_cycles == max_clock_cycles)
         {
-            /* Instruction is in last stage of FU*/
+            /* Instruction is in the last stage of FU */
             if (cur_stage_id == max_stage_id)
             {
-                do_fwd_data_from_ex_to_drf(core, e, fu_type);
+                fwd_data_from_ex_to_decode(core, e, fu_type);
                 push_insn_from_ex_to_mem(core, e, stage);
             }
             else
             {
                 /* Pass the instruction into next stage for this FU */
-                next = get_next_exec_stage(core, cur_stage_id, fu_type);
+                next = get_next_exec_pipe_stage(core, cur_stage_id, fu_type);
                 if (!next->has_data)
                 {
                     e->elasped_clock_cycles = 1;
@@ -254,9 +255,10 @@ flush_fu_stage(INCore *core, CPUStage *fu, int stages)
     {
         if (fu[i].has_data)
         {
-            /* This resets the valid bits for INT and FP destination registers
-             * on the speculated path */
-            e = get_insn_latch(core->simcpu->insn_latch_pool, fu[i].insn_latch_index);
+            /* Reset the valid bits for INT, and FP destination registers on the
+             * speculated path */
+            e = get_insn_latch(core->simcpu->insn_latch_pool,
+                               fu[i].insn_latch_index);
 
             if (e->ins.has_dest)
             {
@@ -291,6 +293,8 @@ flush_speculated_cpu_state(INCore *core, InstructionLatch *e)
     cpu_stage_flush(&core->pcgen);
     cpu_stage_flush(&core->fetch);
     cpu_stage_flush(&core->decode);
+
+    /* Flush all the functional unit and reset rd valid bit */
     flush_fu_stage(core, core->ialu, s->simcpu->params->num_alu_stages);
     flush_fu_stage(core, core->imul, s->simcpu->params->num_mul_stages);
     flush_fu_stage(core, core->idiv, s->simcpu->params->num_div_stages);
@@ -298,24 +302,25 @@ flush_speculated_cpu_state(INCore *core, InstructionLatch *e)
     flush_fu_stage(core, core->fpu_fma, s->simcpu->params->num_fpu_fma_stages);
 
     /* Reset FU to MEM selector queue */
-    cq_reset(&core->ins_dispatch_queue.cq);
+    cq_reset(&core->ex_to_mem_queue.cq);
 
     /* Flush FWD latches */
     memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
 
     /* Flush memory controller queues on flush */
-    s->simcpu->mem_hierarchy->mem_controller->reset(s->simcpu->mem_hierarchy->mem_controller);
+    mem_controller_reset(s->simcpu->mem_hierarchy->mem_controller);
 
     /* To start fetching */
     core->pcgen.has_data = TRUE;
 
     /* Reset exception on speculated path */
-    s->sim_exception = FALSE;
+    s->simcpu->exception->pending = FALSE;
 
     /* Reset all the insn_latch_pool entries allocated on the speculated path */
     for (i = 0; i < INSN_LATCH_POOL_SIZE; ++i)
     {
-        if ((i != core->memory.insn_latch_index) && (i != core->commit.insn_latch_index))
+        if ((i != core->memory.insn_latch_index)
+            && (i != core->commit.insn_latch_index))
         {
             s->simcpu->insn_latch_pool[i].status = INSN_LATCH_FREE;
         }
@@ -331,73 +336,26 @@ in_core_memory(INCore *core)
     s = core->simcpu->emu_cpu_state;
     if (core->memory.has_data)
     {
-        e = get_insn_latch(s->simcpu->insn_latch_pool, core->memory.insn_latch_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool,
+                           core->memory.insn_latch_index);
         if (!core->memory.stage_exec_done)
         {
-            s->hw_pg_tb_wlk_latency = 1;
-            s->hw_pg_tb_wlk_stage_id = MEMORY;
-
-            /* elasped_clock_cycles: number of CPU cycles spent by this instruction
-             * in memory stage so far */
+            /* elasped_clock_cycles: number of CPU cycles spent by this
+             * instruction in the memory stage so far */
             e->elasped_clock_cycles = 1;
 
             /* Set default total number of CPU cycles required for this
-             * instruction in memory stage Note: This is the default latency for
-             * non-memory instructions */
+             * instruction in the memory stage. Note: This is the default
+             * latency for non-memory instructions */
             e->max_clock_cycles = 1;
 
             if (e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
             {
-                if (execute_load_store(s, e))
-                {
-                    /* This load, store or atomic instruction raised a page
-                     * fault exception */
-                    e->ins.exception = TRUE;
-                    e->ins.exception_cause = SIM_MMU_EXCEPTION;
-
-                    /* In case of page fault, hardware page table walk has been
-                       done and its latency must be simulated */
-                    e->max_clock_cycles = s->hw_pg_tb_wlk_latency;
-
-                    /* Safety check */
-                    assert(e->max_clock_cycles);
-                }
-                else
-                {
-                    /* Memory access was successful, no page fault, so set the
-                       total number of CPU cycles required for memory
-                       instruction */
-                    e->max_clock_cycles = s->hw_pg_tb_wlk_latency
-                                     + get_data_mem_access_latency(s, e);
-
-                    if (s->sim_params->enable_l1_caches)
-                    {
-                        /* L1 caches and TLB are probed in parallel */
-                        if (e->ins.is_load)
-                        {
-                            e->max_clock_cycles
-                                -= min_int(s->hw_pg_tb_wlk_latency,
-                                           s->simcpu->mem_hierarchy->dcache->read_latency);
-                        }
-                        if (e->ins.is_store)
-                        {
-                            e->max_clock_cycles
-                                -= min_int(s->hw_pg_tb_wlk_latency,
-                                           s->simcpu->mem_hierarchy->dcache->write_latency);
-                        }
-                        if (e->ins.is_atomic)
-                        {
-                            e->max_clock_cycles -= min_int(
-                                s->hw_pg_tb_wlk_latency,
-                                min_int(s->simcpu->mem_hierarchy->dcache->read_latency,
-                                        s->simcpu->mem_hierarchy->dcache->write_latency));
-                        }
-                    }
-                }
+                mem_cpu_stage_exec(s, e);
             }
             else if (e->ins.is_branch)
             {
-                if (s->simcpu->pfn_branch_handler(s, e))
+                if (s->simcpu->bpu_execute_stage_handler(s, e))
                 {
                     flush_speculated_cpu_state(core, e);
                 }
@@ -408,15 +366,15 @@ in_core_memory(INCore *core)
 
         if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
-            /* Number of CPU cycles spent by this instruction in memory stage
-               equals memory access delay for this instruction */
+            /* Number of CPU cycles spent by this instruction in the memory
+             * stage equals to cache-lookup delay for this instruction */
 
-            /* Lookup latency is completed, now waiting for pending DRAM
-             * accesses */
             if ((e->ins.is_load || e->ins.is_store || e->ins.is_atomic))
             {
-                if (s->simcpu->mem_hierarchy->mem_controller->backend_mem_access_queue
-                        .cur_size)
+                /* Wait on memory controller callback for any pending memory
+                 * accesses */
+                if (s->simcpu->mem_hierarchy->mem_controller
+                        ->backend_mem_access_queue.cur_size)
                 {
                     ++s->simcpu->stats[s->priv].data_mem_delay;
                     return;
@@ -426,20 +384,20 @@ in_core_memory(INCore *core)
             /* MMU exception */
             if (e->ins.exception)
             {
-                set_exception_state(s, e);
+                sim_exception_set(s->simcpu->exception, e);
                 cpu_stage_flush(&core->pcgen);
                 cpu_stage_flush(&core->fetch);
                 cpu_stage_flush(&core->decode);
                 cpu_stage_flush(&core->memory);
-                exec_unit_flush(core->ialu,
-                                s->simcpu->params->num_alu_stages);
-                exec_unit_flush(core->imul,
-                                s->simcpu->params->num_mul_stages);
-                exec_unit_flush(core->idiv,
-                                s->simcpu->params->num_div_stages);
-                exec_unit_flush(&core->fpu_alu, 1);
-                exec_unit_flush(core->fpu_fma,
-                                s->simcpu->params->num_fpu_fma_stages);
+                cpu_stage_flush_pipe(core->ialu,
+                                     s->simcpu->params->num_alu_stages);
+                cpu_stage_flush_pipe(core->imul,
+                                     s->simcpu->params->num_mul_stages);
+                cpu_stage_flush_pipe(core->idiv,
+                                     s->simcpu->params->num_div_stages);
+                cpu_stage_flush_pipe(&core->fpu_alu, 1);
+                cpu_stage_flush_pipe(core->fpu_fma,
+                                     s->simcpu->params->num_fpu_fma_stages);
                 return;
             }
 
@@ -447,19 +405,21 @@ in_core_memory(INCore *core)
             if (!e->ins.exception && !e->data_fwd_done && !e->keep_dest_busy
                 && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
             {
-                core->fwd_latch[NUM_FWD_BUS-1].rd = e->ins.rd;
-                core->fwd_latch[NUM_FWD_BUS-1].buffer = e->ins.buffer;
-                core->fwd_latch[NUM_FWD_BUS-1].int_dest = e->ins.has_dest;
-                core->fwd_latch[NUM_FWD_BUS-1].fp_dest = e->ins.has_fp_dest;
-                core->fwd_latch[NUM_FWD_BUS-1].valid = TRUE;
+                core->fwd_latch[NUM_FWD_BUS - 1].rd = e->ins.rd;
+                core->fwd_latch[NUM_FWD_BUS - 1].buffer = e->ins.buffer;
+                core->fwd_latch[NUM_FWD_BUS - 1].int_dest = e->ins.has_dest;
+                core->fwd_latch[NUM_FWD_BUS - 1].fp_dest = e->ins.has_fp_dest;
+                core->fwd_latch[NUM_FWD_BUS - 1].valid = TRUE;
                 e->data_fwd_done = TRUE;
             }
 
-            /* If the next stage is available, send this instruction to next
+            /* If the commit stage is available, send this instruction to commit
              * stage, else stall memory stage */
             if (!core->commit.has_data)
             {
-                s->simcpu->mem_hierarchy->mem_controller->backend_mem_access_queue.cur_idx = 0;
+                s->simcpu->mem_hierarchy->mem_controller
+                    ->backend_mem_access_queue.cur_idx
+                    = 0;
                 core->memory.stage_exec_done = FALSE;
                 e->max_clock_cycles = 0;
                 e->elasped_clock_cycles = 0;
@@ -490,7 +450,8 @@ in_core_commit(INCore *core)
     s = core->simcpu->emu_cpu_state;
     if (core->commit.has_data)
     {
-        e = get_insn_latch(s->simcpu->insn_latch_pool, core->commit.insn_latch_index);
+        e = get_insn_latch(s->simcpu->insn_latch_pool,
+                           core->commit.insn_latch_index);
 
         if (e->ins.has_dest)
         {
@@ -498,6 +459,10 @@ in_core_commit(INCore *core)
             if (e->ins.rd)
             {
                 update_arch_reg_int(s, e);
+
+                /* If keep_dest_busy is TRUE, there is following instruction
+                 * writing to the same rd (WAW). So let that instruction make
+                 * the destination valid when it commits */
                 if (!e->keep_dest_busy)
                 {
                     core->int_reg_status[e->ins.rd] = TRUE;
@@ -515,15 +480,14 @@ in_core_commit(INCore *core)
 
         update_insn_commit_stats(s, e);
 
-        /* Dump commit trace if trace mode enabled */
         if (s->simcpu->params->do_sim_trace)
         {
-            setup_sim_trace_pkt(s, e);
+            sim_trace_commit(s->simcpu->trace, s->simcpu->clock, s->priv, e);
         }
 
         if (s->sim_params->enable_stats_display)
         {
-            write_stats_to_stats_display_shm(s);
+            write_stats_to_stats_display_shm(s->simcpu);
         }
 
         /* Commit success */
@@ -531,9 +495,9 @@ in_core_commit(INCore *core)
         cpu_stage_flush(&core->commit);
 
         /* Check for timeout */
-        if ((--s->sim_n_cycles) == 0)
+        if ((--s->n_cycles) == 0)
         {
-            set_timer_exception_state(s, e);
+            sim_exception_set_timeout(s->simcpu->exception, e);
             return -1;
         }
     }
