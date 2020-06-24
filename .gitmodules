@@ -1,3 +1,0 @@
-[submodule "src/DRAMSim2"]
-	path = src/DRAMSim2
-	url = https://github.com/umd-memsys/DRAMSim2.git
