@@ -154,50 +154,64 @@ mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
     return 0;
 }
 
-int
+void
 mem_controller_create_mem_request_pte(MemoryController *m, target_ulong paddr,
                                       int bytes_to_access, MemAccessType type,
                                       void *p_mem_access_info)
 {
+    target_ulong start_offset;
     int index, source_cpu_stage_id;
 
     source_cpu_stage_id = *(int *)p_mem_access_info;
 
-    switch (source_cpu_stage_id)
+    /*  Align the address for this access to the burst_length */
+    start_offset = paddr % m->burst_length;
+    if (0 != start_offset)
     {
-        case FETCH:
-        {
-            fill_memory_request_entry(
-                &m->frontend_mem_access_queue
-                     .entry[m->frontend_mem_access_queue.cur_idx],
-                paddr, type, TRUE);
-            ++m->frontend_mem_access_queue.cur_idx;
-            ++m->frontend_mem_access_queue.cur_size;
-            break;
-        }
-        case MEMORY:
-        {
-            fill_memory_request_entry(
-                &m->backend_mem_access_queue
-                     .entry[m->backend_mem_access_queue.cur_idx],
-                paddr, type, TRUE);
-            ++m->backend_mem_access_queue.cur_idx;
-            ++m->backend_mem_access_queue.cur_size;
-            break;
-        }
-        default:
-        {
-            assert(0);
-        }
+        bytes_to_access += start_offset;
+        paddr -= start_offset;
     }
 
-    /* Add transaction for this access to mem_request_queue */
-    index = cq_enqueue(&m->mem_request_queue.cq);
-    assert(index != -1);
-    fill_memory_request_entry(&m->mem_request_queue.entry[index], paddr, type,
-                              TRUE);
+    while (bytes_to_access > 0)
+    {
+        switch (source_cpu_stage_id)
+        {
+            case FETCH:
+            {
+                fill_memory_request_entry(
+                    &m->frontend_mem_access_queue
+                         .entry[m->frontend_mem_access_queue.cur_idx],
+                    paddr, type, TRUE);
+                ++m->frontend_mem_access_queue.cur_idx;
+                ++m->frontend_mem_access_queue.cur_size;
+                break;
+            }
+            case MEMORY:
+            {
+                fill_memory_request_entry(
+                    &m->backend_mem_access_queue
+                         .entry[m->backend_mem_access_queue.cur_idx],
+                    paddr, type, TRUE);
+                ++m->backend_mem_access_queue.cur_idx;
+                ++m->backend_mem_access_queue.cur_size;
+                break;
+            }
+            default:
+            {
+                assert(0);
+            }
+        }
 
-    return 0;
+        /* Add transaction for this access to mem_request_queue */
+        index = cq_enqueue(&m->mem_request_queue.cq);
+        assert(index != -1);
+        fill_memory_request_entry(&m->mem_request_queue.entry[index], paddr,
+                                  type, TRUE);
+
+        /* Calculate remaining transactions for this access */
+        bytes_to_access -= m->burst_length;
+        paddr += m->burst_length;
+    }
 }
 
 static void

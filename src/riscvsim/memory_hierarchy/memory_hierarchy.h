@@ -35,6 +35,9 @@
 #include "cache.h"
 #include "memory_controller.h"
 
+/* Memory hierarchy to simulate the delays, We do not model the actual data
+ * in the hierarchy for simplicity, but just the addresses for simulating
+ * the delays.*/
 typedef struct MemoryHierarchy
 {
     MemoryController *mem_controller;
@@ -54,11 +57,12 @@ typedef struct MemoryHierarchy
     int (*data_write_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
                             int bytes, int cpu_stage_id, int priv);
 
-    /* Page table entries are not cached */
-    int (*pte_read_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
-                          int bytes, int cpu_stage_id, int priv);
-    int (*pte_write_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
-                           int bytes, int cpu_stage_id, int priv);
+    /* Page table entries are not cached, but requests are directly sent to
+     * memory controller queue */
+    void (*pte_read_req_send)(struct MemoryHierarchy *mmu, target_ulong paddr,
+                              int bytes, int cpu_stage_id, int priv);
+    void (*pte_write_req_send)(struct MemoryHierarchy *mmu, target_ulong paddr,
+                               int bytes, int cpu_stage_id, int priv);
 } MemoryHierarchy;
 
 MemoryHierarchy *memory_hierarchy_init(const SimParams *p);

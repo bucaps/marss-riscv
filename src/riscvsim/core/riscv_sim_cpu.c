@@ -431,7 +431,7 @@ set_max_clock_cycles_for_non_pipe_fu(RISCVCPUState *s, int fu_type,
 void
 fetch_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
 {
-    s->hw_pg_tb_wlk_latency = 1;
+    e->max_clock_cycles = 1;
     s->hw_pg_tb_wlk_stage_id = FETCH;
     s->ins_tlb_lookup_accounted = FALSE;
     s->ins_tlb_hit_accounted = FALSE;
@@ -449,27 +449,15 @@ fetch_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
          * fetch */
         e->ins.exception = TRUE;
         e->ins.exception_cause = SIM_MMU_EXCEPTION;
-
-        /* Hardware page table walk has been done and its latency must
-         * be simulated */
-        e->max_clock_cycles = s->hw_pg_tb_wlk_latency;
     }
     else
     {
         /* max_clock_cycles: Number of CPU cycles required for TLB and Cache
          * look-up */
-        e->max_clock_cycles = s->hw_pg_tb_wlk_latency
-                              + s->simcpu->mem_hierarchy->insn_read_delay(
-                                    s->simcpu->mem_hierarchy,
-                                    s->code_guest_paddr, 4, FETCH, s->priv);
+        e->max_clock_cycles = s->simcpu->mem_hierarchy->insn_read_delay(
+            s->simcpu->mem_hierarchy, s->code_guest_paddr, 4, FETCH, s->priv);
 
-        if (s->sim_params->enable_l1_caches)
-        {
-            /* Adjust the delay as L1 caches and TLB are probed in parallel */
-            e->max_clock_cycles
-                -= min_int(s->hw_pg_tb_wlk_latency,
-                           s->simcpu->mem_hierarchy->icache->read_latency);
-        }
+        assert(e->max_clock_cycles);
 
         /* Increment PC for the next instruction */
         if (3 == (e->ins.binary & 3))
@@ -507,7 +495,7 @@ decode_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
 void
 mem_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
 {
-    s->hw_pg_tb_wlk_latency = 1;
+    e->max_clock_cycles = 1;
     s->hw_pg_tb_wlk_stage_id = MEMORY;
 
     if (s->simcpu->temu_mem_map_wrapper->exec_load_store_atomic(s, e))
@@ -516,54 +504,39 @@ mem_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
          * fault exception */
         e->ins.exception = TRUE;
         e->ins.exception_cause = SIM_MMU_EXCEPTION;
-
-        /* In case of page fault, hardware page table walk has been done
-         * and its latency must be simulated */
-        e->max_clock_cycles = s->hw_pg_tb_wlk_latency;
     }
     else
     {
         /* Memory access was successful, no page fault, so calculate the memory
          * access latency */
-        e->max_clock_cycles = s->hw_pg_tb_wlk_latency;
+        e->max_clock_cycles = 0;
 
-        if ((e->ins.is_load || e->ins.is_atomic_load))
+        if (s->is_device_io || !s->data_guest_paddr)
         {
-            e->max_clock_cycles += s->simcpu->mem_hierarchy->data_read_delay(
-                s->simcpu->mem_hierarchy, s->data_guest_paddr,
-                e->ins.bytes_to_rw, MEMORY, s->priv);
+            /* This was a non RAM access, probably a device, so set
+             * max_clock_cycles to 1 */
+            e->max_clock_cycles = 1;
         }
-
-        if ((e->ins.is_store || e->ins.is_atomic_store))
+        else
         {
-            e->max_clock_cycles += s->simcpu->mem_hierarchy->data_write_delay(
-                s->simcpu->mem_hierarchy, s->data_guest_paddr,
-                e->ins.bytes_to_rw, MEMORY, s->priv);
-        }
+            /* RAM access */
+            if ((e->ins.is_load || e->ins.is_atomic_load))
+            {
+                e->max_clock_cycles = s->simcpu->mem_hierarchy->data_read_delay(
+                    s->simcpu->mem_hierarchy, s->data_guest_paddr,
+                    e->ins.bytes_to_rw, MEMORY, s->priv);
+            }
 
-        /* Adjust the latency since L1 caches and TLB are probed in parallel */
-        if (s->sim_params->enable_l1_caches)
-        {
-            if (e->ins.is_load)
+            if ((e->ins.is_store || e->ins.is_atomic_store))
             {
                 e->max_clock_cycles
-                    -= min_int(s->hw_pg_tb_wlk_latency,
-                               s->simcpu->mem_hierarchy->dcache->read_latency);
-            }
-            if (e->ins.is_store)
-            {
-                e->max_clock_cycles
-                    -= min_int(s->hw_pg_tb_wlk_latency,
-                               s->simcpu->mem_hierarchy->dcache->write_latency);
-            }
-            if (e->ins.is_atomic)
-            {
-                e->max_clock_cycles -= min_int(
-                    s->hw_pg_tb_wlk_latency,
-                    min_int(s->simcpu->mem_hierarchy->dcache->read_latency,
-                            s->simcpu->mem_hierarchy->dcache->write_latency));
+                    += s->simcpu->mem_hierarchy->data_write_delay(
+                        s->simcpu->mem_hierarchy, s->data_guest_paddr,
+                        e->ins.bytes_to_rw, MEMORY, s->priv);
             }
         }
+
+        assert(e->max_clock_cycles);
     }
 }
 

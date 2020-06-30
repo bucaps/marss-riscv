@@ -138,6 +138,10 @@ temu_exec_load_store_insn(RISCVCPUState *s, InstructionLatch *e)
 {
     target_ulong addr = e->ins.mem_addr;
 
+    /* TLB lookup in target_read/write functions will fill this variable with
+     * the guest data physical address for this memory access */
+    s->data_guest_paddr = 0;
+
     if (e->ins.is_load)
     {
         switch (e->ins.bytes_to_rw)

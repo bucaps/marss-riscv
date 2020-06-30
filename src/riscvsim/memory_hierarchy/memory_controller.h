@@ -83,9 +83,9 @@ int mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
                                       int bytes_to_access,
                                       MemAccessType op_type,
                                       void *p_mem_access_info);
-int mem_controller_create_mem_request_pte(MemoryController *m,
-                                          target_ulong paddr,
-                                          int bytes_to_access,
-                                          MemAccessType op_type,
-                                          void *p_mem_access_info);
+void mem_controller_create_mem_request_pte(MemoryController *m,
+                                           target_ulong paddr,
+                                           int bytes_to_access,
+                                           MemAccessType op_type,
+                                           void *p_mem_access_info);
 #endif

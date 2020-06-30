@@ -80,22 +80,22 @@ mem_hierarchy_dcache_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
                        priv);
 }
 
-static int
+static void
 mem_hierarchy_pte_read(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
                        int bytes, int stage_id, int priv)
 {
-    return mem_controller_create_mem_request_pte(mem_hierarchy->mem_controller,
-                                                 paddr, bytes, MEM_ACCESS_READ,
-                                                 (void *)&stage_id);
+    mem_controller_create_mem_request_pte(mem_hierarchy->mem_controller, paddr,
+                                          bytes, MEM_ACCESS_READ,
+                                          (void *)&stage_id);
 }
 
-static int
+static void
 mem_hierarchy_pte_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
                         int bytes, int stage_id, int priv)
 {
-    return mem_controller_create_mem_request_pte(mem_hierarchy->mem_controller,
-                                                 paddr, bytes, MEM_ACCESS_WRITE,
-                                                 (void *)&stage_id);
+    mem_controller_create_mem_request_pte(mem_hierarchy->mem_controller, paddr,
+                                          bytes, MEM_ACCESS_WRITE,
+                                          (void *)&stage_id);
 }
 
 MemoryHierarchy *
@@ -180,8 +180,8 @@ memory_hierarchy_init(const SimParams *p)
         mem_hierarchy->data_write_delay = &mem_hierarchy_cache_disabled_write;
     }
 
-    mem_hierarchy->pte_read_delay = &mem_hierarchy_pte_read;
-    mem_hierarchy->pte_write_delay = &mem_hierarchy_pte_write;
+    mem_hierarchy->pte_read_req_send = &mem_hierarchy_pte_read;
+    mem_hierarchy->pte_write_req_send = &mem_hierarchy_pte_write;
 
     return mem_hierarchy;
 }
