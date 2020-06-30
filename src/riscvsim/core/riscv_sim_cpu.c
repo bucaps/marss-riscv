@@ -682,7 +682,6 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
     simcpu->pc = 0x1000;
     simcpu->clock = 0;
     simcpu->params = (SimParams *)p;
-    simcpu->simulation = p->start_in_sim;
     simcpu->return_to_sim = FALSE;
 
     simcpu->stats = (SimStats *)calloc(NUM_MAX_PRV_LEVELS, sizeof(SimStats));
@@ -747,6 +746,13 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
     }
 
     sim_params_print(simcpu->params);
+
+    /* We are booting TinyEMU in simulation mode */
+    if (p->start_in_sim)
+    {
+        riscv_sim_cpu_start(simcpu, simcpu->pc);
+    }
+
     return simcpu;
 }
 
