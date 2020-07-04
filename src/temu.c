@@ -620,6 +620,8 @@ static struct option options[] = {
     {"flush-sim-mem", no_argument},
     {"flush-bpu", no_argument},
     {"sim-trace", no_argument},
+    {"sim-stats-path", required_argument},
+    {"sim-stats-file-prefix", required_argument},
     {NULL},
 };
 
@@ -640,6 +642,8 @@ void help(void)
            "-flush-sim-mem              flush simulator memory hierarchy on every new simulation run\n"
            "-flush-bpu                  flush branch prediction unit on every new simulation run\n"
            "-sim-trace                  Generate instruction commit trace during simulation\n"
+           "-sim-stats-path             Path of the directory to store stats file\n"
+           "-sim-stats-file-prefix      Prefix appended to stats file name\n"
            "\n"
            "Console keys:\n"
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
@@ -665,6 +669,7 @@ int main(int argc, char **argv)
 {
     VirtMachine *s;
     const char *path, *cmdline, *build_preload_file;
+    char *stats_path = NULL, *stats_file_prefix = NULL;
     int c, option_index, i, ram_size, accel_enable;
     BOOL allow_ctrlc;
     BlockDeviceModeEnum drive_mode;
@@ -738,6 +743,12 @@ int main(int argc, char **argv)
             case 12: /* sim-trace */
                 marss_do_sim_trace = TRUE;
                 break;
+            case 13: /* sim-stats-path */
+                stats_path = optarg;
+                break;
+            case 14: /* sim-stats-file-prefix */
+                stats_file_prefix = optarg;
+                break;
             default:
                 fprintf(stderr, "unknown option index: %d\n", option_index);
                 exit(1);
@@ -786,6 +797,16 @@ int main(int argc, char **argv)
     p->sim_params->flush_sim_mem_on_simstart = marss_flush_sim_mem_on_simstart;
     p->sim_params->flush_bpu_on_simstart = marss_flush_bpu_on_simstart;
     p->sim_params->do_sim_trace = marss_do_sim_trace;
+
+    if (stats_path) {
+        free(p->sim_params->sim_stats_path);
+        p->sim_params->sim_stats_path = strdup(stats_path);
+    }
+
+    if (stats_file_prefix) {
+        free(p->sim_params->sim_stats_file_prefix);
+        p->sim_params->sim_stats_file_prefix = strdup(stats_file_prefix);
+    }
 
     /* open the files & devices */
     for(i = 0; i < p->drive_count; i++) {

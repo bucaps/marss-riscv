@@ -642,7 +642,8 @@ riscv_sim_cpu_stop(RISCVSIMCPUState *simcpu, target_ulong pc)
         }
 
         copy_cache_stats_to_global_stats(simcpu);
-        sim_stats_print_to_file(simcpu->stats, simcpu->params->sim_stats_path);
+        sim_stats_print_to_file(simcpu->stats, simcpu->params->sim_stats_path,
+                                simcpu->params->sim_stats_file_prefix);
         sim_stats_print_to_terminal(simcpu->stats);
 
         fprintf(stderr, "(marss-riscv): Switching to emulation mode at pc = "

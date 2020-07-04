@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #include "sim_stats.h"
 
@@ -153,18 +154,20 @@ sim_stats_print_to_terminal(const SimStats *s)
 }
 
 void
-sim_stats_print_to_file(const SimStats *s, const char *pathname)
+sim_stats_print_to_file(const SimStats *s, const char *pathname, const char *sim_stats_file_prefix)
 {
     FILE *fp;
     char *filename, *p;
     time_t rawtime;
-    char buffer[256];
+    char timestamp[256];
+    char buffer[1024];
 
-    /* Generate current time stamp */
+    /* Generate current time-stamp */
     time(&rawtime);
-    sprintf(buffer, "simstats_%s.txt", ctime(&rawtime));
+    sprintf(timestamp, "%s", ctime(&rawtime));
 
-    p = buffer;
+    /* Replace ' ', '\n' and ':' from time-stamp with '_' */
+    p = timestamp;
     for (; *p; ++p)
     {
         if (*p == ' ')
@@ -172,7 +175,13 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname)
 
         if (*p == '\n')
             *p = '_';
+
+        if (*p == ':')
+            *p = '_';
     }
+
+    /* Generate stats filename with format: prefix_timestamp.csv */
+    sprintf(buffer, "%s_%s.csv", sim_stats_file_prefix, timestamp);
 
     filename = (char *)malloc(strlen(pathname) + strlen(buffer) + 2);
     assert(filename);

@@ -102,6 +102,7 @@ enum MEM_MODEL_TYPE
 #define DEF_CREATE_INS_STR 0
 #define DEF_SIM_TRACE_FILE "simtrace.txt"
 #define DEF_SIM_STATS_PATH "."
+#define DEF_SIM_STATS_FILE_PREFIX "misc"
 
 #define DEF_NUM_STAGES 6
 #define DEF_ENABLE_PARALLEL_FU DISABLE
@@ -191,6 +192,7 @@ typedef struct SimParams
     int do_sim_trace;
     char *sim_trace_file;
     char *sim_stats_path;
+    char *sim_stats_file_prefix;
 
     /* In-order core */
     int num_cpu_stages;

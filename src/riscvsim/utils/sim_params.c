@@ -69,6 +69,9 @@ sim_params_set_defaults(SimParams *p)
     p->sim_stats_path = strdup(DEF_SIM_STATS_PATH);
     assert(p->sim_stats_path);
 
+    p->sim_stats_file_prefix = strdup(DEF_SIM_STATS_FILE_PREFIX);
+    assert(p->sim_stats_file_prefix);
+
     p->sim_trace_file = strdup(DEF_SIM_TRACE_FILE);
     assert(p->sim_trace_file);
 
@@ -549,6 +552,18 @@ sim_params_parse(SimParams *p, JSONValue cfg)
     {
         free(p->sim_stats_path);
         p->sim_stats_path = strdup(str);
+    }
+
+    tag_name = "sim_stats_file_prefix";
+    if (vm_get_str(cfg, tag_name, &str) < 0)
+    {
+        fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
+                p->sim_stats_file_prefix);
+    }
+    else
+    {
+        free(p->sim_stats_file_prefix);
+        p->sim_stats_file_prefix = strdup(str);
     }
 
     snprintf(buf1, sizeof(buf1), "%s", "execution_units");
@@ -1356,6 +1371,7 @@ sim_params_print(const SimParams *p)
     fprintf(stderr, "\x1B[35m Simulation Parameters:\x1B[0m\n");
 
     SIM_PARAM_PRINT_STR("sim_stats_path", p->sim_stats_path);
+    SIM_PARAM_PRINT_STR("sim_stats_file_prefix", p->sim_stats_file_prefix);
     SIM_PARAM_PRINT_STR("sim_trace", sim_param_status[p->do_sim_trace]);
 
     if (p->do_sim_trace)
