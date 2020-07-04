@@ -80,7 +80,7 @@ typedef struct RISCVSIMCPUState
     SimTrace *trace;
 
     /* Pointer to shared memory area to write stats, which is read by
-     * stats-display tool */
+     * sim-stats-display tool */
     SimStats *stats_shm_ptr;
 
     /* Used to enable/disable simulation mode, measure simulation time */

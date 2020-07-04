@@ -614,7 +614,7 @@ static struct option options[] = {
     {"append", required_argument},
     {"no-accel", no_argument},
     {"simstart", no_argument},
-    {"stats-display", no_argument},
+    {"sim-stats-display", no_argument},
     {"mem-model", required_argument},
     {"build-preload", required_argument},
     {"flush-sim-mem", no_argument},
@@ -637,7 +637,7 @@ void help(void)
            "                            emulated software\n"
            "-append cmdline             append cmdline to the kernel command line\n"
            "-simstart                   start (boot kernel) in simulation mode\n"
-           "-stats-display              dump simulation performance stats to a shared memory location, read by stats-display tool\n"
+           "-sim-stats-display          dump simulation performance stats to a shared memory location, read by sim-stats-display tool\n"
            "-mem-model [base|dramsim2]  type of simulated memory model\n"
            "-flush-sim-mem              flush simulator memory hierarchy on every new simulation run\n"
            "-flush-bpu                  flush branch prediction unit on every new simulation run\n"
@@ -713,7 +713,7 @@ int main(int argc, char **argv)
             case 6: /* simstart */
                 marss_start_in_sim = 1;
                 break;
-            case 7: /* stats-display */
+            case 7: /* sim-stats-display */
                 marss_stats_display = 1;
                 break;
             case 8: /* mem-model */

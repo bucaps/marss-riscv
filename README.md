@@ -142,12 +142,12 @@ Alternatively, users can use the simulation script (`simulate.c`) provided [here
 We have provided a detailed step-by-step comprehensive tutorial [here](https://marss-riscv-docs.readthedocs.io/en/latest/sections/running-full-system.html) to run the benchmarks on the simulator. This tutorial configures MARSS-RISCV to simulate a simple 5-stage 32-bit in-order RISC-V processor and run [CoreMark](https://github.com/eembc/coremark), an industry-standard benchmark that measures the performance of central processing units (CPU) and embedded microcontrollers (MCU).
 
 ## Viewing live simulation stats
-Users can view live simulation stats using the provided `stats-display` tool. First, open a new terminal before executing the simulator and launch `stats-display`:
+Users can view live simulation stats using the provided `sim-stats-display` tool. First, open a new terminal before executing the simulator and launch `sim-stats-display`:
 
 ```console
-$ ./stats-display
+$ ./sim-stats-display
 ```
-Then launch the simulator on a different terminal with `-stats-display` command-line option.
+Then launch the simulator on a different terminal with `-sim-stats-display` command-line option.
 
 ## Generating simulation trace
 To generate instruction, commit trace of the programs running in the simulation, run MARSS-RISCV with `-sim-trace` command-line option. Generated trace is saved in the file `sim_trace_file`, as configured in the simulator configuration file.

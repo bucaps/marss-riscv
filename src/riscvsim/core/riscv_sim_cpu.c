@@ -316,7 +316,7 @@ copy_cache_stats_to_global_stats(RISCVSIMCPUState *simcpu)
     }
 }
 
-/* Setup shared memory to dump stats, read by stats-display tool */
+/* Setup shared memory to dump stats, read by sim-stats-display tool */
 static void
 setup_stats_shm(RISCVSIMCPUState *simcpu)
 {

@@ -13,7 +13,7 @@ src/*.csv
 
 # exclude executables
 src/marss-riscv
-src/stats-display
+src/sim-stats-display
 src/build_filelist
 src/splitimg
 

@@ -54,7 +54,7 @@ LDFLAGS=
 bindir=/usr/local/bin
 INSTALL=install
 
-PROGS+= marss-riscv$(EXE) stats-display
+PROGS+= marss-riscv$(EXE) sim-stats-display
 ifdef CONFIG_FS_NET
 PROGS+=build_filelist splitimg
 endif
@@ -134,8 +134,8 @@ riscvsim.o: $(SIM_OBJS)
 	$(LD) -r -o $@ $^ $(SIM_LIBS)
 
 # Simulation statistics display utility
-stats-display: stats_display.o
-	$(CC) -o stats-display stats_display.o -lrt
+sim-stats-display: stats_display.o
+	$(CC) -o sim-stats-display stats_display.o -lrt
 # ===============================================================================================
 
 marss-riscv$(EXE): $(SIM_OBJ_FILE) $(EMU_OBJS)
