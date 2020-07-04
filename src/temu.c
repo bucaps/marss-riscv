@@ -641,9 +641,9 @@ void help(void)
            "-sim-mem-model [base|dramsim2]  type of simulated memory model\n"
            "-sim-flush-mem                  flush simulator memory hierarchy on every new simulation run\n"
            "-sim-flush-bpu                  flush branch prediction unit on every new simulation run\n"
-           "-sim-trace                      Generate instruction commit trace during simulation\n"
-           "-sim-stats-path                 Path of the directory to store stats file\n"
-           "-sim-stats-file-prefix          Prefix appended to stats file name\n"
+           "-sim-trace                      generate instruction commit trace during simulation\n"
+           "-sim-stats-path                 path of the directory to store stats file\n"
+           "-sim-stats-file-prefix          prefix appended to stats file name\n"
            "\n"
            "Console keys:\n"
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
