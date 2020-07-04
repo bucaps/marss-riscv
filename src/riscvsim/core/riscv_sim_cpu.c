@@ -753,6 +753,7 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
         riscv_sim_cpu_start(simcpu, simcpu->pc);
     }
 
+    assert(sim_stats_path_valid(p->sim_stats_path));
     return simcpu;
 }
 

@@ -282,3 +282,10 @@ sim_stats_reset(SimStats *s)
 {
     memset((void *)s, 0, NUM_MAX_PRV_LEVELS * sizeof(SimStats));
 }
+
+int
+sim_stats_path_valid(const char *path)
+{
+    struct stat sb;
+    return ((stat(path, &sb) == 0) && S_ISDIR(sb.st_mode));
+}
