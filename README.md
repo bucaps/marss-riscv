@@ -87,12 +87,12 @@ $ xz -d -k -T 0 riscv32.img.xz
 When decompression finishes, jump to the marss-riscv `src` folder and launch the simulator with:
 
 ```console
-$ ./marss-riscv -mem-model base marss-riscv-images/config.cfg
+$ ./marss-riscv -sim-mem-model base marss-riscv-images/config.cfg
 ```
 
 Simulation and TinyEMU parameters are configured using `config.cfg`, TinyEMU JSON configuration file. By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command-line argument to the simulator.
 
-MARSS-RISCV comes with two DRAM memory models: Base and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `config.cfg` file.
+MARSS-RISCV comes with two DRAM memory models: Base and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-sim-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `config.cfg` file.
 
 It may also be desirable to increase the userland image (has roughly 200MB of available free space by default). More information about how to increase the size of the userland image is in the `readme.txt` file, which comes with the [images archive](https://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz).
 

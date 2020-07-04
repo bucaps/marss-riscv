@@ -615,9 +615,9 @@ static struct option options[] = {
     {"no-accel", no_argument},
     {"simstart", no_argument},
     {"sim-stats-display", no_argument},
-    {"mem-model", required_argument},
+    {"sim-mem-model", required_argument},
     {"build-preload", required_argument},
-    {"flush-sim-mem", no_argument},
+    {"sim-flush-mem", no_argument},
     {"sim-flush-bpu", no_argument},
     {"sim-trace", no_argument},
     {"sim-stats-path", required_argument},
@@ -631,19 +631,19 @@ void help(void)
            "temu version 2018-09-23, Copyright (c) 2016-2017 Fabrice Bellard\n"
            "usage: marss-riscv [options] config_file\n"
            "options are:\n"
-           "-m ram_size                 set the RAM size in MB\n"
-           "-rw                         allow write access to the disk image (default=snapshot)\n"
-           "-ctrlc                      the C-c key stops the emulator instead of being sent to the\n"
-           "                            emulated software\n"
-           "-append cmdline             append cmdline to the kernel command line\n"
-           "-simstart                   start (boot kernel) in simulation mode\n"
-           "-sim-stats-display          dump simulation performance stats to a shared memory location, read by sim-stats-display tool\n"
-           "-mem-model [base|dramsim2]  type of simulated memory model\n"
-           "-flush-sim-mem              flush simulator memory hierarchy on every new simulation run\n"
+           "-m ram_size                     set the RAM size in MB\n"
+           "-rw                             allow write access to the disk image (default=snapshot)\n"
+           "-ctrlc                          the C-c key stops the emulator instead of being sent to the\n"
+           "                                emulated software\n"
+           "-append cmdline                 append cmdline to the kernel command line\n"
+           "-simstart                       start (boot kernel) in simulation mode\n"
+           "-sim-stats-display              dump simulation performance stats to a shared memory location, read by sim-stats-display tool\n"
+           "-sim-mem-model [base|dramsim2]  type of simulated memory model\n"
+           "-sim-flush-mem                  flush simulator memory hierarchy on every new simulation run\n"
            "-sim-flush-bpu                  flush branch prediction unit on every new simulation run\n"
-           "-sim-trace                  Generate instruction commit trace during simulation\n"
-           "-sim-stats-path             Path of the directory to store stats file\n"
-           "-sim-stats-file-prefix      Prefix appended to stats file name\n"
+           "-sim-trace                      Generate instruction commit trace during simulation\n"
+           "-sim-stats-path                 Path of the directory to store stats file\n"
+           "-sim-stats-file-prefix          Prefix appended to stats file name\n"
            "\n"
            "Console keys:\n"
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
@@ -716,7 +716,7 @@ int main(int argc, char **argv)
             case 7: /* sim-stats-display */
                 marss_stats_display = 1;
                 break;
-            case 8: /* mem-model */
+            case 8: /* sim-mem-model */
                 if (strcmp(optarg, "base") == 0)
                 {
                     marss_mem_model = MEM_MODEL_BASE;
@@ -727,14 +727,14 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    fprintf(stderr, "unknown mem-model type, see help\n");
+                    fprintf(stderr, "unknown sim-mem-model type, see help\n");
                     exit(1);
                 }
                 break;
             case 9: /* build-preload */
                 build_preload_file = optarg;
                 break;
-            case 10: /* flush-sim-mem */
+            case 10: /* sim-flush-mem */
                 marss_flush_sim_mem_on_simstart = TRUE;
                 break;
             case 11: /* sim-flush-bpu */
