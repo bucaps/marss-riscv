@@ -618,7 +618,7 @@ static struct option options[] = {
     {"mem-model", required_argument},
     {"build-preload", required_argument},
     {"flush-sim-mem", no_argument},
-    {"flush-bpu", no_argument},
+    {"sim-flush-bpu", no_argument},
     {"sim-trace", no_argument},
     {"sim-stats-path", required_argument},
     {"sim-stats-file-prefix", required_argument},
@@ -640,7 +640,7 @@ void help(void)
            "-sim-stats-display          dump simulation performance stats to a shared memory location, read by sim-stats-display tool\n"
            "-mem-model [base|dramsim2]  type of simulated memory model\n"
            "-flush-sim-mem              flush simulator memory hierarchy on every new simulation run\n"
-           "-flush-bpu                  flush branch prediction unit on every new simulation run\n"
+           "-sim-flush-bpu                  flush branch prediction unit on every new simulation run\n"
            "-sim-trace                  Generate instruction commit trace during simulation\n"
            "-sim-stats-path             Path of the directory to store stats file\n"
            "-sim-stats-file-prefix      Prefix appended to stats file name\n"
@@ -737,7 +737,7 @@ int main(int argc, char **argv)
             case 10: /* flush-sim-mem */
                 marss_flush_sim_mem_on_simstart = TRUE;
                 break;
-            case 11: /* flush-bpu */
+            case 11: /* sim-flush-bpu */
                 marss_flush_bpu_on_simstart = TRUE;
                 break;
             case 12: /* sim-trace */
