@@ -187,6 +187,8 @@ sim_params_set_defaults(SimParams *p)
     assert(p->dramsim_system_ini_file);
     p->dramsim_stats_dir = strdup(DEF_DRAMSIM_STATS_DIR);
     assert(p->dramsim_stats_dir);
+
+    p->sim_emulate_after_icount = DEF_SIM_STOP_AFTER_ICOUNT;
 }
 
 static int
@@ -1383,6 +1385,12 @@ sim_params_print(const SimParams *p)
 
     SIM_PARAM_PRINT_STR("core_name", p->core_name);
     SIM_PARAM_PRINT_STR("core_type", core_type_str[p->core_type]);
+
+    if (p->sim_emulate_after_icount)
+    {
+        SIM_PARAM_PRINT_UINT64("sim_emulate_after_icount",
+                               p->sim_emulate_after_icount)
+    }
 
     if (p->core_type == CORE_TYPE_INCORE)
     {

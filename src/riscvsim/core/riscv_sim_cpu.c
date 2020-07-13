@@ -388,6 +388,7 @@ update_arch_reg_fp(RISCVCPUState *s, InstructionLatch *e)
 void
 update_insn_commit_stats(RISCVCPUState *s, InstructionLatch *e)
 {
+    ++s->simcpu->icount;
     ++s->simcpu->stats[s->priv].ins_simulated;
     ++s->simcpu->stats[s->priv].ins_type[e->ins.type];
 
@@ -547,6 +548,7 @@ riscv_sim_cpu_start(RISCVSIMCPUState *simcpu, target_ulong pc)
     {
         simcpu->simulation = TRUE;
         simcpu->clock = 0;
+        simcpu->icount = 0;
 
         sim_stats_reset(simcpu->stats);
         GET_TIME(simcpu->sim_start_time);

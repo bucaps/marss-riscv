@@ -43,6 +43,5 @@ typedef struct SimException
 
 SimException *sim_exception_init();
 void sim_exception_set(SimException *s, const InstructionLatch *e);
-void sim_exception_set_timeout(SimException *s, const InstructionLatch *e);
 void sim_exception_free(SimException **s);
 #endif

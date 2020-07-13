@@ -34,35 +34,45 @@ void
 sim_exception_set(SimException *s, const InstructionLatch *e)
 {
     s->pending = TRUE;
-    s->pc = e->ins.pc;
     s->cause = e->ins.exception_cause;
-    s->insn = e->ins.binary;
-    strncpy(s->insn_str, e->ins.str, RISCV_INS_STR_MAX_LENGTH);
-    s->insn_str[RISCV_INS_STR_MAX_LENGTH - 1] = '\0';
-}
 
-void
-sim_exception_set_timeout(SimException *s, const InstructionLatch *e)
-{
-    s->pending = TRUE;
-    s->cause = SIM_TIMEOUT_EXCEPTION;
-
-    /* In case if the committed instruction was a branch, after processing
-       the timer, we must resume at this branch's target if it was taken */
-    if (unlikely(e->ins.is_branch && e->is_branch_taken))
+    switch (s->cause)
     {
-        s->pc = e->branch_target;
-    }
-    else
-    {
-        /* Else resume at next PC in sequence */
-        if ((e->ins.binary & 3) != 3)
+        case SIM_ILLEGAL_OPCODE_EXCEPTION:
+        case SIM_COMPLEX_OPCODE_EXCEPTION:
+        case SIM_MMU_EXCEPTION:
         {
-            s->pc = e->ins.pc + 2; /* Current instruction is compressed */
+            s->pc = e->ins.pc;
+            s->insn = e->ins.binary;
+            strncpy(s->insn_str, e->ins.str, RISCV_INS_STR_MAX_LENGTH);
+            s->insn_str[RISCV_INS_STR_MAX_LENGTH - 1] = '\0';
+            break;
         }
-        else
+
+        case SIM_TEMU_TIMEOUT_EXCEPTION:
+        case SIM_ICOUNT_COMPLETE_EXCEPTION:
         {
-            s->pc = e->ins.pc + 4;
+            /* In case if the committed instruction was a branch, after
+             * processing the timer, we must resume at this branch's target if
+             * it was taken */
+            if (unlikely(e->ins.is_branch && e->is_branch_taken))
+            {
+                s->pc = e->branch_target;
+            }
+            else
+            {
+                /* Else resume at next PC in sequence */
+                if ((e->ins.binary & 3) != 3)
+                {
+                    /* Current instruction is compressed */
+                    s->pc = e->ins.pc + 2;
+                }
+                else
+                {
+                    s->pc = e->ins.pc + 4;
+                }
+            }
+            break;
         }
     }
 }

@@ -484,10 +484,20 @@ oo_core_rob_commit(OOCore *core)
             /* Deallocate ROB entry */
             cq_dequeue(&core->rob.cq);
 
+            /* Check for user specified sim_emulate_after_icount instructions */
+            if (s->sim_params->sim_emulate_after_icount
+                && (s->simcpu->icount >= s->sim_params->sim_emulate_after_icount))
+            {
+                e->ins.exception_cause = SIM_ICOUNT_COMPLETE_EXCEPTION;
+                sim_exception_set(s->simcpu->exception, e);
+                return -1;
+            }
+
             /* Check for timeout */
             if ((--s->n_cycles) == 0)
             {
-                sim_exception_set_timeout(s->simcpu->exception, e);
+                e->ins.exception_cause = SIM_TEMU_TIMEOUT_EXCEPTION;
+                sim_exception_set(s->simcpu->exception, e);
                 return -1;
             }
 

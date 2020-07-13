@@ -140,10 +140,11 @@
 #define PRINT_PROG_TITLE_MSG(str) fprintf(stderr, "\x1B[32m\x1B[0m " str "\n\n")
 
 /* For exception handling during simulation */
-#define SIM_ILLEGAL_OPCODE 0x1
-#define SIM_COMPLEX_OPCODE 0x2
-#define SIM_TIMEOUT_EXCEPTION 0x3
+#define SIM_ILLEGAL_OPCODE_EXCEPTION 0x1
+#define SIM_COMPLEX_OPCODE_EXCEPTION 0x2
+#define SIM_TEMU_TIMEOUT_EXCEPTION 0x3
 #define SIM_MMU_EXCEPTION 0x4
+#define SIM_ICOUNT_COMPLETE_EXCEPTION 0x5
 
 /* Instruction types processed by FPU ALU. This is used to set the latencies. */
 #define FU_FPU_ALU_FADD 0x0

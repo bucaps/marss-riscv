@@ -264,7 +264,7 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
          * the complex opcodes, illegal opcodes and timer) */
         switch (sim_exit_status)
         {
-            case SIM_ILLEGAL_OPCODE:
+            case SIM_ILLEGAL_OPCODE_EXCEPTION:
             {
                 /* Illegal opcode */
                 if (s->simcpu->params->do_sim_trace)
@@ -276,11 +276,12 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                 break;
             }
 
-            case SIM_COMPLEX_OPCODE:
+            case SIM_COMPLEX_OPCODE_EXCEPTION:
             {
                 /* Includes SYSTEM opcode instructions (eg, ecall,ebreak) which
                  * we simulate.in a single cycle  */
                 s->simcpu->return_to_sim = TRUE;
+                ++s->simcpu->icount;
                 ++s->simcpu->stats[s->priv].ins_simulated;
 
                 /* For counting system opcode instructions, because stats for
@@ -297,7 +298,7 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                 break;
             }
 
-            case SIM_TIMEOUT_EXCEPTION:
+            case SIM_TEMU_TIMEOUT_EXCEPTION:
             {
                 /* We executed all the n_cycles instructions for this interval,
                  * and now we must exit to virt_machine_run() to receive
@@ -324,6 +325,15 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                 goto mmu_exception;
                 break;
             }
+
+            case SIM_ICOUNT_COMPLETE_EXCEPTION:
+            {
+                /* Simulated user specified sim_emulate_after_icount instructions,
+                 * now switch to emulation mode */
+                riscv_sim_cpu_stop(s->simcpu, s->pc);
+                break;
+            }
+
             default:
                 fprintf(stderr, "%s\n", "Invalid exception cause");
                 exit(1);

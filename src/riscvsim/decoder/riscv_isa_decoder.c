@@ -200,7 +200,7 @@ decode_compressed_q0(struct RVInstruction *ins)
     return;
 illegal_insn:
     ins->exception = TRUE;
-    ins->exception_cause = SIM_ILLEGAL_OPCODE;
+    ins->exception_cause = SIM_ILLEGAL_OPCODE_EXCEPTION;
 }
 
 static void
@@ -390,7 +390,7 @@ decode_compressed_q1(struct RVInstruction *ins)
     return;
 illegal_insn:
     ins->exception = TRUE;
-    ins->exception_cause = SIM_ILLEGAL_OPCODE;
+    ins->exception_cause = SIM_ILLEGAL_OPCODE_EXCEPTION;
 }
 
 static void
@@ -509,7 +509,7 @@ decode_compressed_q2(struct RVInstruction *ins)
                     {
                         /* c.ebreak */
                         ins->exception = TRUE;
-                        ins->exception_cause = SIM_COMPLEX_OPCODE;
+                        ins->exception_cause = SIM_COMPLEX_OPCODE_EXCEPTION;
                         ins->type = INS_TYPE_SYSTEM;
                     }
                     else
@@ -597,7 +597,7 @@ decode_compressed_q2(struct RVInstruction *ins)
     return;
 illegal_insn:
     ins->exception = TRUE;
-    ins->exception_cause = SIM_ILLEGAL_OPCODE;
+    ins->exception_cause = SIM_ILLEGAL_OPCODE_EXCEPTION;
 }
 
 static void
@@ -860,7 +860,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->type = INS_TYPE_SYSTEM;
 
                 /* Complex Opcode */
-                ins->exception_cause = SIM_COMPLEX_OPCODE;
+                ins->exception_cause = SIM_COMPLEX_OPCODE_EXCEPTION;
                 break;
             }
             case FENCE_MASK:
@@ -870,7 +870,7 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
                 ins->type = INS_TYPE_SYSTEM;
 
                 /* Complex Opcode */
-                ins->exception_cause = SIM_COMPLEX_OPCODE;
+                ins->exception_cause = SIM_COMPLEX_OPCODE_EXCEPTION;
                 break;
             }
 
@@ -1152,5 +1152,5 @@ decode_riscv_binary(struct RVInstruction *ins, uint32_t insn)
     return;
 exception:
     ins->exception = TRUE;
-    ins->exception_cause = SIM_ILLEGAL_OPCODE;
+    ins->exception_cause = SIM_ILLEGAL_OPCODE_EXCEPTION;
 }

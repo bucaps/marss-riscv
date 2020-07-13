@@ -171,6 +171,8 @@ enum MEM_MODEL_TYPE
 #define DEF_DRAMSIM_SYSTEM_INI_FILE "DRAMSim2/system.ini.example"
 #define DEF_DRAMSIM_STATS_DIR "."
 
+#define DEF_SIM_EMULATE_AFTER_ICOUNT 0
+
 extern const char *core_type_str[];
 extern const char *sim_param_status[];
 extern const char *evict_policy_str[];
@@ -274,6 +276,8 @@ typedef struct SimParams
     char *dramsim_ini_file;
     char *dramsim_system_ini_file;
     char *dramsim_stats_dir;
+
+    uint64_t sim_emulate_after_icount;
 } SimParams;
 
 SimParams *sim_params_init();

@@ -622,6 +622,7 @@ static struct option options[] = {
     {"sim-trace", no_argument},
     {"sim-stats-path", required_argument},
     {"sim-stats-file-prefix", required_argument},
+    {"sim-stop-after-icount", required_argument},
     {NULL},
 };
 
@@ -631,19 +632,20 @@ void help(void)
            "temu version 2018-09-23, Copyright (c) 2016-2017 Fabrice Bellard\n"
            "usage: marss-riscv [options] config_file\n"
            "options are:\n"
-           "-m ram_size                     set the RAM size in MB\n"
-           "-rw                             allow write access to the disk image (default=snapshot)\n"
-           "-ctrlc                          the C-c key stops the emulator instead of being sent to the\n"
-           "                                emulated software\n"
-           "-append cmdline                 append cmdline to the kernel command line\n"
-           "-simstart                       start (boot kernel) in simulation mode\n"
-           "-sim-stats-display              dump simulation performance stats to a shared memory location, read by sim-stats-display tool\n"
-           "-sim-mem-model [base|dramsim2]  type of simulated memory model\n"
-           "-sim-flush-mem                  flush simulator memory hierarchy on every new simulation run\n"
-           "-sim-flush-bpu                  flush branch prediction unit on every new simulation run\n"
-           "-sim-trace                      generate instruction commit trace during simulation\n"
-           "-sim-stats-path                 path of the directory to store stats file\n"
-           "-sim-stats-file-prefix          prefix appended to stats file name\n"
+           "-m ram_size                         set the RAM size in MB\n"
+           "-rw                                 allow write access to the disk image (default=snapshot)\n"
+           "-ctrlc                              the C-c key stops the emulator instead of being sent to the\n"
+           "                                    emulated software\n"
+           "-append cmdline                     append cmdline to the kernel command line\n"
+           "-simstart                           start (boot kernel) in simulation mode\n"
+           "-sim-stats-display                  dump simulation performance stats to a shared memory location, read by sim-stats-display tool\n"
+           "-sim-mem-model [base|dramsim2]      type of simulated memory model\n"
+           "-sim-flush-mem                      flush simulator memory hierarchy on every new simulation run\n"
+           "-sim-flush-bpu                      flush branch prediction unit on every new simulation run\n"
+           "-sim-trace                          generate instruction commit trace during simulation\n"
+           "-sim-stats-path                     path of the directory to store stats file\n"
+           "-sim-stats-file-prefix              prefix appended to stats file name\n"
+           "-sim-emulate-after-icount [icount]  switch to emulation mode after simulating icount instructions every time simulation starts\n"
            "\n"
            "Console keys:\n"
            "Press C-a x to exit the emulator, C-a h to get some help.\n");
@@ -680,6 +682,7 @@ int main(int argc, char **argv)
     int marss_flush_sim_mem_on_simstart = FALSE;
     int marss_do_sim_trace = FALSE;
     int marss_flush_bpu_on_simstart = FALSE;
+    uint64_t marss_sim_emulate_after_icount = 0;
 
     ram_size = -1;
     allow_ctrlc = FALSE;
@@ -749,6 +752,9 @@ int main(int argc, char **argv)
             case 14: /* sim-stats-file-prefix */
                 stats_file_prefix = optarg;
                 break;
+            case 15: /* sim-stop-after-icount */
+                marss_sim_emulate_after_icount = strtoll(optarg, NULL, 10);
+                break;
             default:
                 fprintf(stderr, "unknown option index: %d\n", option_index);
                 exit(1);
@@ -797,6 +803,7 @@ int main(int argc, char **argv)
     p->sim_params->flush_sim_mem_on_simstart = marss_flush_sim_mem_on_simstart;
     p->sim_params->flush_bpu_on_simstart = marss_flush_bpu_on_simstart;
     p->sim_params->do_sim_trace = marss_do_sim_trace;
+    p->sim_params->sim_emulate_after_icount = marss_sim_emulate_after_icount;
 
     if (stats_path) {
         free(p->sim_params->sim_stats_path);
