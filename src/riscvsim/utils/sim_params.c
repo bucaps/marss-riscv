@@ -188,7 +188,7 @@ sim_params_set_defaults(SimParams *p)
     p->dramsim_stats_dir = strdup(DEF_DRAMSIM_STATS_DIR);
     assert(p->dramsim_stats_dir);
 
-    p->sim_emulate_after_icount = DEF_SIM_STOP_AFTER_ICOUNT;
+    p->sim_emulate_after_icount = DEF_SIM_EMULATE_AFTER_ICOUNT;
 }
 
 static int
