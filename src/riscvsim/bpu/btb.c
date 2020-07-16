@@ -89,6 +89,7 @@ btb_add(BranchTargetBuffer *b, target_ulong pc, int type)
     b->data[set_addr][pos].pc = pc;
     b->data[set_addr][pos].target = 0;
     b->data[set_addr][pos].type = type;
+    b->evict_policy->use(b->evict_policy, set_addr, pos);
 }
 
 /**
