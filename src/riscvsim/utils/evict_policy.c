@@ -35,6 +35,11 @@
 static void
 bit_plru_use(EvictPolicy *p, int set, int way)
 {
+    if (p->num_ways == 1)
+    {
+        return;
+    }
+
     /* Set MRU bit for this way in this set to 1 */
     p->sets[set] |= (1 << way);
 
@@ -52,6 +57,11 @@ bit_plru_evict(EvictPolicy *p, int set)
 {
     int i = 0;
     uint64_t current_set = p->sets[set];
+
+    if (p->num_ways == 1)
+    {
+        return 0;
+    }
 
     /* Return the first way address whose MRU bit is set to 0 */
     for (i = 0; i < p->num_ways; i++)
