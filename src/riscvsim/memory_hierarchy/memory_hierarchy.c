@@ -101,6 +101,7 @@ mem_hierarchy_pte_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
 MemoryHierarchy *
 memory_hierarchy_init(const SimParams *p)
 {
+    int words_per_cache_line;
     MemoryHierarchy *mem_hierarchy;
 
     mem_hierarchy = (MemoryHierarchy *)calloc(1, sizeof(MemoryHierarchy));
@@ -114,8 +115,8 @@ memory_hierarchy_init(const SimParams *p)
     /* Setup caches */
     if (p->enable_l1_caches)
     {
-        mem_hierarchy->cache_line_size
-            = p->words_per_cache_line * sizeof(target_ulong);
+        words_per_cache_line = p->cache_line_size /  sizeof(target_ulong);
+        mem_hierarchy->cache_line_size = p->cache_line_size;
 
         /* If caches are enabled, set burst length to cache line size */
         mem_controller_set_burst_length(mem_hierarchy->mem_controller,
@@ -136,7 +137,7 @@ memory_hierarchy_init(const SimParams *p)
                 SharedCache, L2, p->l2_shared_cache_size,
                 mem_hierarchy->cache_line_size, p->l2_shared_cache_ways,
                 p->l2_shared_cache_read_latency,
-                p->l2_shared_cache_write_latency, NULL, p->words_per_cache_line,
+                p->l2_shared_cache_write_latency, NULL, words_per_cache_line,
                 p->l2_shared_cache_evict,
                 (CacheWritePolicy)p->cache_write_policy,
                 (CacheReadAllocPolicy)p->cache_read_allocate_policy,
@@ -149,7 +150,7 @@ memory_hierarchy_init(const SimParams *p)
             InstructionCache, L1, p->l1_code_cache_size,
             mem_hierarchy->cache_line_size, p->l1_code_cache_ways,
             p->l1_code_cache_read_latency, 1, mem_hierarchy->l2_cache,
-            p->words_per_cache_line, p->l1_code_cache_evict,
+            words_per_cache_line, p->l1_code_cache_evict,
             (CacheWritePolicy)p->cache_write_policy,
             (CacheReadAllocPolicy)p->cache_read_allocate_policy,
             (CacheWriteAllocPolicy)p->cache_write_allocate_policy,
@@ -160,7 +161,7 @@ memory_hierarchy_init(const SimParams *p)
             DataCache, L1, p->l1_data_cache_size,
             mem_hierarchy->cache_line_size, p->l1_data_cache_ways,
             p->l1_data_cache_read_latency, p->l1_data_cache_write_latency,
-            mem_hierarchy->l2_cache, p->words_per_cache_line,
+            mem_hierarchy->l2_cache, words_per_cache_line,
             p->l1_data_cache_evict, (CacheWritePolicy)p->cache_write_policy,
             (CacheReadAllocPolicy)p->cache_read_allocate_policy,
             (CacheWriteAllocPolicy)p->cache_write_allocate_policy,

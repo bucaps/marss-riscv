@@ -168,7 +168,7 @@ sim_params_set_defaults(SimParams *p)
     p->l2_shared_cache_ways = DEF_L2_CACHE_WAYS;
     p->l2_shared_cache_evict = DEF_L2_CACHE_EVICT;
 
-    p->words_per_cache_line = DEF_WORDS_PER_CACHE_LINE;
+    p->cache_line_size = DEF_CACHE_LINE_SIZE;
     p->cache_read_allocate_policy = DEF_CACHE_READ_ALLOC_POLICY;
     p->cache_write_allocate_policy = DEF_CACHE_WRITE_ALLOC_POLICY;
     p->cache_write_policy = DEF_CACHE_WRITE_POLICY;
@@ -369,8 +369,13 @@ sim_params_validate(const const SimParams *p)
         validate_param("l1_data_cache_evict", 1, 0, 1, p->l1_data_cache_evict);
 
         /* validate common parameters */
-        validate_param("words_per_cache_line", 0, 1, 2048,
-                       p->words_per_cache_line);
+        if (!is_power_of_two(p->cache_line_size))
+        {
+            fprintf(stderr, "(marss-riscv): config error - %s must be "
+                            "a power of 2\n",
+                    "cache_line_size");
+            abort();
+        }
         validate_param("cache_read_allocate_policy", 1, 0, 1,
                        p->cache_read_allocate_policy);
         validate_param("cache_write_allocate_policy", 1, 0, 1,
@@ -438,13 +443,22 @@ sim_params_parse(SimParams *p, JSONValue cfg)
 {
 
     char buf1[256];
-    JSONValue obj, obj1;
+    JSONValue core_obj, obj, obj1;
     const char *tag_name, *str;
     char stage_latency_str[LATENCY_STRING_MAX_LENGTH];
 
+    snprintf(buf1, sizeof(buf1), "%s", "core");
+    core_obj = json_object_get(cfg, buf1);
+
+    if (json_is_undefined(core_obj))
+    {
+        fprintf(stderr, "%s object not found, selecting default values\n",
+                buf1);
+    }
+
     /* Parse simulation options */
-    tag_name = "core_name";
-    if (vm_get_str(cfg, tag_name, &str) < 0)
+    tag_name = "name";
+    if (vm_get_str(core_obj, tag_name, &str) < 0)
     {
         fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
                 p->core_name);
@@ -455,8 +469,8 @@ sim_params_parse(SimParams *p, JSONValue cfg)
         p->core_name = strdup(str);
     }
 
-    tag_name = "core_type";
-    if (vm_get_str(cfg, tag_name, &str) < 0)
+    tag_name = "type";
+    if (vm_get_str(core_obj, tag_name, &str) < 0)
     {
         fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
                 core_type_str[p->core_type]);
@@ -475,15 +489,24 @@ sim_params_parse(SimParams *p, JSONValue cfg)
 
     if (p->core_type == CORE_TYPE_INCORE)
     {
+        snprintf(buf1, sizeof(buf1), "%s", "incore");
+        obj1 = json_object_get(core_obj, buf1);
+
+        if (json_is_undefined(obj1))
+        {
+            fprintf(stderr, "%s object not found, selecting default values\n",
+                    buf1);
+        }
+
         tag_name = "num_cpu_stages";
-        if (vm_get_int(cfg, tag_name, &p->num_cpu_stages) < 0)
+        if (vm_get_int(obj1, tag_name, &p->num_cpu_stages) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->num_cpu_stages);
         }
 
         tag_name = "enable_parallel_fu";
-        if (vm_get_str(cfg, tag_name, &str) < 0)
+        if (vm_get_str(obj1, tag_name, &str) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value %s\n",
                     tag_name, sim_param_status[p->enable_parallel_fu]);
@@ -508,68 +531,53 @@ sim_params_parse(SimParams *p, JSONValue cfg)
     }
     else if (p->core_type == CORE_TYPE_OOCORE)
     {
+        snprintf(buf1, sizeof(buf1), "%s", "oocore");
+        obj1 = json_object_get(core_obj, buf1);
+
+        if (json_is_undefined(obj1))
+        {
+            fprintf(stderr, "%s object not found, selecting default values\n",
+                    buf1);
+        }
+
         tag_name = "iq_size";
-        if (vm_get_int(cfg, tag_name, &p->iq_size) < 0)
+        if (vm_get_int(obj1, tag_name, &p->iq_size) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->iq_size);
         }
 
         tag_name = "iq_issue_ports";
-        if (vm_get_int(cfg, tag_name, &p->iq_issue_ports) < 0)
+        if (vm_get_int(obj1, tag_name, &p->iq_issue_ports) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->iq_issue_ports);
         }
 
         tag_name = "rob_size";
-        if (vm_get_int(cfg, tag_name, &p->rob_size) < 0)
+        if (vm_get_int(obj1, tag_name, &p->rob_size) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->rob_size);
         }
 
         tag_name = "rob_commit_ports";
-        if (vm_get_int(cfg, tag_name, &p->rob_commit_ports) < 0)
+        if (vm_get_int(obj1, tag_name, &p->rob_commit_ports) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->rob_commit_ports);
         }
 
         tag_name = "lsq_size";
-        if (vm_get_int(cfg, tag_name, &p->lsq_size) < 0)
+        if (vm_get_int(obj1, tag_name, &p->lsq_size) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->lsq_size);
         }
     }
 
-    tag_name = "sim_stats_path";
-    if (vm_get_str(cfg, tag_name, &str) < 0)
-    {
-        fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-                p->sim_stats_path);
-    }
-    else
-    {
-        free(p->sim_stats_path);
-        p->sim_stats_path = strdup(str);
-    }
-
-    tag_name = "sim_stats_file_prefix";
-    if (vm_get_str(cfg, tag_name, &str) < 0)
-    {
-        fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-                p->sim_stats_file_prefix);
-    }
-    else
-    {
-        free(p->sim_stats_file_prefix);
-        p->sim_stats_file_prefix = strdup(str);
-    }
-
-    snprintf(buf1, sizeof(buf1), "%s", "execution_units");
-    obj = json_object_get(cfg, buf1);
+    snprintf(buf1, sizeof(buf1), "%s", "functional_units");
+    obj = json_object_get(core_obj, buf1);
 
     if (json_is_undefined(obj))
     {
@@ -657,7 +665,7 @@ sim_params_parse(SimParams *p, JSONValue cfg)
                                 p->num_fpu_fma_stages, stage_latency_str);
     }
 
-    snprintf(buf1, sizeof(buf1), "%s", "fpu_alu");
+    snprintf(buf1, sizeof(buf1), "%s", "fpu_alu_stage_latency");
     obj1 = json_object_get(obj, buf1);
 
     tag_name = "fadd";
@@ -765,35 +773,18 @@ sim_params_parse(SimParams *p, JSONValue cfg)
                 p->fpu_alu_latency[FU_FPU_ALU_FCLASS]);
     }
 
-    tag_name = "sim_trace_file";
-    if (vm_get_str(cfg, tag_name, &str) < 0)
-    {
-        fprintf(stderr, "%s not found, selecting default value: %s\n", tag_name,
-                p->sim_trace_file);
-    }
-    else
-    {
-        free(p->sim_trace_file);
-        p->sim_trace_file = strdup(str);
-    }
-
-    tag_name = "tlb_size";
-    if (vm_get_int(cfg, tag_name, &p->tlb_size) < 0)
-    {
-        fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                p->tlb_size);
-    }
-
-    tag_name = "pte_rw_latency";
-    if (vm_get_int(cfg, tag_name, &p->pte_rw_latency) < 0)
-    {
-        fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
-                p->pte_rw_latency);
-    }
-
     /* BPU */
-    tag_name = "enable_bpu";
-    if (vm_get_str(cfg, tag_name, &str) < 0)
+    snprintf(buf1, sizeof(buf1), "%s", "bpu");
+    obj = json_object_get(core_obj, buf1);
+
+    if (json_is_undefined(obj))
+    {
+        fprintf(stderr, "%s object not found, selecting default values\n",
+                buf1);
+    }
+
+    tag_name = "enable";
+    if (vm_get_str(obj, tag_name, &str) < 0)
     {
         fprintf(stderr, "%s not found, selecting default value %s\n", tag_name,
                 sim_param_status[p->enable_bpu]);
@@ -817,46 +808,31 @@ sim_params_parse(SimParams *p, JSONValue cfg)
 
     if (p->enable_bpu == ENABLE)
     {
-        tag_name = "btb_size";
-        if (vm_get_int(cfg, tag_name, &p->btb_size) < 0)
+        snprintf(buf1, sizeof(buf1), "%s", "btb");
+        obj1 = json_object_get(obj, buf1);
+
+        if (json_is_undefined(obj1))
+        {
+            fprintf(stderr, "%s object not found, selecting default values\n",
+                    buf1);
+        }
+
+        tag_name = "size";
+        if (vm_get_int(obj1, tag_name, &p->btb_size) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->btb_size);
         }
 
-        tag_name = "btb_ways";
-        if (vm_get_int(cfg, tag_name, &p->btb_ways) < 0)
+        tag_name = "ways";
+        if (vm_get_int(obj1, tag_name, &p->btb_ways) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->btb_ways);
         }
 
-        tag_name = "bpu_type";
-        if (vm_get_str(cfg, tag_name, &str) < 0)
-        {
-            fprintf(stderr, "%s not found, selecting default value %s\n",
-                    tag_name, bpu_type_str[p->bpu_type]);
-        }
-        else
-        {
-            if (strcmp(str, "bimodal") == 0)
-            {
-                p->bpu_type = BPU_TYPE_BIMODAL;
-            }
-            else if (strcmp(str, "adaptive") == 0)
-            {
-                p->bpu_type = BPU_TYPE_ADAPTIVE;
-            }
-            else
-            {
-                fprintf(stderr, "error: option %s has invalid value\n",
-                        tag_name);
-                exit(1);
-            }
-        }
-
-        tag_name = "btb_eviction_policy";
-        if (vm_get_str(cfg, tag_name, &str) < 0)
+        tag_name = "eviction_policy";
+        if (vm_get_str(obj1, tag_name, &str) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value %s\n",
                     tag_name, evict_policy_str[p->btb_eviction_policy]);
@@ -879,83 +855,147 @@ sim_params_parse(SimParams *p, JSONValue cfg)
             }
         }
 
-        if (p->bpu_type == BPU_TYPE_ADAPTIVE)
+        tag_name = "bpu_type";
+        if (vm_get_str(obj, tag_name, &str) < 0)
         {
-            tag_name = "bpu_ght_size";
-            if (vm_get_int(cfg, tag_name, &p->bpu_ght_size) < 0)
-            {
-                fprintf(stderr, "%s not found, selecting default value: %d\n",
-                        tag_name, p->bpu_ght_size);
-            }
-
-            tag_name = "bpu_pht_size";
-            if (vm_get_int(cfg, tag_name, &p->bpu_pht_size) < 0)
-            {
-                fprintf(stderr, "%s not found, selecting default value: %d\n",
-                        tag_name, p->bpu_pht_size);
-            }
-
-            tag_name = "bpu_history_bits";
-            if (vm_get_int(cfg, tag_name, &p->bpu_history_bits) < 0)
-            {
-                fprintf(stderr, "%s not found, selecting default value: %d\n",
-                        tag_name, p->bpu_history_bits);
-            }
-
-            if ((p->bpu_ght_size == 1) && (p->bpu_pht_size == 1))
-            {
-                tag_name = "bpu_aliasing_func_type";
-                if (vm_get_str(cfg, tag_name, &str) < 0)
-                {
-                    fprintf(
-                        stderr, "%s not found, selecting default value %s\n",
-                        tag_name,
-                        bpu_aliasing_func_type_str[p->bpu_aliasing_func_type]);
-                }
-                else
-                {
-                    if (strcmp(str, "xor") == 0)
-                    {
-                        p->bpu_aliasing_func_type = BPU_ALIAS_FUNC_XOR;
-                    }
-                    else if (strcmp(str, "and") == 0)
-                    {
-                        p->bpu_aliasing_func_type = BPU_ALIAS_FUNC_AND;
-                    }
-                    else if (strcmp(str, "none") == 0)
-                    {
-                        p->bpu_aliasing_func_type = BPU_ALIAS_FUNC_NONE;
-                    }
-                    else
-                    {
-                        fprintf(stderr, "error: option %s has invalid value\n",
-                                tag_name);
-                        exit(1);
-                    }
-                }
-            }
+            fprintf(stderr, "%s not found, selecting default value %s\n",
+                    tag_name, bpu_type_str[p->bpu_type]);
         }
         else
         {
-            tag_name = "bht_size";
-            if (vm_get_int(cfg, tag_name, &p->bht_size) < 0)
+            if (strcmp(str, "bimodal") == 0)
             {
-                fprintf(stderr, "%s not found, selecting default value: %d\n",
-                        tag_name, p->bht_size);
+                p->bpu_type = BPU_TYPE_BIMODAL;
+            }
+            else if (strcmp(str, "adaptive") == 0)
+            {
+                p->bpu_type = BPU_TYPE_ADAPTIVE;
+            }
+            else
+            {
+                fprintf(stderr, "error: option %s has invalid value\n",
+                        tag_name);
+                exit(1);
+            }
+        }
+
+        switch(p->bpu_type)
+        {
+            case BPU_TYPE_BIMODAL:
+            {
+                snprintf(buf1, sizeof(buf1), "%s", "bimodal");
+                obj1 = json_object_get(obj, buf1);
+
+                if (json_is_undefined(obj1))
+                {
+                    fprintf(stderr,
+                            "%s object not found, selecting default values\n",
+                            buf1);
+                }
+
+                tag_name = "bht_size";
+                if (vm_get_int(obj1, tag_name, &p->bht_size) < 0)
+                {
+                    fprintf(stderr,
+                            "%s not found, selecting default value: %d\n",
+                            tag_name, p->bht_size);
+                }
+                break;
+            }
+
+            case BPU_TYPE_ADAPTIVE:
+            {
+                snprintf(buf1, sizeof(buf1), "%s", "adaptive");
+                obj1 = json_object_get(obj, buf1);
+
+                if (json_is_undefined(obj1))
+                {
+                    fprintf(stderr,
+                            "%s object not found, selecting default values\n",
+                            buf1);
+                }
+
+                tag_name = "ght_size";
+                if (vm_get_int(obj1, tag_name, &p->bpu_ght_size) < 0)
+                {
+                    fprintf(stderr,
+                            "%s not found, selecting default value: %d\n",
+                            tag_name, p->bpu_ght_size);
+                }
+
+                tag_name = "pht_size";
+                if (vm_get_int(obj1, tag_name, &p->bpu_pht_size) < 0)
+                {
+                    fprintf(stderr,
+                            "%s not found, selecting default value: %d\n",
+                            tag_name, p->bpu_pht_size);
+                }
+
+                tag_name = "history_bits";
+                if (vm_get_int(obj1, tag_name, &p->bpu_history_bits) < 0)
+                {
+                    fprintf(stderr,
+                            "%s not found, selecting default value: %d\n",
+                            tag_name, p->bpu_history_bits);
+                }
+
+                if ((p->bpu_ght_size == 1) && (p->bpu_pht_size == 1))
+                {
+                    tag_name = "aliasing_func_type";
+                    if (vm_get_str(obj1, tag_name, &str) < 0)
+                    {
+                        fprintf(stderr,
+                                "%s not found, selecting default value %s\n",
+                                tag_name, bpu_aliasing_func_type_str
+                                              [p->bpu_aliasing_func_type]);
+                    }
+                    else
+                    {
+                        if (strcmp(str, "xor") == 0)
+                        {
+                            p->bpu_aliasing_func_type = BPU_ALIAS_FUNC_XOR;
+                        }
+                        else if (strcmp(str, "and") == 0)
+                        {
+                            p->bpu_aliasing_func_type = BPU_ALIAS_FUNC_AND;
+                        }
+                        else if (strcmp(str, "none") == 0)
+                        {
+                            p->bpu_aliasing_func_type = BPU_ALIAS_FUNC_NONE;
+                        }
+                        else
+                        {
+                            fprintf(stderr,
+                                    "error: option %s has invalid value\n",
+                                    tag_name);
+                            exit(1);
+                        }
+                    }
+                }
+                break;
             }
         }
 
         tag_name = "ras_size";
-        if (vm_get_int(cfg, tag_name, &p->ras_size) < 0)
+        if (vm_get_int(obj, tag_name, &p->ras_size) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
                     tag_name, p->ras_size);
         }
     }
 
+    snprintf(buf1, sizeof(buf1), "%s", "caches");
+    obj1 = json_object_get(core_obj, buf1);
+
+    if (json_is_undefined(obj1))
+    {
+        fprintf(stderr, "%s object not found, selecting default values\n",
+                buf1);
+    }
+
     /* L1 Caches */
     tag_name = "enable_l1_caches";
-    if (vm_get_str(cfg, tag_name, &str) < 0)
+    if (vm_get_str(obj1, tag_name, &str) < 0)
     {
         fprintf(stderr, "%s not found, selecting default value %s\n", tag_name,
                 sim_param_status[p->enable_l1_caches]);
@@ -980,7 +1020,7 @@ sim_params_parse(SimParams *p, JSONValue cfg)
     if (p->enable_l1_caches)
     {
         snprintf(buf1, sizeof(buf1), "%s", "icache");
-        obj = json_object_get(cfg, buf1);
+        obj = json_object_get(obj1, buf1);
 
         if (json_is_undefined(obj))
         {
@@ -1039,7 +1079,7 @@ sim_params_parse(SimParams *p, JSONValue cfg)
         }
 
         snprintf(buf1, sizeof(buf1), "%s", "dcache");
-        obj = json_object_get(cfg, buf1);
+        obj = json_object_get(obj1, buf1);
 
         if (json_is_undefined(obj))
         {
@@ -1105,11 +1145,11 @@ sim_params_parse(SimParams *p, JSONValue cfg)
             }
         }
 
-        tag_name = "words_per_cache_line";
-        if (vm_get_int(cfg, tag_name, &p->words_per_cache_line) < 0)
+        tag_name = "line_size";
+        if (vm_get_int(obj1, tag_name, &p->cache_line_size) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value: %d\n",
-                    tag_name, p->words_per_cache_line);
+                    tag_name, p->cache_line_size);
         }
 
 #if 0
@@ -1131,8 +1171,8 @@ sim_params_parse(SimParams *p, JSONValue cfg)
         }
 #endif
 
-        tag_name = "cache_allocate_on_write_miss";
-        if (vm_get_str(cfg, tag_name, &str) < 0)
+        tag_name = "allocate_on_write_miss";
+        if (vm_get_str(obj1, tag_name, &str) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value %s\n",
                     tag_name, cache_wa_str[p->cache_write_allocate_policy]);
@@ -1155,8 +1195,8 @@ sim_params_parse(SimParams *p, JSONValue cfg)
             }
         }
 
-        tag_name = "cache_write_policy";
-        if (vm_get_str(cfg, tag_name, &str) < 0)
+        tag_name = "write_policy";
+        if (vm_get_str(obj1, tag_name, &str) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value %s\n",
                     tag_name, cache_wp_str[p->cache_write_policy]);
@@ -1179,8 +1219,18 @@ sim_params_parse(SimParams *p, JSONValue cfg)
             }
         }
 
-        tag_name = "enable_l2_cache";
-        if (vm_get_str(cfg, tag_name, &str) < 0)
+
+        snprintf(buf1, sizeof(buf1), "%s", "l2_shared_cache");
+        obj = json_object_get(obj1, buf1);
+
+        if (json_is_undefined(obj))
+        {
+            fprintf(stderr, "%s object not found, selecting default values\n",
+                    buf1);
+        }
+
+        tag_name = "enable";
+        if (vm_get_str(obj, tag_name, &str) < 0)
         {
             fprintf(stderr, "%s not found, selecting default value %s\n",
                     tag_name, sim_param_status[p->enable_l2_cache]);
@@ -1205,16 +1255,6 @@ sim_params_parse(SimParams *p, JSONValue cfg)
 
         if (p->enable_l2_cache)
         {
-            snprintf(buf1, sizeof(buf1), "%s", "l2_shared_cache");
-            obj = json_object_get(cfg, buf1);
-
-            if (json_is_undefined(obj))
-            {
-                fprintf(stderr,
-                        "%s object not found, selecting default values\n",
-                        buf1);
-            }
-
             tag_name = "read_latency";
             if (vm_get_int(obj, tag_name, &p->l2_shared_cache_read_latency) < 0)
             {
@@ -1277,28 +1317,72 @@ sim_params_parse(SimParams *p, JSONValue cfg)
         }
     }
 
+    snprintf(buf1, sizeof(buf1), "%s", "memory");
+    obj1 = json_object_get(cfg, buf1);
+
+    if (json_is_undefined(obj1))
+    {
+        fprintf(stderr, "%s object not found, selecting default values\n",
+                buf1);
+    }
+
+    tag_name = "tlb_size";
+    if (vm_get_int(obj1, tag_name, &p->tlb_size) < 0)
+    {
+        fprintf(stderr, "%s not found, selecting default value: %d\n", tag_name,
+                p->tlb_size);
+    }
+
+    tag_name = "burst_length";
+    if (vm_get_int(obj1, tag_name, (int *)&p->burst_length) < 0)
+    {
+        fprintf(stderr, "%s not found, selecting default value: %u\n", tag_name,
+                p->burst_length);
+    }
+
     switch (p->dram_model_type)
     {
         case MEM_MODEL_BASE:
         {
+            snprintf(buf1, sizeof(buf1), "%s", "base_dram_model");
+            obj = json_object_get(obj1, buf1);
+
+            if (json_is_undefined(obj))
+            {
+                fprintf(stderr,
+                        "%s object not found, selecting default values\n",
+                        buf1);
+            }
+
             tag_name = "mem_access_latency";
-            if (vm_get_int(cfg, tag_name, &p->mem_access_latency) < 0)
+            if (vm_get_int(obj, tag_name, &p->mem_access_latency) < 0)
             {
                 fprintf(stderr, "%s not found, selecting default value: %d\n",
                         tag_name, p->mem_access_latency);
             }
-            tag_name = "burst_length";
-            if (vm_get_int(cfg, tag_name, (int *)&p->burst_length) < 0)
+
+            tag_name = "pte_rw_latency";
+            if (vm_get_int(obj, tag_name, &p->pte_rw_latency) < 0)
             {
-                fprintf(stderr, "%s not found, selecting default value: %u\n",
-                        tag_name, p->burst_length);
+                fprintf(stderr, "%s not found, selecting default value: %d\n",
+                        tag_name, p->pte_rw_latency);
             }
             break;
         }
         case MEM_MODEL_DRAMSIM:
         {
-            tag_name = "dramsim_ini_file";
-            if (vm_get_str(cfg, tag_name, &str) < 0)
+            snprintf(buf1, sizeof(buf1), "%s", "dramsim");
+            obj = json_object_get(obj1, buf1);
+
+            if (json_is_undefined(obj))
+            {
+                fprintf(stderr,
+                        "%s object not found, selecting default values\n",
+                        buf1);
+            }
+
+            tag_name = "ini_file";
+            if (vm_get_str(obj, tag_name, &str) < 0)
             {
                 fprintf(stderr, "%s not found, selecting default value: %s\n",
                         tag_name, p->dramsim_ini_file);
@@ -1309,8 +1393,8 @@ sim_params_parse(SimParams *p, JSONValue cfg)
                 p->dramsim_ini_file = strdup(str);
             }
 
-            tag_name = "dramsim_system_ini_file";
-            if (vm_get_str(cfg, tag_name, &str) < 0)
+            tag_name = "system_ini_file";
+            if (vm_get_str(obj, tag_name, &str) < 0)
             {
                 fprintf(stderr, "%s not found, selecting default value: %s\n",
                         tag_name, p->dramsim_system_ini_file);
@@ -1321,8 +1405,8 @@ sim_params_parse(SimParams *p, JSONValue cfg)
                 p->dramsim_system_ini_file = strdup(str);
             }
 
-            tag_name = "dramsim_stats_dir";
-            if (vm_get_str(cfg, tag_name, &str) < 0)
+            tag_name = "stats_dir";
+            if (vm_get_str(obj, tag_name, &str) < 0)
             {
                 fprintf(stderr, "%s not found, selecting default value: %s\n",
                         tag_name, p->dramsim_stats_dir);
@@ -1509,7 +1593,7 @@ sim_params_print(const SimParams *p)
                                 evict_policy_str[p->l2_shared_cache_evict]);
         }
 
-        SIM_PARAM_PRINT_INT("words_per_cache_line", p->words_per_cache_line);
+        SIM_PARAM_PRINT_INT("cache_line_size", p->cache_line_size);
         SIM_PARAM_PRINT_STR("cache_allocate_on_write_miss",
                             cache_wa_str[p->cache_write_allocate_policy]);
         SIM_PARAM_PRINT_STR("cache_write_policy",

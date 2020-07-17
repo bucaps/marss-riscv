@@ -157,7 +157,7 @@ enum MEM_MODEL_TYPE
 #define DEF_CACHE_READ_ALLOC_POLICY CACHE_READ_ALLOC
 #define DEF_CACHE_WRITE_ALLOC_POLICY CACHE_WRITE_ALLOC
 #define DEF_CACHE_WRITE_POLICY CACHE_WRITEBACK
-#define DEF_WORDS_PER_CACHE_LINE 8
+#define DEF_CACHE_LINE_SIZE 64
 
 #define DEF_TLB_SIZE 32
 #define DEF_DRAM_BURST_SIZE 32
@@ -258,7 +258,7 @@ typedef struct SimParams
     int l2_shared_cache_evict;
 
     /* Common cache parameters */
-    int words_per_cache_line;
+    int cache_line_size;
     int cache_read_allocate_policy;
     int cache_write_allocate_policy;
     int cache_write_policy;
