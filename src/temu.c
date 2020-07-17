@@ -619,7 +619,7 @@ static struct option options[] = {
     {"build-preload", required_argument},
     {"sim-flush-mem", no_argument},
     {"sim-flush-bpu", no_argument},
-    {"sim-trace", no_argument},
+    {"sim-trace", required_argument},
     {"sim-stats-path", required_argument},
     {"sim-stats-file-prefix", required_argument},
     {"sim-stop-after-icount", required_argument},
@@ -642,7 +642,7 @@ void help(void)
            "-sim-mem-model [base|dramsim2]      type of simulated memory model\n"
            "-sim-flush-mem                      flush simulator memory hierarchy on every new simulation run\n"
            "-sim-flush-bpu                      flush branch prediction unit on every new simulation run\n"
-           "-sim-trace                          generate instruction commit trace during simulation\n"
+           "-sim-trace [trace-file-name]        generate instruction commit trace in [trace-file-name] during simulation\n"
            "-sim-stats-path [directory path]    path of the directory to store stats file\n"
            "-sim-stats-file-prefix [prefix]     prefix appended to stats file name\n"
            "-sim-emulate-after-icount [icount]  switch to emulation mode after simulating icount instructions every time simulation starts\n"
@@ -671,7 +671,7 @@ int main(int argc, char **argv)
 {
     VirtMachine *s;
     const char *path, *cmdline, *build_preload_file;
-    char *stats_path = NULL, *stats_file_prefix = NULL;
+    char *stats_path = NULL, *stats_file_prefix = NULL, *sim_trace_file = NULL;
     int c, option_index, i, ram_size, accel_enable;
     BOOL allow_ctrlc;
     BlockDeviceModeEnum drive_mode;
@@ -745,6 +745,7 @@ int main(int argc, char **argv)
                 break;
             case 12: /* sim-trace */
                 marss_do_sim_trace = TRUE;
+                sim_trace_file = optarg;
                 break;
             case 13: /* sim-stats-path */
                 stats_path = optarg;
@@ -804,6 +805,11 @@ int main(int argc, char **argv)
     p->sim_params->flush_bpu_on_simstart = marss_flush_bpu_on_simstart;
     p->sim_params->do_sim_trace = marss_do_sim_trace;
     p->sim_params->sim_emulate_after_icount = marss_sim_emulate_after_icount;
+
+    if (sim_trace_file) {
+        free(p->sim_params->sim_trace_file);
+        p->sim_params->sim_trace_file = strdup(sim_trace_file);
+    }
 
     if (stats_path) {
         free(p->sim_params->sim_stats_path);
