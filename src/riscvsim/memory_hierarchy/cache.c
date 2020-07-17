@@ -518,7 +518,7 @@ cache_init(CacheTypes type, CacheLevels level, int size_kb, int cache_line_size,
     c->set_bits = GET_NUM_BITS(c->num_sets);
 
     /* Size of cache in KBs */
-    c->size = (c->num_blks * c->max_words_per_blk * WORD_SIZE) / 1000;
+    c->size = (c->num_blks * c->max_words_per_blk * WORD_SIZE) / 1024;
 
     /* Included set bits again in the tag bits */
     c->tag_bits = (sizeof(target_ulong) * 8) - c->word_bits;
