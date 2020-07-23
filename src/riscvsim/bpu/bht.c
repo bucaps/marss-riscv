@@ -112,4 +112,6 @@ bht_free(Bht **b)
 {
     free((*b)->bht_entry);
     (*b)->bht_entry = NULL;
+    free(*b);
+    *b = NULL;
 }

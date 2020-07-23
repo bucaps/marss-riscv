@@ -1652,6 +1652,9 @@ sim_params_free(SimParams *p)
     free(p->fpu_fma_stage_latency);
     p->fpu_fma_stage_latency = NULL;
 
+    free(p->sim_stats_file_prefix);
+    p->sim_stats_file_prefix = NULL;
+
     free(p->sim_trace_file);
     p->sim_trace_file = NULL;
 
