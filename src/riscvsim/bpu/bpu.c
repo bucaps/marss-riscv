@@ -63,21 +63,33 @@ bpu_probe(BranchPredUnit *u, target_ulong pc, BPUResponsePkt *p, int priv)
     p->btb_probe_status = btb_probe(u->btb, pc, &p->btb_entry);
     ++(u->stats[priv].btb_probes);
 
-    /* Check if the PC is present in Adaptive Predictor */
-    if (u->ap)
-    {
-        p->ap_probe_status = adaptive_predictor_probe(u->ap, pc);
-    }
-
-    /* If the PC present in BTB is a unconditional branch, mark ap_probe_status
-     * as HIT */
     if (p->btb_probe_status == BPU_HIT)
     {
         ++(u->stats[priv].btb_hits);
+    }
 
-        if (p->btb_entry->type == BRANCH_UNCOND)
+    switch (u->bpu_type)
+    {
+        case BPU_TYPE_BIMODAL:
         {
             p->ap_probe_status = BPU_HIT;
+            break;
+        }
+
+        case BPU_TYPE_ADAPTIVE:
+        {
+            p->ap_probe_status = adaptive_predictor_probe(u->ap, pc);
+
+            if (p->btb_probe_status == BPU_HIT)
+            {
+                /* If the PC present in BTB is a unconditional branch, mark
+                 * ap_probe_status as HIT */
+                if (p->btb_entry->type == BRANCH_UNCOND)
+                {
+                    p->ap_probe_status = BPU_HIT;
+                }
+            }
+            break;
         }
     }
 
