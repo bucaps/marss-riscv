@@ -1462,7 +1462,7 @@ sim_params_print(const SimParams *p)
 
     if (p->do_sim_trace)
     {
-        SIM_PARAM_PRINT_STR("sim_trace_file", p->core_name);
+        SIM_PARAM_PRINT_STR("sim_trace_file", p->sim_trace_file);
     }
 
     fprintf(stderr, "\n");
