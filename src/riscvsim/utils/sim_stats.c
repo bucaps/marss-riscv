@@ -34,6 +34,7 @@
 #include <time.h>
 #include <sys/stat.h>
 
+#include "sim_log.h"
 #include "sim_stats.h"
 
 #define SIM_STAT_PRINT_TO_FILE_HEADER(fp)                                      \
@@ -69,92 +70,7 @@
     } while (0)
 
 void
-sim_stats_print_to_terminal(const SimStats *s)
-{
-    SIM_STAT_PRINT_HEADER_TO_TERMINAL(stderr);
-
-    /* total cycles and instructions retired */
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "commits", ins_simulated);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "cycles", cycles);
-
-    /* total cycles and instructions retired */
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "load_insn", ins_type[INS_TYPE_LOAD]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "store_insn",
-                               ins_type[INS_TYPE_STORE]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "atomic_insn",
-                               ins_type[INS_TYPE_ATOMIC]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "system_insn", ins_emulated);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "aritmetic_insn",
-                               ins_type[INS_TYPE_ARITMETIC]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "cond_branches",
-                               ins_type[INS_TYPE_COND_BRANCH]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "jal_insn", ins_type[INS_TYPE_JAL]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "jalr_insn", ins_type[INS_TYPE_JALR]);
-
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "int_mul_insn",
-                               ins_type[INS_TYPE_INT_MUL]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "int_div_insn",
-                               ins_type[INS_TYPE_INT_DIV]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "fp_load_insn",
-                               ins_type[INS_TYPE_FP_LOAD]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "fp_store_insn",
-                               ins_type[INS_TYPE_FP_STORE]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "fp_add_insn",
-                               ins_type[INS_TYPE_FP_ADD]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "fp_mul_insn",
-                               ins_type[INS_TYPE_FP_MUL]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "fp_fma_insn",
-                               ins_type[INS_TYPE_FP_FMA]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "fp_div_sqrt_insn",
-                               ins_type[INS_TYPE_FP_DIV_SQRT]);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "fp_misc_insn",
-                               ins_type[INS_TYPE_FP_MISC]);
-
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "icache_read", icache_read);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "icache_read_miss", icache_read_miss);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "dcache_read", dcache_read);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "dcache_read_miss", dcache_read_miss);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "dcache_write", dcache_write);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "dcache_write_miss",
-                               dcache_write_miss);
-
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "l2_cache_read", l2_cache_read);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "l2_cache_read_miss",
-                               l2_cache_read_miss);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "l2_cache_write", l2_cache_write);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "l2_cache_write_miss",
-                               l2_cache_write_miss);
-
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "insn_mem_delay", insn_mem_delay);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "data_mem_delay", data_mem_delay);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "exec_unit_delay", exec_unit_delay);
-
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "bpu_cond_incorrect",
-                               bpu_cond_incorrect);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "bpu_uncond_incorrect",
-                               bpu_uncond_incorrect);
-
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "itlb_reads", code_tlb_lookups);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "itlb_hits", code_tlb_hits);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "load_tlb_reads", load_tlb_lookups);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "load_tlb_hits", load_tlb_hits);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "store_tlb_reads", store_tlb_lookups);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "store_tlb_hits", store_tlb_hits);
-
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "ins_page_walks", ins_page_walks);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "load_page_walks", load_page_walks);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "store_page_walks", store_page_walks);
-
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "ins_page_faults", ins_page_faults);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "load_page_faults", load_page_faults);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "store_page_faults",
-                               store_page_faults);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "ecall (system call)", ecall);
-    SIM_STAT_PRINT_TO_TERMINAL(stderr, s, "interrupts", interrupts);
-}
-
-void
-sim_stats_print_to_file(const SimStats *s, const char *pathname, const char *sim_stats_file_prefix)
+sim_stats_print_to_file(const SimStats *s, const char *pathname, const char *sim_file_prefix)
 {
     FILE *fp;
     char *filename, *p;
@@ -181,7 +97,7 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname, const char *sim
     }
 
     /* Generate stats filename with format: prefix_timestamp.csv */
-    sprintf(buffer, "%s_%s.csv", sim_stats_file_prefix, timestamp);
+    sprintf(buffer, "%s_%s.csv", sim_file_prefix, timestamp);
 
     filename = (char *)malloc(strlen(pathname) + strlen(buffer) + 2);
     assert(filename);
@@ -282,7 +198,7 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname, const char *sim
     SIM_STAT_PRINT_TO_FILE(fp, s, "L2_cache_write_misses", l2_cache_write_miss);
 
     fclose(fp);
-    fprintf(stderr, "(marss-riscv): Saved stats in %s\n", filename);
+    sim_log_event(sim_log, "Saved stats in %s", filename);
     free(filename);
 }
 
@@ -293,7 +209,7 @@ sim_stats_reset(SimStats *s)
 }
 
 int
-sim_stats_path_valid(const char *path)
+sim_file_path_valid(const char *path)
 {
     struct stat sb;
     return ((stat(path, &sb) == 0) && S_ISDIR(sb.st_mode));

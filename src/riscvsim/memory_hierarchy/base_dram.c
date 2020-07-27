@@ -29,7 +29,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../utils/sim_log.h"
 #include "base_dram.h"
+
+static void
+base_dram_log_config(const BaseDram *d)
+{
+    sim_log_event_to_file(sim_log, "%s", "Setting up base dram");
+    sim_log_param_to_file(sim_log, "%s: %d cycle(s)", "mem_access_latency", d->mem_access_latency);
+    sim_log_param_to_file(sim_log, "%s: %d cycle(s)", "pte_rw_latency", d->pte_rw_latency);
+}
 
 static void
 read_complete_callback(target_ulong addr, StageMemAccessQueue *f,
@@ -193,6 +202,7 @@ base_dram_create(const SimParams *p, StageMemAccessQueue *f,
     d->frontend_mem_access_queue = f;
     d->backend_mem_access_queue = b;
     base_dram_reset(d);
+    base_dram_log_config(d);
     return d;
 }
 

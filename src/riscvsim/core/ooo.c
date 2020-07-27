@@ -29,8 +29,31 @@
 #include "../../cutils.h"
 #include "../../riscv_cpu_priv.h"
 #include "../utils/circular_queue.h"
+#include "../utils/sim_log.h"
 #include "ooo.h"
 #include "riscv_sim_cpu.h"
+
+static void
+oo_core_log_config(const OOCore *core)
+{
+    sim_log_event_to_file(sim_log, "%s", "Setting up out-of-order RISC-V core");
+    sim_log_param_to_file(sim_log, "%s: %d", "core_id", core->simcpu->core_id);
+    sim_log_param_to_file(sim_log, "%s: %s", "core_name",
+                  core->simcpu->params->core_name);
+    sim_log_param_to_file(sim_log, "%s: %s", "core_type",
+                  core_type_str[core->simcpu->params->core_type]);
+    sim_log_param_to_file(sim_log, "%s: %d", "rob_size",
+                  core->simcpu->params->rob_size);
+    sim_log_param_to_file(sim_log, "%s: %d", "rob_commit_ports",
+                  core->simcpu->params->rob_commit_ports);
+    sim_log_param_to_file(sim_log, "%s: %d", "iq_size", core->simcpu->params->iq_size);
+    sim_log_param_to_file(sim_log, "%s: %d", "iq_issue_ports",
+                  core->simcpu->params->iq_issue_ports);
+    sim_log_param_to_file(sim_log, "%s: %d", "lsq_size",
+                  core->simcpu->params->lsq_size);
+    sim_log_param_to_file(sim_log, "%s: %d", "int_rename_table_size", NUM_INT_REG);
+    sim_log_param_to_file(sim_log, "%s: %d", "fp_rename_table_size", NUM_FP_REG);
+}
 
 OOCore *
 oo_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
@@ -73,6 +96,7 @@ oo_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
     assert(core->fpu_fma);
 
     core->simcpu = simcpu;
+    oo_core_log_config(core);
     return core;
 }
 
@@ -165,7 +189,9 @@ iq_get_free_entry(const IssueQueueEntry *iq, int size)
         }
     }
 
-    assert(0);
+    sim_assert((0), "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+               __func__,
+               "iq_get_free_entry() is called only when IQ is not full");
     return 0;
 }
 
@@ -270,7 +296,9 @@ read_int_operand_from_rob_slot(const OOCore *core, int arch_src,
 {
     ROBEntry *rbe;
 
-    assert(src_rob_idx != current_rob_idx);
+    sim_assert((src_rob_idx != current_rob_idx),
+               "error: %s at line %d in %s(): %s", __FILE__, __LINE__, __func__,
+               "cur_rob_idx trying to read operand value from self");
 
     if (rob_entry_committed(&core->rob, src_rob_idx, current_rob_idx))
     {
@@ -299,7 +327,9 @@ read_fp_operand_from_rob_slot(const OOCore *core, int arch_src, int src_rob_idx,
 {
     ROBEntry *rbe;
 
-    assert(src_rob_idx != current_rob_idx);
+    sim_assert((src_rob_idx != current_rob_idx),
+               "error: %s at line %d in %s(): %s", __FILE__, __LINE__, __func__,
+               "cur_rob_idx trying to read operand value from self");
 
     if (rob_entry_committed(&core->rob, src_rob_idx, current_rob_idx))
     {

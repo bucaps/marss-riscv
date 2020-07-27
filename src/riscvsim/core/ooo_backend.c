@@ -69,7 +69,8 @@ issue_ins_to_exec_unit(OOCore *core, InstructionLatch *e)
         }
         default:
         {
-            assert(0);
+            sim_assert((0), "error: %s at line %d in %s(): %s", __FILE__,
+                       __LINE__, __func__, "invalid functional unit ID");
         }
     }
 
@@ -249,7 +250,13 @@ oo_core_execute_non_pipe(OOCore *core, int fu_type, CPUStage *stage)
              * in execute stage so far */
             e->elasped_clock_cycles = 1;
             e->max_clock_cycles = set_max_clock_cycles_for_non_pipe_fu(s, fu_type, e);
-            assert(e->max_clock_cycles);
+
+            sim_assert((e->max_clock_cycles),
+                       "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                       __func__,
+                       "max_clock_cycles execution latency for an instruction "
+                       "must be non_zero");
+
             stage->stage_exec_done = TRUE;
         }
 
@@ -428,7 +435,11 @@ oo_core_rob_commit(OOCore *core)
     {
         rbe = &core->rob.entries[cq_front(&core->rob.cq)];
         e = rbe->e;
-        assert(rbe->ready);
+
+        sim_assert((rbe->ready), "error: %s at line %d in %s(): %s", __FILE__,
+                   __LINE__, __func__,
+                   "rob entry to be committed is not ready to commit");
+
         if (e->ins.exception)
         {
             sim_exception_set(s->simcpu->exception, e);

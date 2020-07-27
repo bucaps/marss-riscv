@@ -28,6 +28,7 @@
  * THE SOFTWARE.
  */
 #include "bpu.h"
+#include "../utils/sim_log.h"
 
 void
 bpu_flush(BranchPredUnit *u)

@@ -31,6 +31,7 @@
 #define _MemoryHierarchy_H_
 
 #include "../riscv_sim_typedefs.h"
+#include "../utils/sim_log.h"
 #include "../utils/sim_params.h"
 #include "cache.h"
 #include "memory_controller.h"
@@ -65,6 +66,6 @@ typedef struct MemoryHierarchy
                                int bytes, int cpu_stage_id, int priv);
 } MemoryHierarchy;
 
-MemoryHierarchy *memory_hierarchy_init(const SimParams *p);
+MemoryHierarchy *memory_hierarchy_init(const SimParams *p, SimLog *log);
 void memory_hierarchy_free(MemoryHierarchy **mmu);
 #endif

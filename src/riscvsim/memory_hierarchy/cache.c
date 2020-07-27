@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../utils/sim_log.h"
 #include "cache.h"
 
 static void
@@ -443,36 +444,26 @@ cache_reset_stats(Cache *c)
     memset((void *)c->stats, 0, NUM_MAX_PRV_LEVELS * sizeof(CacheStats));
 }
 
-#if 0
 static void
-cache_print_config(const Cache *c)
+cache_log_config(const Cache *c)
 {
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Cache Configurations\n");
-    fprintf(stderr, "Cache Type: %u\n", c->type);
-    fprintf(stderr, "Cache Level: %u\n", c->level);
-    fprintf(stderr, "Total No. of Blocks: %u\n", c->num_blks);
-    fprintf(stderr, "Total No. of Ways: %u\n", c->num_ways);
-    fprintf(stderr, "Total No. of Sets: %u\n", c->num_sets);
-    fprintf(stderr, "Words per Block: %u\n", c->max_words_per_blk);
-    fprintf(stderr, "Word Size: %lu\n", WORD_SIZE);
-    fprintf(stderr, "Total Cache Size: %lu KB\n", c->size);
-    fprintf(stderr, "Offset(word) bits: %u\n", c->word_bits);
-    fprintf(stderr, "Set bits: %u\n", c->set_bits);
-    fprintf(stderr, "Tag bits: %u\n", c->tag_bits);
-    fprintf(stderr, "Eviction Policy: [%d] %s\n", c->evict_policy->type,
-            evict_policy_str[c->evict_policy->type]);
-    fprintf(stderr, "Write Policy: [%d] %s\n", c->cache_write_policy,
-            cache_wp_str[c->cache_write_policy]);
-    fprintf(stderr, "Read Alloc Policy: [%d] %s\n", c->cache_read_alloc_policy,
-            cache_ra_str[c->cache_read_alloc_policy]);
-    fprintf(stderr, "Write Alloc Policy: [%d] %s\n",
-            c->cache_write_alloc_policy,
-            cache_wa_str[c->cache_write_alloc_policy]);
-    fprintf(stderr, "\n");
-    fprintf(stderr, "\n");
+    sim_log_param_to_file(sim_log, "%s: %d", "level", c->level);
+    sim_log_param_to_file(sim_log, "%s: %d", "num_blks", c->num_blks);
+    sim_log_param_to_file(sim_log, "%s: %d", "num_ways", c->num_ways);
+    sim_log_param_to_file(sim_log, "%s: %d", "num_sets", c->num_sets);
+    sim_log_param_to_file(sim_log, "%s: %d", "set_bits", c->set_bits);
+    sim_log_param_to_file(sim_log, "%s: %d", "tag_bits", c->tag_bits);
+    sim_log_param_to_file(sim_log, "%s: %d", "max_words_per_blk", c->max_words_per_blk);
+    sim_log_param_to_file(sim_log, "%s: %d bytes", "word_size", WORD_SIZE);
+    sim_log_param_to_file(sim_log, "%s: %d bytes", "line_size", (WORD_SIZE * c->max_words_per_blk));
+    sim_log_param_to_file(sim_log, "%s: %d KB", "total_size", c->size);
+    sim_log_param_to_file(sim_log, "%s: %s", "evict_policy", evict_policy_str[c->evict_policy->type]);
+    sim_log_param_to_file(sim_log, "%s: %s", "read_alloc_policy", cache_ra_str[c->cache_read_alloc_policy]);
+    sim_log_param_to_file(sim_log, "%s: %s", "write_alloc_policy", cache_wa_str[c->cache_write_alloc_policy]);
+    sim_log_param_to_file(sim_log, "%s: %s", "write_policy", cache_wp_str[c->cache_write_policy]);
+    sim_log_param_to_file(sim_log, "%s: %d cycle(s)", "read_latency", c->read_latency);
+    sim_log_param_to_file(sim_log, "%s: %d cycle(s)", "write_latency", c->write_latency);
 }
-#endif
 
 static int
 get_num_cache_blks(int size_kb, int cache_line_size)
@@ -595,6 +586,7 @@ cache_init(CacheTypes type, CacheLevels level, int size_kb, int cache_line_size,
         }
     }
 
+    cache_log_config(c);
     return c;
 }
 

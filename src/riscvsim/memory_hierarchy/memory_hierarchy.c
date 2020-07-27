@@ -99,7 +99,7 @@ mem_hierarchy_pte_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
 }
 
 MemoryHierarchy *
-memory_hierarchy_init(const SimParams *p)
+memory_hierarchy_init(const SimParams *p, SimLog *log)
 {
     int words_per_cache_line;
     MemoryHierarchy *mem_hierarchy;
@@ -109,7 +109,6 @@ memory_hierarchy_init(const SimParams *p)
     mem_hierarchy->p = (SimParams *)p;
 
     /* Setup memory controller */
-    PRINT_INIT_MSG("Setting up memory controller");
     mem_hierarchy->mem_controller = mem_controller_init(p);
 
     /* Setup caches */
@@ -126,13 +125,16 @@ memory_hierarchy_init(const SimParams *p)
          * cache line size */
         if (mem_hierarchy->mem_controller->dram_model_type == MEM_MODEL_DRAMSIM)
         {
-            assert(mem_hierarchy->mem_controller->burst_length
-                   == dramsim_get_burst_size());
+            sim_assert((mem_hierarchy->mem_controller->burst_length
+                        == dramsim_get_burst_size()),
+                       "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                       __func__, "DRAMSim2 burst length must be equal to "
+                                 "MARSS-RISCV cache line size");
         }
 
         if (p->enable_l2_cache)
         {
-            PRINT_INIT_MSG("Setting up l2-shared cache");
+            sim_log_event_to_file(log, "%s", "Setting up L2-cache");
             mem_hierarchy->l2_cache = cache_init(
                 SharedCache, L2, p->l2_shared_cache_size,
                 mem_hierarchy->cache_line_size, p->l2_shared_cache_ways,
@@ -145,7 +147,7 @@ memory_hierarchy_init(const SimParams *p)
                 mem_hierarchy->mem_controller);
         }
 
-        PRINT_INIT_MSG("Setting up l1-instruction cache");
+        sim_log_event_to_file(log, "%s", "Setting up L1-instruction cache");
         mem_hierarchy->icache = cache_init(
             InstructionCache, L1, p->l1_code_cache_size,
             mem_hierarchy->cache_line_size, p->l1_code_cache_ways,
@@ -156,7 +158,7 @@ memory_hierarchy_init(const SimParams *p)
             (CacheWriteAllocPolicy)p->cache_write_allocate_policy,
             mem_hierarchy->mem_controller);
 
-        PRINT_INIT_MSG("Setting up l1-data cache");
+        sim_log_event_to_file(log, "%s", "Setting up L1-data cache");
         mem_hierarchy->dcache = cache_init(
             DataCache, L1, p->l1_data_cache_size,
             mem_hierarchy->cache_line_size, p->l1_data_cache_ways,

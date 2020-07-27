@@ -100,9 +100,10 @@ enum MEM_MODEL_TYPE
 #define DEF_STATS_DISPLAY 0
 #define DEF_DO_SIM_TRACE DISABLE
 #define DEF_CREATE_INS_STR 0
-#define DEF_SIM_TRACE_FILE "simtrace.txt"
-#define DEF_SIM_STATS_PATH "."
-#define DEF_SIM_STATS_FILE_PREFIX "misc"
+#define DEF_SIM_FILE_PATH "."
+#define DEF_SIM_FILE_PREFIX "misc"
+#define DEF_SIM_TRACE_FILE "trace.txt"
+#define DEF_SIM_LOG_FILE "log.txt"
 
 #define DEF_NUM_STAGES 6
 #define DEF_ENABLE_PARALLEL_FU DISABLE
@@ -182,6 +183,7 @@ extern const char *cache_wp_str[];
 extern const char *bpu_type_str[];
 extern const char *bpu_aliasing_func_type_str[];
 extern const char *dram_model_type_str[];
+extern const char *cpu_mode_str[];
 
 typedef struct SimParams
 {
@@ -193,8 +195,9 @@ typedef struct SimParams
     int create_ins_str;
     int do_sim_trace;
     char *sim_trace_file;
-    char *sim_stats_path;
-    char *sim_stats_file_prefix;
+    char *sim_file_path;
+    char *sim_file_prefix;
+    char *sim_log_file;
 
     /* In-order core */
     int num_cpu_stages;
@@ -282,7 +285,8 @@ typedef struct SimParams
 
 SimParams *sim_params_init();
 void sim_params_parse(SimParams *p, JSONValue cfg);
-void sim_params_validate(const SimParams *p);
-void sim_params_print(const SimParams *p);
+void sim_params_log_options(const SimParams *p);
+void sim_params_log_exec_unit_config(const SimParams *p);
+void sim_params_validate(SimParams *p);
 void sim_params_free(SimParams *p);
 #endif

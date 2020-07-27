@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../utils/sim_log.h"
 #include "sim_params.h"
 
 #define SIM_PARAM_PRINT_INT(name, val)                                         \
@@ -56,6 +57,70 @@ const char *cache_wp_str[] = {"writeback", "writethrough"};
 const char *bpu_type_str[] = {"bimodal", "adaptive"};
 const char *bpu_aliasing_func_type_str[] = {"xor", "and", "none"};
 const char *dram_model_type_str[] = {"base", "dramsim2"};
+const char *cpu_mode_str[] = {"user", "supervisor", "hypervisor", "machine"};
+
+void
+sim_params_log_options(const SimParams *p)
+{
+    sim_log_event_to_file(sim_log, "%s", "Setting up TinyEMU options");
+    sim_log_param_to_file(sim_log, "%s: %d", "code_tlb_size", p->tlb_size);
+    sim_log_param_to_file(sim_log, "%s: %d", "load_tlb_size", p->tlb_size);
+    sim_log_param_to_file(sim_log, "%s: %d", "store_tlb_size", p->tlb_size);
+    sim_log_param_to_file(sim_log, "%s: %d MB", "guest_ram_size", p->guest_ram_size);
+
+    sim_log_event_to_file(sim_log, "%s", "Setting up simulation options");
+    if (p->start_in_sim)
+    {
+        sim_log_param_to_file(sim_log, "%s", "-simstart");
+    }
+
+    if (p->enable_stats_display)
+    {
+        sim_log_param_to_file(sim_log, "%s", "-sim-stats-display");
+    }
+
+    sim_log_param_to_file(sim_log, "%s: %s", "-sim_file_path", p->sim_file_path);
+    sim_log_param_to_file(sim_log, "%s: %s", "-sim-file-prefix",
+                  p->sim_file_prefix);
+
+    sim_log_param_to_file(sim_log, "%s: %s", "-sim-log-file", p->sim_log_file);
+
+    if (p->do_sim_trace)
+    {
+        sim_log_param_to_file(sim_log, "%s", "-sim-trace");
+        sim_log_param_to_file(sim_log, "%s: %s", "-sim-trace-file", p->sim_trace_file);
+    }
+
+    if (p->flush_sim_mem_on_simstart)
+    {
+        sim_log_param_to_file(sim_log, "%s", "-sim-flush-mem");
+    }
+
+    if (p->flush_bpu_on_simstart)
+    {
+        sim_log_param_to_file(sim_log, "%s", "-sim-flush-bpu");
+    }
+
+    if (p->sim_emulate_after_icount)
+    {
+        sim_log_param_to_file(sim_log, "%s %lu", "-sim-emulate-after-icount",
+                      p->sim_emulate_after_icount);
+    }
+
+    sim_log_param_to_file(sim_log, "%s: %s", "core_type", core_type_str[p->core_type]);
+    sim_log_param_to_file(sim_log, "%s: %s", "enable_bpu",
+                  sim_param_status[p->enable_bpu]);
+    if (p->enable_bpu)
+    {
+        sim_log_param_to_file(sim_log, "%s: %s", "bpu_type", bpu_type_str[p->bpu_type]);
+    }
+    sim_log_param_to_file(sim_log, "%s: %s", "enable_l1_caches",
+                  sim_param_status[p->enable_l1_caches]);
+    sim_log_param_to_file(sim_log, "%s: %s", "enable_l2_cache",
+                  sim_param_status[p->enable_l2_cache]);
+    sim_log_param_to_file(sim_log, "%s: %s", "dram_model_type",
+                  dram_model_type_str[p->dram_model_type]);
+}
 
 static void
 sim_params_set_defaults(SimParams *p)
@@ -66,14 +131,17 @@ sim_params_set_defaults(SimParams *p)
     assert(p->core_name);
 
     p->core_type = DEF_CORE_TYPE;
-    p->sim_stats_path = strdup(DEF_SIM_STATS_PATH);
-    assert(p->sim_stats_path);
+    p->sim_file_path = strdup(DEF_SIM_FILE_PATH);
+    assert(p->sim_file_path);
 
-    p->sim_stats_file_prefix = strdup(DEF_SIM_STATS_FILE_PREFIX);
-    assert(p->sim_stats_file_prefix);
+    p->sim_file_prefix = strdup(DEF_SIM_FILE_PREFIX);
+    assert(p->sim_file_prefix);
 
     p->sim_trace_file = strdup(DEF_SIM_TRACE_FILE);
     assert(p->sim_trace_file);
+
+    p->sim_log_file = strdup(DEF_SIM_LOG_FILE);
+    assert(p->sim_log_file);
 
     p->start_in_sim = DEF_START_SIM;
     p->enable_stats_display = DEF_STATS_DISPLAY;
@@ -225,9 +293,10 @@ validate_param(const char *param_name, int has_range, int min, int max,
 }
 
 void
-sim_params_validate(const const SimParams *p)
+sim_params_validate(SimParams *p)
 {
     int i;
+    char trace_file_name[1024], log_file_name[1024];
 
     validate_param("start_in_sim", 1, 0, 1, p->start_in_sim);
     validate_param("enable_stats_display", 1, 0, 1, p->enable_stats_display);
@@ -403,6 +472,25 @@ sim_params_validate(const const SimParams *p)
     validate_param("burst_length", 0, 1, 2048, (int)p->burst_length);
     validate_param("pte_rw_latency", 0, 1, 2048, p->pte_rw_latency);
     validate_param("mem_access_latency", 0, 1, 2048, p->mem_access_latency);
+
+    /* Create log and trace full file names */
+    strcpy(trace_file_name, p->sim_file_path);
+    strcat(trace_file_name, "/");
+    strcat(trace_file_name, p->sim_file_prefix);
+    strcat(trace_file_name, "_");
+    strcat(trace_file_name, p->sim_trace_file);
+
+    free(p->sim_trace_file);
+    p->sim_trace_file = strdup(trace_file_name);
+
+    strcpy(log_file_name, p->sim_file_path);
+    strcat(log_file_name, "/");
+    strcat(log_file_name, p->sim_file_prefix);
+    strcat(log_file_name, "_");
+    strcat(log_file_name, p->sim_log_file);
+
+    free(p->sim_log_file);
+    p->sim_log_file = strdup(log_file_name);
 }
 
 static void
@@ -441,10 +529,9 @@ parse_stage_latency_str(int **dest, int max_stage_count, char *str)
 void
 sim_params_parse(SimParams *p, JSONValue cfg)
 {
-
     char buf1[256];
-    JSONValue core_obj, obj, obj1;
     const char *tag_name, *str;
+    JSONValue core_obj, obj, obj1;
     char stage_latency_str[LATENCY_STRING_MAX_LENGTH];
 
     snprintf(buf1, sizeof(buf1), "%s", "core");
@@ -1427,206 +1514,66 @@ sim_params_parse(SimParams *p, JSONValue cfg)
 }
 
 static void
-print_exec_unit_params(const char *fu_num_stage_param_name,
-                       const char *fu_stage_latency_name, int num_stages,
-                       int *latencies)
+sim_param_log_exec_unit_param(const char *fu_num_stage_name, int num_stages,
+                              int *latencies)
 {
     int i;
 
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : %d\n", fu_num_stage_param_name,
-            num_stages);
-
-    fprintf(stderr, " \x1B[32m*\x1B[0m %-30s : ", fu_stage_latency_name);
+    sim_log_param_to_file(sim_log, "num_%s_stages: %d", fu_num_stage_name, num_stages);
     for (i = 0; i < num_stages; ++i)
     {
-        fprintf(stderr, "%d", latencies[i]);
-        if (i == (num_stages - 1))
-        {
-            fprintf(stderr, "\n");
-        }
-        else
-        {
-            fprintf(stderr, ", ");
-        }
+        sim_log_param_to_file(sim_log, "%s_stage_%d: %d cycle(s)", fu_num_stage_name, i,
+                      latencies[i]);
     }
 }
 
 void
-sim_params_print(const SimParams *p)
+sim_params_log_exec_unit_config(const SimParams *p)
 {
-    fprintf(stderr, "\x1B[35m Simulation Parameters:\x1B[0m\n");
-
-    SIM_PARAM_PRINT_STR("sim_stats_path", p->sim_stats_path);
-    SIM_PARAM_PRINT_STR("sim_stats_file_prefix", p->sim_stats_file_prefix);
-    SIM_PARAM_PRINT_STR("sim_trace", sim_param_status[p->do_sim_trace]);
-
-    if (p->do_sim_trace)
-    {
-        SIM_PARAM_PRINT_STR("sim_trace_file", p->sim_trace_file);
-    }
-
-    fprintf(stderr, "\n");
-
-    SIM_PARAM_PRINT_STR("core_name", p->core_name);
-    SIM_PARAM_PRINT_STR("core_type", core_type_str[p->core_type]);
-
-    if (p->sim_emulate_after_icount)
-    {
-        SIM_PARAM_PRINT_UINT64("sim_emulate_after_icount",
-                               p->sim_emulate_after_icount)
-    }
-
-    if (p->core_type == CORE_TYPE_INCORE)
-    {
-        SIM_PARAM_PRINT_INT("num_cpu_stages", p->num_cpu_stages);
-        SIM_PARAM_PRINT_STR("enable_parallel_fu",
-                            sim_param_status[p->enable_parallel_fu]);
-    }
-    else if (p->core_type == CORE_TYPE_OOCORE)
-    {
-        SIM_PARAM_PRINT_INT("iq_size", p->iq_size);
-        SIM_PARAM_PRINT_INT("iq_issue_ports", p->iq_issue_ports);
-        SIM_PARAM_PRINT_INT("rob_size", p->rob_size);
-        SIM_PARAM_PRINT_INT("rob_commit_ports", p->rob_commit_ports);
-        SIM_PARAM_PRINT_INT("lsq_size", p->lsq_size);
-    }
-
-    fprintf(stderr, "\n");
-
-    print_exec_unit_params("num_alu_stages", "alu_stage_latencies",
-                           p->num_alu_stages, p->alu_stage_latency);
-    print_exec_unit_params("num_mul_stages", "mul_stage_latencies",
-                           p->num_mul_stages, p->mul_stage_latency);
-    print_exec_unit_params("num_div_stages", "div_stage_latencies",
-                           p->num_div_stages, p->div_stage_latency);
-    print_exec_unit_params("num_fpu_fma_stages", "fpu_fma_stage_latencies",
-                           p->num_fpu_fma_stages, p->fpu_fma_stage_latency);
-
-    SIM_PARAM_PRINT_INT("num_fpu_alu_stages", 1);
-    SIM_PARAM_PRINT_INT("fadd", p->fpu_alu_latency[FU_FPU_ALU_FADD]);
-    SIM_PARAM_PRINT_INT("fsub", p->fpu_alu_latency[FU_FPU_ALU_FSUB]);
-    SIM_PARAM_PRINT_INT("fmul", p->fpu_alu_latency[FU_FPU_ALU_FADD]);
-    SIM_PARAM_PRINT_INT("fdiv", p->fpu_alu_latency[FU_FPU_ALU_FDIV]);
-    SIM_PARAM_PRINT_INT("fsqrt", p->fpu_alu_latency[FU_FPU_ALU_FSQRT]);
-    SIM_PARAM_PRINT_INT("fsgnj", p->fpu_alu_latency[FU_FPU_ALU_FSGNJ]);
-    SIM_PARAM_PRINT_INT("fmin", p->fpu_alu_latency[FU_FPU_ALU_FMIN]);
-    SIM_PARAM_PRINT_INT("fmax", p->fpu_alu_latency[FU_FPU_ALU_FMAX]);
-    SIM_PARAM_PRINT_INT("feq", p->fpu_alu_latency[FU_FPU_ALU_FEQ]);
-    SIM_PARAM_PRINT_INT("flt", p->fpu_alu_latency[FU_FPU_ALU_FLT]);
-    SIM_PARAM_PRINT_INT("fle", p->fpu_alu_latency[FU_FPU_ALU_FLE]);
-    SIM_PARAM_PRINT_INT("fadd", p->fpu_alu_latency[FU_FPU_ALU_FADD]);
-    SIM_PARAM_PRINT_INT("fcvt", p->fpu_alu_latency[FU_FPU_ALU_FMUL]);
-    SIM_PARAM_PRINT_INT("cvt", p->fpu_alu_latency[FU_FPU_ALU_CVT]);
-    SIM_PARAM_PRINT_INT("fmv", p->fpu_alu_latency[FU_FPU_ALU_FMV]);
-    SIM_PARAM_PRINT_INT("fclass", p->fpu_alu_latency[FU_FPU_ALU_FCLASS]);
-
-    fprintf(stderr, "\n");
-
-    SIM_PARAM_PRINT_STR("enable_bpu", sim_param_status[p->enable_bpu]);
-    if (p->enable_bpu)
-    {
-        SIM_PARAM_PRINT_INT("btb_size", p->btb_size);
-        SIM_PARAM_PRINT_INT("btb_ways", p->btb_ways);
-        SIM_PARAM_PRINT_STR("btb_eviction_policy",
-                            evict_policy_str[p->btb_eviction_policy]);
-        SIM_PARAM_PRINT_STR("bpu_type", bpu_type_str[p->bpu_type]);
-
-        switch (p->bpu_type)
-        {
-            case BPU_TYPE_BIMODAL:
-            {
-                SIM_PARAM_PRINT_INT("bht_size", p->bht_size);
-                break;
-            }
-
-            case BPU_TYPE_ADAPTIVE:
-            {
-                SIM_PARAM_PRINT_INT("bpu_ght_size", p->bpu_ght_size);
-                SIM_PARAM_PRINT_INT("bpu_pht_size", p->bpu_pht_size);
-                SIM_PARAM_PRINT_INT("bpu_history_bits", p->bpu_history_bits);
-                SIM_PARAM_PRINT_STR(
-                    "bpu_aliasing_func_type",
-                    bpu_aliasing_func_type_str[p->bpu_aliasing_func_type]);
-                break;
-            }
-        }
-        SIM_PARAM_PRINT_INT("ras_size", p->ras_size);
-        SIM_PARAM_PRINT_STR("flush_bpu_on_simstart",
-                            sim_param_status[p->flush_bpu_on_simstart]);
-    }
-
-    fprintf(stderr, "\n");
-
-    SIM_PARAM_PRINT_STR("enable_l1_caches",
-                        sim_param_status[p->enable_l1_caches]);
-    if (p->enable_l1_caches)
-    {
-        SIM_PARAM_PRINT_INT("l1_code_cache_size", p->l1_code_cache_size);
-        SIM_PARAM_PRINT_INT("l1_code_cache_ways", p->l1_code_cache_ways);
-        SIM_PARAM_PRINT_INT("l1_code_cache_read_latency",
-                            p->l1_code_cache_read_latency);
-        SIM_PARAM_PRINT_STR("l1_code_cache_evict",
-                            evict_policy_str[p->l1_code_cache_evict]);
-        SIM_PARAM_PRINT_INT("l1_data_cache_size", p->l1_data_cache_size);
-        SIM_PARAM_PRINT_INT("l1_data_cache_ways", p->l1_data_cache_ways);
-        SIM_PARAM_PRINT_INT("l1_data_cache_read_latency",
-                            p->l1_data_cache_read_latency);
-        SIM_PARAM_PRINT_INT("l1_data_cache_write_latency",
-                            p->l1_data_cache_write_latency);
-        SIM_PARAM_PRINT_STR("l1_data_cache_evict",
-                            evict_policy_str[p->l1_data_cache_evict]);
-
-        SIM_PARAM_PRINT_STR("enable_l2_cache",
-                            sim_param_status[p->enable_l2_cache]);
-        if (p->enable_l2_cache)
-        {
-
-            SIM_PARAM_PRINT_INT("l2_shared_cache_size",
-                                p->l2_shared_cache_size);
-            SIM_PARAM_PRINT_INT("l2_shared_cache_ways",
-                                p->l2_shared_cache_ways);
-            SIM_PARAM_PRINT_INT("l2_shared_cache_read_latency",
-                                p->l2_shared_cache_read_latency);
-            SIM_PARAM_PRINT_INT("l2_shared_cache_write_latency",
-                                p->l2_shared_cache_write_latency);
-            SIM_PARAM_PRINT_STR("l2_shared_cache_evict",
-                                evict_policy_str[p->l2_shared_cache_evict]);
-        }
-
-        SIM_PARAM_PRINT_INT("cache_line_size", p->cache_line_size);
-        SIM_PARAM_PRINT_STR("cache_allocate_on_write_miss",
-                            cache_wa_str[p->cache_write_allocate_policy]);
-        SIM_PARAM_PRINT_STR("cache_write_policy",
-                            cache_wp_str[p->cache_write_policy]);
-    }
-
-    fprintf(stderr, "\n");
-
-    SIM_PARAM_PRINT_INT("tlb_size", p->tlb_size);
-    SIM_PARAM_PRINT_UINT64("guest_ram_size", p->guest_ram_size);
-    SIM_PARAM_PRINT_STR("flush_sim_mem_on_simstart",
-                        sim_param_status[p->flush_sim_mem_on_simstart]);
-    SIM_PARAM_PRINT_STR("dram_model_type",
-                        dram_model_type_str[p->dram_model_type]);
-
-    switch (p->dram_model_type)
-    {
-        case MEM_MODEL_BASE:
-        {
-            SIM_PARAM_PRINT_INT("mem_access_latency", p->mem_access_latency);
-            SIM_PARAM_PRINT_INT("pte_rw_latency", p->pte_rw_latency);
-            break;
-        }
-        case MEM_MODEL_DRAMSIM:
-        {
-            SIM_PARAM_PRINT_STR("dramsim_ini_file", p->dramsim_ini_file);
-            SIM_PARAM_PRINT_STR("dramsim_system_ini_file",
-                                p->dramsim_system_ini_file);
-            SIM_PARAM_PRINT_STR("dramsim_stats_dir", p->dramsim_stats_dir);
-            break;
-        }
-    }
-    fprintf(stderr, "\n");
+    sim_log_event_to_file(sim_log, "%s", "Setting up functional units");
+    sim_param_log_exec_unit_param("int_alu", p->num_alu_stages,
+                                  p->alu_stage_latency);
+    sim_param_log_exec_unit_param("int_mul", p->num_mul_stages,
+                                  p->mul_stage_latency);
+    sim_param_log_exec_unit_param("int_div", p->num_div_stages,
+                                  p->div_stage_latency);
+    sim_param_log_exec_unit_param("fpu_fma", p->num_fpu_fma_stages,
+                                  p->fpu_fma_stage_latency);
+    sim_log_param_to_file(sim_log, "num_%s_stages: %d", "fpu_alu",
+                  p->num_fpu_alu_stages);
+    sim_log_param_to_file(sim_log, "%s latency: %d", "fpu_alu", p->num_fpu_alu_stages);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fadd",
+                  p->fpu_alu_latency[FU_FPU_ALU_FADD]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fsub",
+                  p->fpu_alu_latency[FU_FPU_ALU_FSUB]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fmul",
+                  p->fpu_alu_latency[FU_FPU_ALU_FADD]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fdiv",
+                  p->fpu_alu_latency[FU_FPU_ALU_FDIV]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fsqrt",
+                  p->fpu_alu_latency[FU_FPU_ALU_FSQRT]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fsgnj",
+                  p->fpu_alu_latency[FU_FPU_ALU_FSGNJ]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fmin",
+                  p->fpu_alu_latency[FU_FPU_ALU_FMIN]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fmax",
+                  p->fpu_alu_latency[FU_FPU_ALU_FMAX]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "feq",
+                  p->fpu_alu_latency[FU_FPU_ALU_FEQ]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "flt",
+                  p->fpu_alu_latency[FU_FPU_ALU_FLT]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fle",
+                  p->fpu_alu_latency[FU_FPU_ALU_FLE]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fadd",
+                  p->fpu_alu_latency[FU_FPU_ALU_FADD]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fcvt",
+                  p->fpu_alu_latency[FU_FPU_ALU_FMUL]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "cvt",
+                  p->fpu_alu_latency[FU_FPU_ALU_CVT]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fmv",
+                  p->fpu_alu_latency[FU_FPU_ALU_FMV]);
+    sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fclass",
+                  p->fpu_alu_latency[FU_FPU_ALU_FCLASS]);
 }
 
 SimParams *
@@ -1652,14 +1599,17 @@ sim_params_free(SimParams *p)
     free(p->fpu_fma_stage_latency);
     p->fpu_fma_stage_latency = NULL;
 
-    free(p->sim_stats_file_prefix);
-    p->sim_stats_file_prefix = NULL;
+    free(p->sim_file_prefix);
+    p->sim_file_prefix = NULL;
 
     free(p->sim_trace_file);
     p->sim_trace_file = NULL;
 
-    free(p->sim_stats_path);
-    p->sim_stats_path = NULL;
+    free(p->sim_log_file);
+    p->sim_log_file = NULL;
+
+    free(p->sim_file_path);
+    p->sim_file_path = NULL;
 
     free(p->core_name);
     p->core_name = NULL;

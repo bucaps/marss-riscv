@@ -47,6 +47,7 @@ struct RISCVCPUState;
 
 typedef struct RISCVSIMCPUState
 {
+    int core_id;     /* Core ID */
     target_ulong pc; /* Next PC to fetch from */
     uint64_t clock;  /* Clock cycles elapsed since simulation start  */
     uint64_t icount; /* Total instructions committed in simulation mode */

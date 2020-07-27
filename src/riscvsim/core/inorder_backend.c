@@ -146,7 +146,13 @@ in_core_execute_non_pipe(INCore *core, int fu_type, CPUStage *stage)
             exec_insn_and_invalidate_rd(s, core, e, fu_type);
             e->max_clock_cycles
                 = set_max_clock_cycles_for_non_pipe_fu(s, fu_type, e);
-            assert(e->max_clock_cycles);
+
+            sim_assert((e->max_clock_cycles),
+                       "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                       __func__,
+                       "max_clock_cycles execution latency for an instruction "
+                       "must be non_zero");
+
             stage->stage_exec_done = TRUE;
         }
 

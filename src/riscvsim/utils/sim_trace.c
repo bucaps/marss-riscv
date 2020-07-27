@@ -29,8 +29,6 @@
 
 #include "sim_trace.h"
 
-static char cpu_mode_str[][128] = {"U-mode", "S-mode", "H-mode", "M-mode"};
-
 void
 sim_trace_start(SimTrace *s, const char *filename)
 {

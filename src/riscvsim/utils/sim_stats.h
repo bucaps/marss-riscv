@@ -108,11 +108,11 @@ typedef struct SimStats
 /* Performance counters are printed to file in CSV format when simulation
  * completes */
 void sim_stats_print_to_file(const SimStats *s, const char *pathname,
-                             const char *sim_stats_file_prefix);
+                             const char *sim_file_prefix);
 
 /* Performance counters are printed on stderr in a tabular format when
  * simulation completes */
 void sim_stats_print_to_terminal(const SimStats *s);
 void sim_stats_reset(SimStats *s);
-int sim_stats_path_valid(const char *path);
+int sim_file_path_valid(const char *path);
 #endif

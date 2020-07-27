@@ -36,8 +36,27 @@
 #include "../../cutils.h"
 #include "../../riscv_cpu_priv.h"
 #include "../utils/circular_queue.h"
+#include "../utils/sim_log.h"
 #include "inorder.h"
 #include "riscv_sim_cpu.h"
+
+static void
+in_core_log_config(const INCore *core)
+{
+    sim_log_event_to_file(sim_log, "%s", "Setting up in-order RISC-V core");
+    sim_log_param_to_file(sim_log, "%s: %d", "core_id", core->simcpu->core_id);
+    sim_log_param_to_file(sim_log, "%s: %s", "core_name",
+                  core->simcpu->params->core_name);
+    sim_log_param_to_file(sim_log, "%s: %s", "core_type",
+                  core_type_str[core->simcpu->params->core_type]);
+    sim_log_param_to_file(sim_log, "%s: %d", "num_cpu_stages",
+                  core->simcpu->params->num_cpu_stages);
+    sim_log_param_to_file(sim_log, "%s: %s", "enable_parallel_fu",
+                  sim_param_status[core->simcpu->params->enable_parallel_fu]);
+    sim_log_param_to_file(sim_log, "%s: %d", "num_data_fwd_buses", NUM_FWD_BUS);
+    sim_log_param_to_file(sim_log, "%s: %d", "ex_to_mem_selector_queue_size",
+                  INCORE_EX_TO_MEM_QUEUE_SIZE);
+}
 
 INCore *
 in_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
@@ -81,6 +100,7 @@ in_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
     }
 
     core->simcpu = simcpu;
+    in_core_log_config(core);
     return core;
 }
 

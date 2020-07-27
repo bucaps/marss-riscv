@@ -32,6 +32,8 @@
 #ifndef _RISCV_SIM_MACROS_H_
 #define _RISCV_SIM_MACROS_H_
 
+#define SIM_PROG_TITLE "MARSS-RISCV: Micro-Architectural System Simulator for RISC-V"
+
 /* Type of Functional Units */
 #define FU_ALU 0x0
 #define FU_MUL 0x1

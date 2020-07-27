@@ -91,7 +91,10 @@ restore_rob_entry(OOCore *core, ROBEntry *rbe, uint64_t tag)
             {
                 core->int_rat[e->ins.rd].read_from_rob = FALSE;
             }
-            assert(core->int_rat[e->ins.rd].rob_idx != e->rob_idx);
+
+            sim_assert((core->int_rat[e->ins.rd].rob_idx != e->rob_idx),
+                       "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                       __func__, "rob entry rollback failure");
         }
         else if (e->ins.has_fp_dest)
         {
@@ -101,7 +104,10 @@ restore_rob_entry(OOCore *core, ROBEntry *rbe, uint64_t tag)
             {
                 core->fp_rat[e->ins.rd].read_from_rob = FALSE;
             }
-            assert(core->fp_rat[e->ins.rd].rob_idx != e->rob_idx);
+
+            sim_assert((core->fp_rat[e->ins.rd].rob_idx != e->rob_idx),
+                       "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                       __func__, "rob entry rollback failure");
         }
         /* Free up latch */
         e->status = INSN_LATCH_FREE;
@@ -137,7 +143,11 @@ restore_rob(OOCore *core, InstructionLatch *e, uint64_t tag)
 
     /* Flush all the ROB entries till this branch */
     cq_set_rear(&core->rob.cq, e->rob_idx);
-    assert(e == core->rob.entries[core->rob.cq.rear].e);
+
+    sim_assert(
+        (e == core->rob.entries[core->rob.cq.rear].e),
+        "error: %s at line %d in %s(): %s", __FILE__, __LINE__, __func__,
+        "rob tail should point to the entry of the miss-predicted branch");
 }
 
 static void
@@ -278,7 +288,11 @@ fix_rename_tables(OOCore *core, RenameTableEntry *rat, int num_regs)
     {
         if (rat[i].read_from_rob)
         {
-            assert(rat[i].rob_idx != -1);
+            sim_assert((rat[i].rob_idx != -1),
+                       "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                       __func__, "rename table entry should point to a valid "
+                                 "rob entry if READ_FROM_ROB bit is set");
+
             if (rob_entry_committed_after_rollback(&core->rob, rat[i].rob_idx))
             {
                 rat[i].rob_idx = -1;

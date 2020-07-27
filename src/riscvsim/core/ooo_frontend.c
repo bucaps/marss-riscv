@@ -211,7 +211,10 @@ update_rd_rat_mapping(OOCore *core, InstructionLatch *e)
             e->ins.old_pdest = core->int_rat[e->ins.rd].rob_idx;
             core->int_rat[e->ins.rd].read_from_rob = TRUE;
             core->int_rat[e->ins.rd].rob_idx = e->rob_idx;
-            assert(e->ins.old_pdest != core->int_rat[e->ins.rd].rob_idx);
+
+            sim_assert((e->ins.old_pdest != core->int_rat[e->ins.rd].rob_idx),
+                       "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                       __func__, "rename failure on destination register");
         }
     }
     else if (e->ins.has_fp_dest)
@@ -219,7 +222,10 @@ update_rd_rat_mapping(OOCore *core, InstructionLatch *e)
         e->ins.old_pdest = core->fp_rat[e->ins.rd].rob_idx;
         core->fp_rat[e->ins.rd].read_from_rob = TRUE;
         core->fp_rat[e->ins.rd].rob_idx = e->rob_idx;
-        assert(e->ins.old_pdest != core->fp_rat[e->ins.rd].rob_idx);
+
+        sim_assert((e->ins.old_pdest != core->fp_rat[e->ins.rd].rob_idx),
+                   "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                   __func__, "rename failure on destination register");
     }
 }
 
@@ -252,7 +258,10 @@ do_insn_rename_and_read_reg_file(OOCore *core, InstructionLatch *e)
         if (core->int_rat[e->ins.rs1].read_from_rob)
         {
             e->ins.prs1 = core->int_rat[e->ins.rs1].rob_idx;
-            assert(e->ins.prs1 != -1);
+            sim_assert((e->ins.prs1 != -1), "error: %s at line %d in %s(): %s",
+                       __FILE__, __LINE__, __func__,
+                       "rename table entry should point to a valid "
+                       "rob entry if READ_FROM_ROB bit is set");
         }
         else
         {
@@ -265,7 +274,10 @@ do_insn_rename_and_read_reg_file(OOCore *core, InstructionLatch *e)
         if (core->fp_rat[e->ins.rs1].read_from_rob)
         {
             e->ins.prs1 = core->fp_rat[e->ins.rs1].rob_idx;
-            assert(e->ins.prs1 != -1);
+            sim_assert((e->ins.prs1 != -1), "error: %s at line %d in %s(): %s",
+                       __FILE__, __LINE__, __func__,
+                       "rename table entry should point to a valid "
+                       "rob entry if READ_FROM_ROB bit is set");
         }
         else
         {
@@ -285,7 +297,10 @@ do_insn_rename_and_read_reg_file(OOCore *core, InstructionLatch *e)
         if (core->int_rat[e->ins.rs2].read_from_rob)
         {
             e->ins.prs2 = core->int_rat[e->ins.rs2].rob_idx;
-            assert(e->ins.prs2 != -1);
+            sim_assert((e->ins.prs2 != -1), "error: %s at line %d in %s(): %s",
+                       __FILE__, __LINE__, __func__,
+                       "rename table entry should point to a valid "
+                       "rob entry if READ_FROM_ROB bit is set");
         }
         else
         {
@@ -298,7 +313,10 @@ do_insn_rename_and_read_reg_file(OOCore *core, InstructionLatch *e)
         if (core->fp_rat[e->ins.rs2].read_from_rob)
         {
             e->ins.prs2 = core->fp_rat[e->ins.rs2].rob_idx;
-            assert(e->ins.prs2 != -1);
+            sim_assert((e->ins.prs2 != -1), "error: %s at line %d in %s(): %s",
+                       __FILE__, __LINE__, __func__,
+                       "rename table entry should point to a valid "
+                       "rob entry if READ_FROM_ROB bit is set");
         }
         else
         {
@@ -317,7 +335,10 @@ do_insn_rename_and_read_reg_file(OOCore *core, InstructionLatch *e)
         if (core->fp_rat[e->ins.rs3].read_from_rob)
         {
             e->ins.prs3 = core->fp_rat[e->ins.rs3].rob_idx;
-            assert(e->ins.prs3 != -1);
+            sim_assert((e->ins.prs3 != -1), "error: %s at line %d in %s(): %s",
+                       __FILE__, __LINE__, __func__,
+                       "rename table entry should point to a valid "
+                       "rob entry if READ_FROM_ROB bit is set");
         }
         else
         {

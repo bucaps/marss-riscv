@@ -33,11 +33,15 @@
 #include <string.h>
 
 #include "adaptive_predictor.h"
+#include "../utils/sim_log.h"
 
 #define GAG 0x0
 #define GAP 0x1
 #define PAG 0x2
 #define PAP 0x3
+
+const char *ap_type_str[] = {"GAG", "GAP", "PAG", "PAP"};
+const char *ap_alias_func_type_str[] = {"XOR", "AND", "NONE"};
 
 #define UPDATE_GHR(ghr, bits, pred) (GET_INDEX((((ghr) << 1) | (pred)), (bits)))
 
@@ -109,6 +113,24 @@ adaptive_predictor_pht_probe(const AdaptivePredictor *a, target_ulong pc)
     return BPU_MISS;
 }
 
+static void
+adaptive_predictor_log_config(const AdaptivePredictor *a)
+{
+    sim_log_event_to_file(sim_log, "%s", "Setting up adaptive predictor");
+    sim_log_param_to_file(sim_log, "%s: %s", "type", ap_type_str[a->type]);
+    sim_log_param_to_file(sim_log, "%s: %d", "ght_size", a->ght_size);
+    sim_log_param_to_file(sim_log, "%s: %d", "pht_size", a->pht_size);
+    sim_log_param_to_file(sim_log, "%s: %d", "ght_index_bits", a->ght_index_bits);
+    sim_log_param_to_file(sim_log, "%s: %d", "pht_index_bits", a->pht_index_bits);
+    sim_log_param_to_file(sim_log, "%s: %d", "history_bits", a->hreg_bits);
+
+    if (a->type == GAG)
+    {
+        sim_log_param_to_file(sim_log, "%s: %s", "alias_func_type",
+                      ap_alias_func_type_str[a->alias_func_type]);
+    }
+}
+
 /**
  * Based on the adaptive predictor scheme, probe either GHT
  * or PHT or both.
@@ -137,7 +159,8 @@ adaptive_predictor_probe(const AdaptivePredictor *a, target_ulong pc)
         }
     }
 
-    assert(0);
+    sim_assert((0), "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+               __func__, "invalid adaptive predictor type");
     return 0;
 }
 
@@ -347,6 +370,7 @@ adaptive_predictor_init(const SimParams *p)
         assert(a->pht[i].ctr);
         memset(a->pht[i].ctr, 0, sizeof(int) * (1 << a->hreg_bits));
     }
+    a->alias_func_type = p->bpu_aliasing_func_type;
     a->pfn_ap_aliasing_func = NULL;
     /* Set prediction scheme */
     if ((a->ght_size == 1) && (a->pht_size == 1))
@@ -388,6 +412,7 @@ adaptive_predictor_init(const SimParams *p)
         a->type = PAP;
     }
 
+    adaptive_predictor_log_config(a);
     return a;
 }
 

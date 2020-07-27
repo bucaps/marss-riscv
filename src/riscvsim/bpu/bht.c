@@ -30,7 +30,16 @@
 #include <string.h>
 
 #include "../riscv_sim_macros.h"
+#include "../utils/sim_log.h"
 #include "bht.h"
+
+static void
+bht_log_config(const Bht *b)
+{
+    sim_log_event_to_file(sim_log, "%s", "Setting up branch history table (bht)");
+    sim_log_param_to_file(sim_log, "%s: %d", "size", b->bht_size);
+    sim_log_param_to_file(sim_log, "%s: %d", "index_bits", b->bht_index_bits);
+}
 
 static void
 update_two_bit_counter(int *ctr, int pred)
@@ -104,6 +113,7 @@ bht_init(const SimParams *p)
     assert(b->bht_entry);
 
     b->bht_index_bits = GET_NUM_BITS(b->bht_size);
+    bht_log_config(b);
     return b;
 }
 

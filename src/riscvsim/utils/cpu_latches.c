@@ -33,6 +33,7 @@
 #include "../../cutils.h"
 #include "../riscv_sim_macros.h"
 #include "cpu_latches.h"
+#include "sim_log.h"
 
 void
 cpu_stage_flush(CPUStage *stage)
@@ -99,7 +100,12 @@ insn_latch_allocate(InstructionLatch *insn_latch_pool)
     int insn_latch_index;
 
     insn_latch_index = get_free_insn_latch(insn_latch_pool);
-    assert(insn_latch_index != -1);
+
+    sim_assert(
+        (insn_latch_index != -1), "error: %s at line %d in %s(): %s", __FILE__,
+        __LINE__, __func__,
+        "failed to allocate instruction latch from instruction latch pool");
+
     e = &insn_latch_pool[insn_latch_index];
     memset((void *)e, 0, sizeof(InstructionLatch));
     e->status = INSN_LATCH_ALLOCATED;

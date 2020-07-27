@@ -303,7 +303,12 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                 /* We executed all the n_cycles instructions for this interval,
                  * and now we must exit to virt_machine_run() to receive
                  * interrupts. */
-                assert(s->n_cycles == 0);
+                sim_assert((s->n_cycles == 0),
+                           "error: %s at line %d in %s(): %s", __FILE__,
+                           __LINE__, __func__, "sim timeout exception "
+                                               "generated even though timeout "
+                                               "interval not completed");
+
                 if (s->simcpu->params->do_sim_trace)
                 {
                     sim_trace_exception(s->simcpu->trace, s->simcpu->clock,
@@ -1848,7 +1853,10 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
         /* Control should never reach here during simulation */
         if (s->simcpu->simulation)
         {
-            assert(0);
+            sim_assert(
+                (0), "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                __func__,
+                "non-complex opcode instruction emulated during simulation");
         }
 
     } /* end of main loop */

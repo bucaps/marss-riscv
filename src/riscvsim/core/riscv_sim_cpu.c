@@ -35,6 +35,7 @@
 
 #include "../../riscv_cpu_priv.h"
 #include "../memory_hierarchy/dramsim_wrapper_c_connector.h"
+#include "../utils/sim_log.h"
 #include "../utils/sim_stats.h"
 #include "inorder.h"
 #include "ooo.h"
@@ -159,8 +160,12 @@ bpu_enabled_conditional_branch_handler(RISCVCPUState *s, InstructionLatch *e)
         }
         else
         {
-            /* TODO: Remove this assert, Prediction Success */
-            assert(e->predicted_target == e->ins.target);
+            sim_assert((e->predicted_target == e->ins.target),
+                       "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+                       __func__, "predicted branch target should be equal to "
+                                 "the computed branch target on correct "
+                                 "prediction");
+
             e->is_pred_correct = TRUE;
             e->branch_target = e->predicted_target;
             ++simcpu->stats[s->priv].bpu_cond_correct;
@@ -354,6 +359,33 @@ setup_stats_shm(RISCVSIMCPUState *simcpu)
     }
 
     memset(simcpu->stats_shm_ptr, 0, NUM_MAX_PRV_LEVELS * sizeof(SimStats));
+    sim_log_event_to_file(sim_log, "%s", "Setting up shared memory to write stats");
+    sim_log_param_to_file(sim_log, "%s: %s", "posix shared memory name", MARSS_STATS_SHM_NAME);
+}
+
+static void
+print_performance_summary(RISCVSIMCPUState *simcpu, uint64_t sim_time)
+{
+    int i;
+
+    sim_log_event(sim_log, "%s", "Performance Summary:");
+
+    for (i = 0; i < NUM_MAX_PRV_LEVELS; ++i)
+    {
+        sim_log_param(sim_log, "%s-mode-commits: %lu", cpu_mode_str[i],
+                      simcpu->stats[i].ins_simulated);
+        sim_log_param(sim_log, "%s-mode-cycles: %lu", cpu_mode_str[i],
+                      simcpu->stats[i].cycles);
+        sim_log_param(sim_log, "%s-mode-ipc: %.4lf", cpu_mode_str[i],
+                      (double)simcpu->stats[i].ins_simulated
+                          / (double)simcpu->stats[i].cycles);
+    }
+
+    sim_log_param(sim_log, "total-commits: %lu", simcpu->icount);
+    sim_log_param(sim_log, "total-cycles: %lu", simcpu->clock);
+    sim_log_param(sim_log, "total-ipc: %.4lf",
+                  (double)simcpu->icount / (double)simcpu->clock);
+    sim_log_param(sim_log, "simulation-time: %lu ms", sim_time);
 }
 
 void
@@ -458,7 +490,10 @@ fetch_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
         e->max_clock_cycles = s->simcpu->mem_hierarchy->insn_read_delay(
             s->simcpu->mem_hierarchy, s->code_guest_paddr, 4, FETCH, s->priv);
 
-        assert(e->max_clock_cycles);
+        sim_assert((e->max_clock_cycles), "error: %s at line %d in %s(): %s",
+                   __FILE__, __LINE__, __func__,
+                   "max_clock_cycles execution latency for an instruction "
+                   "must be non_zero");
 
         /* Increment PC for the next instruction */
         if (3 == (e->ins.binary & 3))
@@ -537,7 +572,10 @@ mem_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
             }
         }
 
-        assert(e->max_clock_cycles);
+        sim_assert((e->max_clock_cycles), "error: %s at line %d in %s(): %s",
+                   __FILE__, __LINE__, __func__,
+                   "max_clock_cycles execution latency for an instruction "
+                   "must be non_zero");
     }
 }
 
@@ -609,12 +647,15 @@ riscv_sim_cpu_start(RISCVSIMCPUState *simcpu, target_ulong pc)
         if (simcpu->params->do_sim_trace)
         {
             simcpu->params->create_ins_str = TRUE;
+            sim_log_event(sim_log, "Starting simulation trace "
+                                   "at pc = 0x%" PR_target_ulong,
+                          pc);
             sim_trace_start(simcpu->trace, simcpu->params->sim_trace_file);
         }
 
-        fprintf(stderr, "(marss-riscv): Switching to full-system simulation "
-                        "mode at pc = 0x%" PR_target_ulong "\n",
-                pc);
+        sim_log_event(sim_log, "Switching to full-system simulation "
+                               "mode at pc = 0x%" PR_target_ulong,
+                      pc);
     }
 }
 
@@ -630,6 +671,8 @@ riscv_sim_cpu_stop(RISCVSIMCPUState *simcpu, target_ulong pc)
         sim_time = GET_TIMER_DIFF(simcpu->sim_start_time, simcpu->sim_end_time)
                    / 1000000;
 
+        print_performance_summary(simcpu, sim_time);
+
         if (simcpu->mem_hierarchy->mem_controller->dram_model_type
             == MEM_MODEL_DRAMSIM)
         {
@@ -639,21 +682,17 @@ riscv_sim_cpu_stop(RISCVSIMCPUState *simcpu, target_ulong pc)
         if (simcpu->params->do_sim_trace)
         {
             sim_trace_stop(simcpu->trace);
-            fprintf(stderr, "(marss-riscv): Saved simulation trace in %s\n",
-                    simcpu->params->sim_trace_file);
+            sim_log_event(sim_log, "Saved simulation trace in %s",
+                          simcpu->params->sim_trace_file);
         }
 
         copy_cache_stats_to_global_stats(simcpu);
-        sim_stats_print_to_file(simcpu->stats, simcpu->params->sim_stats_path,
-                                simcpu->params->sim_stats_file_prefix);
-        sim_stats_print_to_terminal(simcpu->stats);
+        sim_stats_print_to_file(simcpu->stats, simcpu->params->sim_file_path,
+                                simcpu->params->sim_file_prefix);
 
-        fprintf(stderr, "(marss-riscv): Switching to emulation mode at pc = "
-                        "0x%" PR_target_ulong "\n",
-                pc);
-
-        fprintf(stderr, "(marss-riscv): Time elapsed on host-machine %lu ms\n",
-                sim_time);
+        sim_log_event(sim_log, "Switching to emulation mode "
+                               "mode at pc = 0x%" PR_target_ulong,
+                      pc);
     }
 }
 
@@ -681,6 +720,7 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
     simcpu = calloc(1, sizeof(RISCVSIMCPUState));
     assert(simcpu);
 
+    sim_log = sim_log_init(p->sim_log_file);
     simcpu->emu_cpu_state = s;
     simcpu->pc = 0x1000;
     simcpu->clock = 0;
@@ -694,17 +734,38 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
         INSN_LATCH_POOL_SIZE, sizeof(InstructionLatch));
     assert(simcpu->insn_latch_pool);
 
-    PRINT_PROG_TITLE_MSG(
-        "MARSS-RISCV: Micro-Architectural System Simulator for RISC-V");
+    sim_log_event_to_file(sim_log, "%s", SIM_PROG_TITLE);
+    sim_params_log_options(p);
 
-    simcpu->mem_hierarchy = memory_hierarchy_init(simcpu->params);
+    switch (p->core_type)
+    {
+        case CORE_TYPE_INCORE:
+        {
+            simcpu->core = (void *)in_core_init(simcpu->params, simcpu);
+            simcpu->core_reset = in_core_reset;
+            simcpu->core_run = in_core_run;
+            simcpu->core_free = in_core_free;
+            break;
+        }
+        case CORE_TYPE_OOCORE:
+        {
+            simcpu->core = (void *)oo_core_init(simcpu->params, simcpu);
+            simcpu->core_reset = oo_core_reset;
+            simcpu->core_run = oo_core_run;
+            simcpu->core_free = oo_core_free;
+            break;
+        }
+    }
+
+    sim_params_log_exec_unit_config(p);
+
+    simcpu->mem_hierarchy = memory_hierarchy_init(simcpu->params, sim_log);
 
     /* Seed for random eviction, if used in BPU and caches */
     srand(time(NULL));
 
     if (p->enable_bpu)
     {
-        PRINT_INIT_MSG("Setting up branch prediction unit");
         simcpu->bpu = bpu_init(p, simcpu->stats);
         simcpu->bpu_fetch_stage_handler = &bpu_enabled_fetch_stage_handler;
         simcpu->bpu_decode_stage_handler = &bpu_enabled_decode_stage_handler;
@@ -717,28 +778,6 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
         simcpu->bpu_execute_stage_handler = &bpu_disabled_execute_stage_handler;
     }
 
-    switch (p->core_type)
-    {
-        case CORE_TYPE_INCORE:
-        {
-            PRINT_INIT_MSG("Setting up in-order core");
-            simcpu->core = (void *)in_core_init(simcpu->params, simcpu);
-            simcpu->core_reset = in_core_reset;
-            simcpu->core_run = in_core_run;
-            simcpu->core_free = in_core_free;
-            break;
-        }
-        case CORE_TYPE_OOCORE:
-        {
-            PRINT_INIT_MSG("Setting up out-of-order core");
-            simcpu->core = (void *)oo_core_init(simcpu->params, simcpu);
-            simcpu->core_reset = oo_core_reset;
-            simcpu->core_run = oo_core_run;
-            simcpu->core_free = oo_core_free;
-            break;
-        }
-    }
-
     simcpu->temu_mem_map_wrapper = temu_mem_map_wrapper_init();
     simcpu->exception = sim_exception_init();
     simcpu->trace = sim_trace_init();
@@ -748,15 +787,15 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
         setup_stats_shm(simcpu);
     }
 
-    sim_params_print(simcpu->params);
-
     /* We are booting TinyEMU in simulation mode */
     if (p->start_in_sim)
     {
         riscv_sim_cpu_start(simcpu, simcpu->pc);
     }
 
-    assert(sim_stats_path_valid(p->sim_stats_path));
+    sim_assert((sim_file_path_valid(p->sim_file_path)),
+               "error: %s at line %d in %s(): %s", __FILE__, __LINE__, __func__,
+               "top-level stats directory not found");
     return simcpu;
 }
 
@@ -780,5 +819,6 @@ riscv_sim_cpu_free(RISCVSIMCPUState **simcpu)
     temu_mem_map_wrapper_free(&(*simcpu)->temu_mem_map_wrapper);
     sim_exception_free(&(*simcpu)->exception);
     sim_trace_free(&(*simcpu)->trace);
+    sim_log_free(&sim_log);
     free(*simcpu);
 }

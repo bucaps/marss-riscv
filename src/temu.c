@@ -619,9 +619,9 @@ static struct option options[] = {
     {"build-preload", required_argument},
     {"sim-flush-mem", no_argument},
     {"sim-flush-bpu", no_argument},
-    {"sim-trace", required_argument},
-    {"sim-stats-path", required_argument},
-    {"sim-stats-file-prefix", required_argument},
+    {"sim-trace", no_argument},
+    {"sim-file-path", required_argument},
+    {"sim-file-prefix", required_argument},
     {"sim-stop-after-icount", required_argument},
     {NULL},
 };
@@ -642,9 +642,9 @@ void help(void)
            "-sim-mem-model [base|dramsim2]      type of simulated memory model\n"
            "-sim-flush-mem                      flush simulator memory hierarchy on every new simulation run\n"
            "-sim-flush-bpu                      flush branch prediction unit on every new simulation run\n"
-           "-sim-trace [trace-file-name]        generate instruction commit trace in [trace-file-name] during simulation\n"
-           "-sim-stats-path [directory path]    path of the directory to store stats file\n"
-           "-sim-stats-file-prefix [prefix]     prefix appended to stats file name\n"
+           "-sim-trace                          generate instruction commit trace in [trace-file-name] during simulation\n"
+           "-sim-file-path [directory path]     path of the directory to store stats, log, and trace file\n"
+           "-sim-file-prefix [prefix]           prefix appended to stats, log, and trace file names\n"
            "-sim-emulate-after-icount [icount]  switch to emulation mode after simulating icount instructions every time simulation starts\n"
            "\n"
            "Console keys:\n"
@@ -671,7 +671,7 @@ int main(int argc, char **argv)
 {
     VirtMachine *s;
     const char *path, *cmdline, *build_preload_file;
-    char *stats_path = NULL, *stats_file_prefix = NULL, *sim_trace_file = NULL;
+    char *sim_file_path = NULL, *sim_file_prefix = NULL;
     int c, option_index, i, ram_size, accel_enable;
     BOOL allow_ctrlc;
     BlockDeviceModeEnum drive_mode;
@@ -745,13 +745,12 @@ int main(int argc, char **argv)
                 break;
             case 12: /* sim-trace */
                 marss_do_sim_trace = TRUE;
-                sim_trace_file = optarg;
                 break;
-            case 13: /* sim-stats-path */
-                stats_path = optarg;
+            case 13: /* sim-file-path */
+                sim_file_path = optarg;
                 break;
-            case 14: /* sim-stats-file-prefix */
-                stats_file_prefix = optarg;
+            case 14: /* sim-file-prefix */
+                sim_file_prefix = optarg;
                 break;
             case 15: /* sim-stop-after-icount */
                 marss_sim_emulate_after_icount = strtoll(optarg, NULL, 10);
@@ -806,19 +805,14 @@ int main(int argc, char **argv)
     p->sim_params->do_sim_trace = marss_do_sim_trace;
     p->sim_params->sim_emulate_after_icount = marss_sim_emulate_after_icount;
 
-    if (sim_trace_file) {
-        free(p->sim_params->sim_trace_file);
-        p->sim_params->sim_trace_file = strdup(sim_trace_file);
+    if (sim_file_path) {
+        free(p->sim_params->sim_file_path);
+        p->sim_params->sim_file_path = strdup(sim_file_path);
     }
 
-    if (stats_path) {
-        free(p->sim_params->sim_stats_path);
-        p->sim_params->sim_stats_path = strdup(stats_path);
-    }
-
-    if (stats_file_prefix) {
-        free(p->sim_params->sim_stats_file_prefix);
-        p->sim_params->sim_stats_file_prefix = strdup(stats_file_prefix);
+    if (sim_file_prefix) {
+        free(p->sim_params->sim_file_prefix);
+        p->sim_params->sim_file_prefix = strdup(sim_file_prefix);
     }
 
     /* open the files & devices */

@@ -67,6 +67,7 @@ typedef struct AdaptivePredictor
 
     /* Type of aliasing function (and, xor or none) to apply for GAg based
      * schemes */
+    int alias_func_type;
     uint32_t (*pfn_ap_aliasing_func)(const struct AdaptivePredictor *a,
                                      uint32_t hr, target_ulong pc);
 } AdaptivePredictor;

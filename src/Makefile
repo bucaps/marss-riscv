@@ -74,7 +74,7 @@ SIM_OBJ_FILE=riscvsim.o
 CFLAGS+=-DMAX_XLEN=$(CONFIG_XLEN)
 
 # Simulator Object Files
-SIM_UTILS:=$(addprefix riscvsim/utils/, sim_exception.o sim_trace.o cpu_latches.o evict_policy.o circular_queue.o sim_params.o sim_stats.o)
+SIM_UTILS:=$(addprefix riscvsim/utils/, sim_exception.o sim_trace.o cpu_latches.o evict_policy.o circular_queue.o sim_params.o sim_stats.o sim_log.o)
 SIM_DECODER_OBJS:=$(addprefix riscvsim/decoder/, riscv_isa_string_generator.o riscv_isa_decoder.o riscv_isa_execute.o)
 SIM_BPU_OBJS:=$(addprefix riscvsim/bpu/, ras.o bht.o btb.o adaptive_predictor.o bpu.o)
 SIM_MEM_HY_OBJS:=$(addprefix riscvsim/memory_hierarchy/, temu_mem_map_wrapper.o base_dram.o memory_hierarchy.o memory_controller.o cache.o )

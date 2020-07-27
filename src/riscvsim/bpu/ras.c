@@ -27,7 +27,15 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include "../utils/sim_log.h"
 #include "ras.h"
+
+static void
+ras_log_config(const Ras *ras)
+{
+    sim_log_event_to_file(sim_log, "%s", "Setting up return address stack (RAS)");
+    sim_log_param_to_file(sim_log, "%s: %d", "size", ras->max_size);
+}
 
 void
 ras_flush(Ras *ras)
@@ -99,6 +107,7 @@ ras_init(const SimParams *p)
 
     r->max_size = p->ras_size;
     ras_flush(r);
+    ras_log_config(r);
     return r;
 }
 

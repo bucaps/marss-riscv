@@ -533,7 +533,11 @@ in_core_decode(INCore *core)
 
         /* Add sequence number of this instruction to memory selection queue */
         ins_issue_index = cq_enqueue(&core->ex_to_mem_queue.cq);
-        assert(ins_issue_index != -1);
+
+        sim_assert((ins_issue_index != -1), "error: %s at line %d in %s(): %s",
+                   __FILE__, __LINE__, __func__,
+                   "EX stage to MEM stage instruction selector queue full");
+
         core->ex_to_mem_queue.data[ins_issue_index] = e->ins_dispatch_id;
         cpu_stage_flush(&core->decode);
     }

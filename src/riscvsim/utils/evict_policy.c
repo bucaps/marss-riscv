@@ -31,6 +31,8 @@
 
 #include "../riscv_sim_macros.h"
 #include "evict_policy.h"
+#include "sim_log.h"
+#include "sim_params.h"
 
 static void
 bit_plru_use(EvictPolicy *p, int set, int way)
@@ -73,7 +75,9 @@ bit_plru_evict(EvictPolicy *p, int set)
         current_set >>= 1;
     }
 
-    assert(0);
+    sim_assert((0), "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
+               __func__, "for bit-plru eviction, there should be at least one "
+                         "way open for eviction");
 }
 
 static void

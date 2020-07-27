@@ -32,7 +32,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../utils/sim_log.h"
 #include "btb.h"
+
+static void
+btb_log_config(const BranchTargetBuffer *b)
+{
+    sim_log_event_to_file(sim_log, "%s", "Setting up branch target buffer (BTB)");
+    sim_log_param_to_file(sim_log, "%s: %d", "size", b->size);
+    sim_log_param_to_file(sim_log, "%s: %d", "sets", b->sets);
+    sim_log_param_to_file(sim_log, "%s: %d", "set_bits", b->set_bits);
+    sim_log_param_to_file(sim_log, "%s: %d", "ways", b->ways);
+    sim_log_param_to_file(sim_log, "%s: %s", "evict_policy",
+                  evict_policy_str[b->evict_policy->type]);
+}
 
 void
 btb_flush(BranchTargetBuffer *b)
@@ -125,6 +138,7 @@ btb_init(const SimParams *p)
         b->data[i] = (BtbEntry *)calloc(b->ways, sizeof(BtbEntry));
         assert(b->data[i]);
     }
+    btb_log_config(b);
     return b;
 }
 
