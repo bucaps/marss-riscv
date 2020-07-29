@@ -35,11 +35,14 @@
 
 # Set the XLEN value
 CONFIG_XLEN=64
+
 # if set, network filesystem is enabled. libcurl and libcrypto
 # (openssl) must be installed.
 CONFIG_FS_NET=y
+
 # SDL support (optional)
 CONFIG_SDL=y
+
 # user space network redirector
 CONFIG_SLIRP=y
 
@@ -49,31 +52,21 @@ CC=$(CROSS_PREFIX)gcc
 STRIP=$(CROSS_PREFIX)strip
 CFLAGS=-O2 -Wall -g -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -MMD
 CFLAGS+=-D_GNU_SOURCE -DCONFIG_VERSION=\"$(shell cat VERSION)\"
+CFLAGS+=-DMAX_XLEN=$(CONFIG_XLEN)
 LDFLAGS=
-
-bindir=/usr/local/bin
-INSTALL=install
 
 PROGS+= marss-riscv$(EXE) sim-stats-display
 ifdef CONFIG_FS_NET
 PROGS+=build_filelist splitimg
 endif
 
-# For colored compile messages
-GREEN:= $(shell tput -Txterm setaf 2)
-RESET := $(shell tput -Txterm sgr0)
-
-# ===============================================================================================
-# Top-level object variables needed by the simulator
-
-# DRAMSim2 library for simulator
-DRAMSIM2_OBJS+= libdramsim.so libdramsim_wrapper_cpp_lib.so libdramsim_wrapper_c_connector.so
+# DRAMSim2 connector for the simulator
+DRAMSIM2_CONNECTOR+= libdramsim_wrapper_c_connector.so
 
 # Top-level simulator object file
 SIM_OBJ_FILE=riscvsim.o
-CFLAGS+=-DMAX_XLEN=$(CONFIG_XLEN)
 
-# Simulator Object Files
+# Simulator object files for each module
 SIM_UTILS:=$(addprefix riscvsim/utils/, sim_exception.o sim_trace.o cpu_latches.o evict_policy.o circular_queue.o sim_params.o sim_stats.o sim_log.o)
 SIM_DECODER_OBJS:=$(addprefix riscvsim/decoder/, riscv_isa_string_generator.o riscv_isa_decoder.o riscv_isa_execute.o)
 SIM_BPU_OBJS:=$(addprefix riscvsim/bpu/, ras.o bht.o btb.o adaptive_predictor.o bpu.o)
@@ -83,9 +76,7 @@ SIM_CORE_OBJS:=$(addprefix riscvsim/core/, riscv_sim_cpu.o)
 SIM_OO_CORE_OBJS:=$(addprefix riscvsim/core/, ooo_frontend.o ooo_branch.o ooo_lsu.o ooo_backend.o ooo.o)
 SIM_OBJS:=$(SIM_UTILS) $(SIM_DECODER_OBJS) $(SIM_BPU_OBJS) $(SIM_MEM_HY_OBJS) $(SIM_CORE_OBJS) $(SIM_IN_CORE_OBJS) $(SIM_OO_CORE_OBJS)
 
-# ===============================================================================================
-
-all: $(DRAMSIM2_OBJS) $(PROGS)
+all: $(PROGS)
 
 EMU_OBJS:=virtio.o pci.o fs.o cutils.o iomem.o simplefb.o \
     json.o machine.o temu.o
@@ -113,37 +104,26 @@ endif
 EMU_OBJS+=riscv_machine.o softfp.o riscv_cpu.o
 CFLAGS+=-DCONFIG_RISCV_MAX_XLEN=64
 
-# ===============================================================================================
-# Objects needed by the simulator
-
-# For DRAMSim2
-libdramsim_wrapper_c_connector.so:
+libdramsim_wrapper_c_connector.so: libdramsim_wrapper_cpp_lib.so
 	$(CXX) -g -DMAX_XLEN=$(CONFIG_XLEN) -fpic -shared -o libdramsim_wrapper_c_connector.so riscvsim/memory_hierarchy/dramsim_wrapper_c_connector.cpp -I./DRAMSim2 -L. -ldramsim_wrapper_cpp_lib -Wl,-rpath=. -std=c++11
 
-libdramsim_wrapper_cpp_lib.so:
+libdramsim_wrapper_cpp_lib.so: libdramsim.so
 	$(CXX) -g -DMAX_XLEN=$(CONFIG_XLEN) -fpic -shared -o libdramsim_wrapper_cpp_lib.so riscvsim/memory_hierarchy/dramsim_wrapper.cpp -I./DRAMSim2 -L./DRAMSim2 -ldramsim -Wl,-rpath=./DRAMSim2 -std=c++11
 
 libdramsim.so:
-	@echo "Building DRAMSim2 shared library:"
-	@cd DRAMSim2/ && $(MAKE) libdramsim.so
-	@cd ..
-	@echo "Building MARSS-RISCV Simulator:"
+	cd DRAMSim2/ && $(MAKE) libdramsim.so && cd ..
 
-# For Simulator
 riscvsim.o: $(SIM_OBJS)
 	$(LD) -r -o $@ $^ $(SIM_LIBS)
 
-# Simulation statistics display utility
 sim-stats-display: stats_display.o
 	$(CC) -o sim-stats-display stats_display.o -lrt
-# ===============================================================================================
 
-marss-riscv$(EXE): $(SIM_OBJ_FILE) $(EMU_OBJS)
+marss-riscv$(EXE): $(SIM_OBJ_FILE) $(DRAMSIM2_CONNECTOR) $(EMU_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS) -L. -ldramsim_wrapper_c_connector -Wl,-rpath=.
 
 riscv_cpu.o: riscv_cpu.c
-	@$(CC) $(CFLAGS) -DMAX_XLEN=$(CONFIG_XLEN) -c -o $@ $<
-	@echo "${GREEN}compiling:${RESET}: $<"
+	$(CC) $(CFLAGS) -DMAX_XLEN=$(CONFIG_XLEN) -c -o $@ $<
 
 build_filelist: build_filelist.o fs_utils.o cutils.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
@@ -151,16 +131,11 @@ build_filelist: build_filelist.o fs_utils.o cutils.o
 splitimg: splitimg.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
-install: $(PROGS)
-	$(STRIP) $(PROGS)
-	$(INSTALL) -m755 $(PROGS) "$(DESTDIR)$(bindir)"
-
 %.o: %.c
-	@$(CC) $(CFLAGS) -c -o $@ $<
-	@echo "${GREEN}compiling:${RESET} $<"
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *.o *.d *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/bpu/*.d riscvsim/core/*.d  riscvsim/decoder/*.d riscvsim/utils/*.d  riscvsim/memory_hierarchy/*.d $(DRAMSIM2_OBJS) $(SIM_OBJS)
+	rm -f *.o *.so *.d *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/bpu/*.d riscvsim/core/*.d  riscvsim/decoder/*.d riscvsim/utils/*.d  riscvsim/memory_hierarchy/*.d $(SIM_OBJS)
 
 -include $(wildcard *.d)
 -include $(wildcard slirp/*.d)
