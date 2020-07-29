@@ -39,8 +39,19 @@ sim_log_init(const char *filename)
     s = calloc(1, sizeof(SimLog));
     assert(s);
     s->log_fp = fopen(filename, "w");
-    assert(s->log_fp);
     return s;
+}
+
+void
+sim_log_event_to_terminal(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    assert(fprintf(stderr, "%s ", "* (marss-riscv):") != 0);
+    assert(vfprintf(stderr, fmt, args) != 0);
+    assert(fprintf(stderr, "%s\n", "") != 0);
+    fflush(stderr);
+    va_end(args);
 }
 
 void

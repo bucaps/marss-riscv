@@ -49,6 +49,7 @@ typedef struct SimLog
 extern SimLog *sim_log;
 
 SimLog *sim_log_init(const char *filename);
+void sim_log_event_to_terminal(const char *fmt, ...);
 void sim_log_event(SimLog *s, const char *fmt, ...);
 void sim_log_param(SimLog *s, const char *fmt, ...);
 void sim_log_event_to_file(SimLog *s, const char *fmt, ...);
