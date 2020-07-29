@@ -720,7 +720,6 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
     simcpu = calloc(1, sizeof(RISCVSIMCPUState));
     assert(simcpu);
 
-    sim_log = sim_log_init(p->sim_log_file);
     simcpu->emu_cpu_state = s;
     simcpu->pc = 0x1000;
     simcpu->clock = 0;
@@ -734,7 +733,6 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
         INSN_LATCH_POOL_SIZE, sizeof(InstructionLatch));
     assert(simcpu->insn_latch_pool);
 
-    sim_log_event_to_file(sim_log, "%s", SIM_PROG_TITLE);
     sim_params_log_options(p);
 
     switch (p->core_type)
@@ -819,6 +817,5 @@ riscv_sim_cpu_free(RISCVSIMCPUState **simcpu)
     temu_mem_map_wrapper_free(&(*simcpu)->temu_mem_map_wrapper);
     sim_exception_free(&(*simcpu)->exception);
     sim_trace_free(&(*simcpu)->trace);
-    sim_log_free(&sim_log);
     free(*simcpu);
 }

@@ -54,6 +54,7 @@
 #endif
 
 #include "riscvsim/utils/sim_params.h"
+#include "riscvsim/utils/sim_log.h"
 
 #ifndef _WIN32
 typedef struct {
@@ -670,6 +671,7 @@ static BOOL net_poll_cb(void *arg)
 int main(int argc, char **argv)
 {
     VirtMachine *s;
+    char sim_log_file_name[1024];
     const char *path, *cmdline, *build_preload_file;
     char *sim_file_path = NULL, *sim_file_prefix = NULL;
     int c, option_index, i, ram_size, accel_enable;
@@ -777,8 +779,41 @@ int main(int argc, char **argv)
 
     path = argv[optind++];
 
+    /* Setup default TinyEMU and simulation parameters */
     virt_machine_set_defaults(p);
+
+    /* Override default simulation parameters with latest command-line options */
+    p->sim_params->start_in_sim = marss_start_in_sim;
+    p->sim_params->enable_stats_display = marss_stats_display;
+    p->sim_params->flush_sim_mem_on_simstart = marss_flush_sim_mem_on_simstart;
+    p->sim_params->flush_bpu_on_simstart = marss_flush_bpu_on_simstart;
+    p->sim_params->do_sim_trace = marss_do_sim_trace;
+    p->sim_params->sim_emulate_after_icount = marss_sim_emulate_after_icount;
     p->sim_params->dram_model_type = marss_mem_model;
+
+    if (sim_file_path) {
+        free(p->sim_params->sim_file_path);
+        p->sim_params->sim_file_path = strdup(sim_file_path);
+    }
+
+    if (sim_file_prefix) {
+        free(p->sim_params->sim_file_prefix);
+        p->sim_params->sim_file_prefix = strdup(sim_file_prefix);
+    }
+
+    /* Create the log-file full name */
+    strcpy(sim_log_file_name, p->sim_params->sim_file_path);
+    strcat(sim_log_file_name, "/");
+    strcat(sim_log_file_name, p->sim_params->sim_file_prefix);
+    strcat(sim_log_file_name, "_");
+    strcat(sim_log_file_name, p->sim_params->sim_log_file);
+    free(p->sim_params->sim_log_file);
+    p->sim_params->sim_log_file = strdup(sim_log_file_name);
+
+    /* Initialize simulator logging file */
+    sim_log = sim_log_init(p->sim_params->sim_log_file);
+    sim_log_event(sim_log, "%s", SIM_PROG_TITLE);
+
 #ifdef CONFIG_FS_NET
     fs_wget_init();
 #endif
@@ -798,22 +833,6 @@ int main(int argc, char **argv)
         vm_add_cmdline(p, cmdline);
     }
 
-    p->sim_params->start_in_sim = marss_start_in_sim;
-    p->sim_params->enable_stats_display = marss_stats_display;
-    p->sim_params->flush_sim_mem_on_simstart = marss_flush_sim_mem_on_simstart;
-    p->sim_params->flush_bpu_on_simstart = marss_flush_bpu_on_simstart;
-    p->sim_params->do_sim_trace = marss_do_sim_trace;
-    p->sim_params->sim_emulate_after_icount = marss_sim_emulate_after_icount;
-
-    if (sim_file_path) {
-        free(p->sim_params->sim_file_path);
-        p->sim_params->sim_file_path = strdup(sim_file_path);
-    }
-
-    if (sim_file_prefix) {
-        free(p->sim_params->sim_file_prefix);
-        p->sim_params->sim_file_prefix = strdup(sim_file_prefix);
-    }
 
     /* open the files & devices */
     for(i = 0; i < p->drive_count; i++) {
@@ -919,5 +938,6 @@ int main(int argc, char **argv)
         virt_machine_run(s);
     }
     virt_machine_end(s);
+    sim_log_free(&sim_log);
     return 0;
 }
