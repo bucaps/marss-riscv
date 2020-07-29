@@ -1428,7 +1428,7 @@ sim_params_log_exec_unit_config(const SimParams *p)
     sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fsub",
                           p->fpu_alu_latency[FU_FPU_ALU_FSUB]);
     sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fmul",
-                          p->fpu_alu_latency[FU_FPU_ALU_MUL]);
+                          p->fpu_alu_latency[FU_FPU_ALU_FMUL]);
     sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fdiv",
                           p->fpu_alu_latency[FU_FPU_ALU_FDIV]);
     sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fsqrt",
