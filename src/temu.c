@@ -812,6 +812,14 @@ int main(int argc, char **argv)
 
     /* Initialize simulator logging file */
     sim_log = sim_log_init(p->sim_params->sim_log_file);
+
+    if (!sim_log->log_fp)
+    {
+        sim_log_event_to_terminal("directory %s does not exists",
+                                  sim_file_path);
+        abort();
+    }
+
     sim_log_event(sim_log, "%s", SIM_PROG_TITLE);
 
 #ifdef CONFIG_FS_NET
