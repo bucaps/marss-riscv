@@ -64,7 +64,7 @@ Then, `cd` into the simulator source directory:
 $ cd marss-riscv/src/
 $ git submodule update --init --recursive
 ```
-Set the `CONFIG_XLEN` variable in the Makefile to the desired `XLEN` as required. Supported `XLEN` values are `32` and `64`.
+Set the `CONFIG_XLEN` variable in the Makefile to the desired `XLEN` as required. Supported `XLEN` values are `32` and `64`. Default is `64`.
 
 Then, compile the simulator using:
 
@@ -80,23 +80,35 @@ The userland image needs to be decompressed before running the simulator:
 ```console
 $ wget https://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz
 $ tar -xvzf marss-riscv-images.tar.gz
-$ cd marss-riscv-images/riscv32-unknown-linux-gnu/
-$ xz -d -k -T 0 riscv32.img.xz
+$ cd marss-riscv-images/riscv64-unknown-linux-gnu/
+$ xz -d -k -T 0 riscv64.img.xz
 ```
 
 When decompression finishes, jump to the marss-riscv `src` folder and launch the simulator with:
 
 ```console
-$ ./marss-riscv -sim-mem-model base marss-riscv-images/config.cfg
+$ ./marss-riscv ../configs/riscv64_inorder_soc.cfg
 ```
 
-Simulation and TinyEMU parameters are configured using `config.cfg`, TinyEMU JSON configuration file. By default, the simulator will boot in "snapshot" mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command-line argument to the simulator.
+Simulation and TinyEMU SoC parameters are configured using the TinyEMU JSON configuration file provided in the [configs](/configs) directory. We have provided sample configuration files for 64-bit RISC-V single-core in-order and out-of-order SoC. The following table provides a summary of various simulation related command-line options supported by MARSS-RISCV.
 
-MARSS-RISCV comes with two DRAM memory models: Base and DRAMSim2. To specify which memory model to use, run MARSS-RISCV with command line option `-sim-mem-model` and specify either `base` or `dramsim2`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in `config.cfg` file.
+| Options                     | Arguments          | Description                                                                                                                                                                                                                                                                                      |
+|-----------------------------|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `-rw`                       | -                  | By default, the simulator will boot in `snapshot` mode, meaning it will **not** retain the file system changes after it is shut down. In order to persist the changes, pass `-rw` command-line argument to the simulator.                                                                        |
+| `-simstart`                 | -                  | By default, guest boots in emulation mode, to start TinyEMU (boot kernel) in simulation mode run with `-simstart` command-line option.                                                                                                                                                           |
+| `-sim-stats-display`        | -                  | Dump simulation performance stats to a shared memory location, read by sim-stats-display tool.  First, open a new terminal before executing the simulator and launch `sim-stats-display` tool.  Then launch the simulator on a different terminal with `-sim-stats-display` command-line option. |
+| `-sim-mem-model`            | `base`, `dramsim2` | To specify which memory model to use, run with command line option `-sim-mem-model` and specify either `base` or `dramsim2`. The default is `base`. For DRAMSim2, the paths to `ini` and `system ini file` can be specified in the config file.                                                  |
+| `-sim-flush-mem`            | -                  | Flush simulator memory hierarchy on every new simulation run                                                                                                                                                                                                                                     |
+| `-sim-flush-bpu`            | -                  | Flush branch prediction unit on every new simulation run                                                                                                                                                                                                                                         |
+| `-sim-file-path`            | `directory path`   | Path of the directory to store stats, log, and trace file. Default is current directory `.`, the user must create the directory before starting MARSS-RISCV.                                                                                                                                     |
+| `-sim-file-prefix`          | `prefix`           | Prefix appended to stats, log, and trace file names. Default prefix used for all the simulator generated files is `sim_`                                                                                                                                                                         |
+| `-sim-trace`                |                    | Generate instruction commit trace in during simulation. Trace is generated in file named `<sim-file-prefix>_trace.txt`                                                                                                                                                                           |
+| `-sim-emulate-after-icount` | `icount`           | Switch to emulation mode after simulating `icount` instructions every time simulation starts.                                                                                                                                                                                                    |
+
 
 It may also be desirable to increase the userland image (has roughly 200MB of available free space by default). More information about how to increase the size of the userland image is in the `readme.txt` file, which comes with the [images archive](https://cs.binghamton.edu/~marss-riscv/marss-riscv-images.tar.gz).
 
-By default, guest boots in emulation mode, to start in simulation mode run with `-simstart` command-line option. Once the guest boots, we need to initialize the environment. Normally, this should happen automatically, but due to an unresolved bug, it needs to done explicitly:
+Once the guest boots, we need to initialize the environment. Normally, this should happen automatically, but due to an unresolved bug, it needs to done explicitly:
 
 ```console
 # export PYTHONPATH=/usr/lib64/python2.7/site-packages/
