@@ -328,12 +328,12 @@ setup_stats_shm(RISCVSIMCPUState *simcpu)
     int stats_shm_fd;
 
     stats_shm_fd
-        = shm_open(MARSS_STATS_SHM_NAME, O_RDWR | O_CREAT, ALL_RW_PERMS);
+        = shm_open(simcpu->params->sim_stats_shm_name, O_RDWR | O_CREAT, ALL_RW_PERMS);
     if (stats_shm_fd < 0)
     {
         fprintf(stderr,
                 "error: cannot create marss-stats-shm %s, terminating\n",
-                MARSS_STATS_SHM_NAME);
+                simcpu->params->sim_stats_shm_name);
         exit(1);
     }
 
@@ -341,7 +341,7 @@ setup_stats_shm(RISCVSIMCPUState *simcpu)
     {
         fprintf(stderr,
                 "error: cannot resize marss-stats-shm %s, terminating\n",
-                MARSS_STATS_SHM_NAME);
+                simcpu->params->sim_stats_shm_name);
         close(stats_shm_fd);
         exit(1);
     }
@@ -353,14 +353,14 @@ setup_stats_shm(RISCVSIMCPUState *simcpu)
         == MAP_FAILED)
     {
         fprintf(stderr, "error: cannot mmap shm %s, terminating",
-                MARSS_STATS_SHM_NAME);
+                simcpu->params->sim_stats_shm_name);
         close(stats_shm_fd);
         exit(1);
     }
 
     memset(simcpu->stats_shm_ptr, 0, NUM_MAX_PRV_LEVELS * sizeof(SimStats));
     sim_log_event_to_file(sim_log, "%s", "Setting up shared memory to write stats");
-    sim_log_param_to_file(sim_log, "%s: %s", "posix shared memory name", MARSS_STATS_SHM_NAME);
+    sim_log_param_to_file(sim_log, "%s: %s", "posix shared memory name", simcpu->params->sim_stats_shm_name);
 }
 
 static void

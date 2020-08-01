@@ -69,6 +69,8 @@ sim_params_log_options(const SimParams *p)
     if (p->enable_stats_display)
     {
         sim_log_param_to_file(sim_log, "%s", "-sim-stats-display");
+        sim_log_param_to_file(sim_log, "%s: %s", "-sim-stats-shm-name",
+                              p->sim_stats_shm_name);
     }
 
     sim_log_param_to_file(sim_log, "%s: %s", "-sim_file_path",
@@ -138,6 +140,9 @@ sim_params_set_defaults(SimParams *p)
 
     p->sim_log_file = strdup(DEF_SIM_LOG_FILE);
     assert(p->sim_log_file);
+
+    p->sim_stats_shm_name = strdup(DEF_SIM_STATS_SHM_NAME);
+    assert(p->sim_stats_shm_name);
 
     p->start_in_sim = DEF_START_SIM;
     p->enable_stats_display = DEF_STATS_DISPLAY;

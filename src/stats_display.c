@@ -48,6 +48,7 @@
 
 static int stats_shm_fd;
 static SimStats *s;
+static const char *stats_shm_name;
 
 static void
 setup_connection()
@@ -55,7 +56,7 @@ setup_connection()
     unsigned long nsec_passed = 0;
     unsigned noent_print = 0;
 retry:
-    stats_shm_fd = shm_open(MARSS_STATS_SHM_NAME, O_RDWR, 0);
+    stats_shm_fd = shm_open(stats_shm_name, O_RDWR, 0);
     if (stats_shm_fd < 0)
     {
         if (errno == ENOENT)
@@ -66,7 +67,7 @@ retry:
             {
                 fprintf(stderr, "cannot open shm %s,"
                                 " retrying every %ld nanoseconds ",
-                        MARSS_STATS_SHM_NAME, nsec);
+                        stats_shm_name, nsec);
                 ++noent_print;
             }
             else if (nsec_passed > 1000000000)
@@ -93,7 +94,7 @@ retry:
                               0))
         == MAP_FAILED)
     {
-        fprintf(stderr, "cannot mmap shm %s:", MARSS_STATS_SHM_NAME);
+        fprintf(stderr, "cannot mmap shm %s:", stats_shm_name);
     }
     fprintf(stderr, "memory attached at %p\n", s);
 }
@@ -103,7 +104,13 @@ print_header()
 {
     printf("%s\n",
            "MARSS-RISCV : Micro-Architectural System Simulator for RISC-V");
-    printf("%s\n\n", "Terminal based Simulation Statistics Viewer");
+    printf("%s\n", "Terminal based Simulation Statistics Viewer");
+}
+
+static void
+print_usage(const char *prog_name)
+{
+    printf("usage: %s <posix-shared-mem-name>\n", prog_name);
 }
 
 static void
@@ -225,6 +232,15 @@ print_exception_stats()
 int
 main(int argc, char const *argv[])
 {
+
+    if (argc != 2)
+    {
+        print_usage(argv[0]);
+        exit(0);
+    }
+
+    stats_shm_name = argv[1];
+
     setup_connection();
     while (1)
     {

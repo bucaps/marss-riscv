@@ -40,8 +40,6 @@
 #include "../riscv_sim_macros.h"
 
 /* Used for creating shared memory for writing stats */
-#define POSIX_IPC_NAME_PREFIX "/user-"
-#define MARSS_STATS_SHM_NAME POSIX_IPC_NAME_PREFIX "marss-stats-shm"
 #define ALL_RW_PERMS (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWGRP)
 
 enum SIM_PARAM_STATUS
@@ -104,6 +102,7 @@ enum MEM_MODEL_TYPE
 #define DEF_SIM_FILE_PREFIX "sim"
 #define DEF_SIM_TRACE_FILE DEF_SIM_FILE_PREFIX".trace"
 #define DEF_SIM_LOG_FILE DEF_SIM_FILE_PREFIX".log"
+#define DEF_SIM_STATS_SHM_NAME DEF_SIM_FILE_PREFIX"-shm"
 
 #define DEF_NUM_STAGES 6
 #define DEF_ENABLE_PARALLEL_FU DISABLE
@@ -198,6 +197,9 @@ typedef struct SimParams
     char *sim_file_path;
     char *sim_file_prefix;
     char *sim_log_file;
+
+    /* Name of the POSIX shared memory to write stats */
+    char *sim_stats_shm_name;
 
     /* In-order core */
     int num_cpu_stages;

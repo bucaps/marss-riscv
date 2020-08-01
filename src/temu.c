@@ -615,7 +615,7 @@ static struct option options[] = {
     {"append", required_argument},
     {"no-accel", no_argument},
     {"simstart", no_argument},
-    {"sim-stats-display", no_argument},
+    {"sim-stats-display", required_argument},
     {"sim-mem-model", required_argument},
     {"build-preload", required_argument},
     {"sim-flush-mem", no_argument},
@@ -639,7 +639,7 @@ void help(void)
            "                                    emulated software\n"
            "-append cmdline                     append cmdline to the kernel command line\n"
            "-simstart                           start (boot kernel) in simulation mode\n"
-           "-sim-stats-display                  dump simulation performance stats to a shared memory location, read by sim-stats-display tool\n"
+           "-sim-stats-display [posix-shm-name] dump simulation performance stats to a shared memory location <posix-shm-name>, read by sim-stats-display tool\n"
            "-sim-mem-model [base|dramsim2]      type of simulated memory model\n"
            "-sim-flush-mem                      flush simulator memory hierarchy on every new simulation run\n"
            "-sim-flush-bpu                      flush branch prediction unit on every new simulation run\n"
@@ -673,7 +673,7 @@ int main(int argc, char **argv)
     VirtMachine *s;
     char sim_log_file_name[1024];
     const char *path, *cmdline, *build_preload_file;
-    char *sim_file_path = NULL, *sim_file_prefix = NULL;
+    char *sim_file_path = NULL, *sim_file_prefix = NULL, *sim_stats_shm_name = NULL;
     int c, option_index, i, ram_size, accel_enable;
     BOOL allow_ctrlc;
     BlockDeviceModeEnum drive_mode;
@@ -716,10 +716,11 @@ int main(int argc, char **argv)
                 accel_enable = FALSE;
                 break;
             case 6: /* simstart */
-                marss_start_in_sim = 1;
+                marss_start_in_sim = TRUE;
                 break;
             case 7: /* sim-stats-display */
-                marss_stats_display = 1;
+                marss_stats_display = TRUE;
+                sim_stats_shm_name = optarg;
                 break;
             case 8: /* sim-mem-model */
                 if (strcmp(optarg, "base") == 0)
@@ -799,6 +800,11 @@ int main(int argc, char **argv)
     if (sim_file_prefix) {
         free(p->sim_params->sim_file_prefix);
         p->sim_params->sim_file_prefix = strdup(sim_file_prefix);
+    }
+
+    if (sim_stats_shm_name) {
+        free(p->sim_params->sim_stats_shm_name);
+        p->sim_params->sim_stats_shm_name = strdup(sim_stats_shm_name);
     }
 
     /* Create the log-file full name */
