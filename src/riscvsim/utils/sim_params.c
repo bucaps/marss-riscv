@@ -434,12 +434,11 @@ sim_params_validate(SimParams *p)
     validate_param("pte_rw_latency", 0, 1, 2048, p->pte_rw_latency);
     validate_param("mem_access_latency", 0, 1, 2048, p->mem_access_latency);
 
-    /* Create log and trace full file names */
+    /* Create full trace file name */
     strcpy(trace_file_name, p->sim_file_path);
     strcat(trace_file_name, "/");
     strcat(trace_file_name, p->sim_file_prefix);
-    strcat(trace_file_name, "_");
-    strcat(trace_file_name, p->sim_trace_file);
+    strcat(trace_file_name, ".trace");
 
     free(p->sim_trace_file);
     p->sim_trace_file = strdup(trace_file_name);

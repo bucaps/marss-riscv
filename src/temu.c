@@ -805,8 +805,7 @@ int main(int argc, char **argv)
     strcpy(sim_log_file_name, p->sim_params->sim_file_path);
     strcat(sim_log_file_name, "/");
     strcat(sim_log_file_name, p->sim_params->sim_file_prefix);
-    strcat(sim_log_file_name, "_");
-    strcat(sim_log_file_name, p->sim_params->sim_log_file);
+    strcat(sim_log_file_name, ".log");
     free(p->sim_params->sim_log_file);
     p->sim_params->sim_log_file = strdup(sim_log_file_name);
 
