@@ -648,8 +648,8 @@ riscv_sim_cpu_start(RISCVSIMCPUState *simcpu, target_ulong pc)
         {
             simcpu->params->create_ins_str = TRUE;
             sim_log_event(sim_log, "Starting simulation trace "
-                                   "at pc = 0x%" PR_target_ulong,
-                          pc);
+                                   "at pc = 0x%" PR_target_ulong " in file: %s",
+                          pc, simcpu->params->sim_trace_file);
             sim_trace_start(simcpu->trace, simcpu->params->sim_trace_file);
         }
 

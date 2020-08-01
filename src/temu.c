@@ -820,6 +820,7 @@ int main(int argc, char **argv)
     }
 
     sim_log_event(sim_log, "%s", SIM_PROG_TITLE);
+    sim_log_event(sim_log, "Created log file: %s", p->sim_params->sim_log_file);
 
 #ifdef CONFIG_FS_NET
     fs_wget_init();
