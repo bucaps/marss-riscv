@@ -101,7 +101,7 @@ enum MEM_MODEL_TYPE
 #define DEF_DO_SIM_TRACE DISABLE
 #define DEF_CREATE_INS_STR 0
 #define DEF_SIM_FILE_PATH "."
-#define DEF_SIM_FILE_PREFIX "misc"
+#define DEF_SIM_FILE_PREFIX "sim"
 #define DEF_SIM_TRACE_FILE "trace.txt"
 #define DEF_SIM_LOG_FILE "log.txt"
 
