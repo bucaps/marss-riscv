@@ -101,7 +101,7 @@ Simulation and TinyEMU SoC parameters are configured using the TinyEMU JSON conf
 | `-sim-flush-mem`            | -                  | Flush simulator memory hierarchy on every new simulation run                                                                                                                                                                                                                                     |
 | `-sim-flush-bpu`            | -                  | Flush branch prediction unit on every new simulation run                                                                                                                                                                                                                                         |
 | `-sim-file-path`            | `directory path`   | Path of the directory to store stats, log, and trace file. Default is current directory `.`, the user must create the directory before starting MARSS-RISCV.                                                                                                                                     |
-| `-sim-file-prefix`          | `prefix`           | Prefix appended to stats, log, and trace file names. Default prefix used for all the simulator generated files is `sim_`                                                                                                                                                                         |
+| `-sim-file-prefix`          | `prefix`           | Prefix appended to stats, log, and trace file names. Default prefix used for all the simulator generated files is `sim`. (E.g., sim_<timestamp>.csv (for stats),  sim.log, sim.trace)                                                                                                                                                                         |
 | `-sim-trace`                |                    | Generate instruction commit trace in during simulation. Trace is generated in file named `<sim-file-prefix>_trace.txt`                                                                                                                                                                           |
 | `-sim-emulate-after-icount` | `icount`           | Switch to emulation mode after simulating `icount` instructions every time simulation starts.                                                                                                                                                                                                    |
 
@@ -162,7 +162,7 @@ $ ./sim-stats-display marss-riscv-test-shm
 Then launch the simulator on a different terminal with `-sim-stats-display marss-riscv-test-shm` command-line option.
 
 ## Generating simulation trace
-To generate instruction, commit trace of the programs running in the simulation, run MARSS-RISCV with `-sim-trace` command-line option. Generated trace is saved in the file `sim_trace_file`, as configured in the simulator configuration file.
+To generate instruction, commit trace of the programs running in the simulation, run MARSS-RISCV with `-sim-trace` command-line option.
 
 Sample trace generated is shown below:
 ```bash
