@@ -70,7 +70,8 @@
     } while (0)
 
 void
-sim_stats_print_to_file(const SimStats *s, const char *pathname, const char *sim_file_prefix)
+sim_stats_print_to_file(const SimStats *s, const char *pathname,
+                        const char *sim_file_prefix, uint64_t sim_tim_sec)
 {
     FILE *fp;
     char *filename, *p;
@@ -114,6 +115,11 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname, const char *sim
     SIM_STAT_PRINT_TO_FILE(fp, s, "cycles", cycles);
     SIM_STAT_PRINT_TO_FILE(fp, s, "commits", ins_simulated);
     SIM_STAT_PRINT_TO_FILE(fp, s, "ins_fetch", ins_fetch);
+
+    /* Add simulation time required on host machine to stats file, but only the
+     * total time */
+    fprintf(fp, "%s,%lu,%lu,%lu,%lu,%lu\n", "sim_tim_sec", (uint64_t)0,
+            (uint64_t)0, (uint64_t)0, (uint64_t)0, sim_tim_sec);
 
     SIM_STAT_PRINT_TO_FILE(fp, s, "insn_mem_delay", insn_mem_delay);
     SIM_STAT_PRINT_TO_FILE(fp, s, "data_mem_delay", data_mem_delay);
