@@ -307,7 +307,6 @@ sim_params_validate(SimParams *p)
     if (strcmp(p->core_name, "incore") == 0)
     {
         validate_param("num_cpu_stages", 1, 5, 6, p->num_cpu_stages);
-        validate_param("enable_parallel_fu", 1, 0, 1, p->enable_parallel_fu);
     }
     else if (strcmp(p->core_name, "oocore") == 0)
     {
@@ -554,30 +553,6 @@ sim_params_parse(SimParams *p, JSONValue cfg)
         if (vm_get_int(obj1, tag_name, &p->num_cpu_stages) < 0)
         {
             log_default_param_int(buf1, tag_name, p->num_cpu_stages);
-        }
-
-        tag_name = "enable_parallel_fu";
-        if (vm_get_str(obj1, tag_name, &str) < 0)
-        {
-            log_default_param_str(buf1, tag_name,
-                                  sim_param_status[p->enable_parallel_fu]);
-        }
-        else
-        {
-            if (strcmp(str, "false") == 0)
-            {
-                p->enable_parallel_fu = DISABLE;
-            }
-            else if (strcmp(str, "true") == 0)
-            {
-                p->enable_parallel_fu = ENABLE;
-            }
-            else
-            {
-                sim_assert((0), "error: %s at line %d in %s(): error parsing "
-                                "param - %s->%s has invalid value",
-                           __FILE__, __LINE__, __func__, buf1, tag_name);
-            }
         }
     }
     else if (p->core_type == CORE_TYPE_OOCORE)

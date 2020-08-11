@@ -51,8 +51,6 @@ in_core_log_config(const INCore *core)
                   core_type_str[core->simcpu->params->core_type]);
     sim_log_param_to_file(sim_log, "%s: %d", "num_cpu_stages",
                   core->simcpu->params->num_cpu_stages);
-    sim_log_param_to_file(sim_log, "%s: %s", "enable_parallel_fu",
-                  sim_param_status[core->simcpu->params->enable_parallel_fu]);
     sim_log_param_to_file(sim_log, "%s: %d", "num_data_fwd_buses", NUM_FWD_BUS);
     sim_log_param_to_file(sim_log, "%s: %d", "ex_to_mem_selector_queue_size",
                   INCORE_EX_TO_MEM_QUEUE_SIZE);
