@@ -640,7 +640,7 @@ void help(void)
            "-append cmdline                     append cmdline to the kernel command line\n"
            "-simstart                           start (boot kernel) in simulation mode\n"
            "-sim-stats-display [posix-shm-name] dump simulation performance stats to a shared memory location <posix-shm-name>, read by sim-stats-display tool\n"
-           "-sim-mem-model [base|dramsim2]      type of simulated memory model\n"
+           "-sim-mem-model [base|dramsim3]      type of simulated memory model\n"
            "-sim-flush-mem                      flush simulator memory hierarchy on every new simulation run\n"
            "-sim-flush-bpu                      flush branch prediction unit on every new simulation run\n"
            "-sim-trace                          generate instruction commit trace in [trace-file-name] during simulation\n"
@@ -727,7 +727,7 @@ int main(int argc, char **argv)
                 {
                     marss_mem_model = MEM_MODEL_BASE;
                 }
-                else if (strcmp(optarg, "dramsim2") == 0)
+                else if (strcmp(optarg, "dramsim3") == 0)
                 {
                     marss_mem_model = MEM_MODEL_DRAMSIM;
                 }

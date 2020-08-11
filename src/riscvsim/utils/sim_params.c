@@ -47,7 +47,7 @@ const char *cache_wa_str[] = {"true", "false"};
 const char *cache_wp_str[] = {"writeback", "writethrough"};
 const char *bpu_type_str[] = {"bimodal", "adaptive"};
 const char *bpu_aliasing_func_type_str[] = {"xor", "and", "none"};
-const char *dram_model_type_str[] = {"base", "dramsim2"};
+const char *dram_model_type_str[] = {"base", "dramsim3"};
 const char *cpu_mode_str[] = {"user", "supervisor", "hypervisor", "machine"};
 
 void
@@ -250,12 +250,8 @@ sim_params_set_defaults(SimParams *p)
     p->pte_rw_latency = DEF_PTE_RW_LATENCY;
     p->mem_access_latency = DEF_MEM_ACCESS_LATENCY;
 
-    p->dramsim_ini_file = strdup(DEF_DRAMSIM_INI_FILE);
-    assert(p->dramsim_ini_file);
-    p->dramsim_system_ini_file = strdup(DEF_DRAMSIM_SYSTEM_INI_FILE);
-    assert(p->dramsim_system_ini_file);
-    p->dramsim_stats_dir = strdup(DEF_DRAMSIM_STATS_DIR);
-    assert(p->dramsim_stats_dir);
+    p->dramsim_config_file = strdup(DEF_DRAMSIM_CONFIG_FILE);
+    assert(p->dramsim_config_file);
 
     p->sim_emulate_after_icount = DEF_SIM_EMULATE_AFTER_ICOUNT;
 }
@@ -1319,7 +1315,7 @@ sim_params_parse(SimParams *p, JSONValue cfg)
         }
         case MEM_MODEL_DRAMSIM:
         {
-            snprintf(buf1, sizeof(buf1), "%s", "dramsim");
+            snprintf(buf1, sizeof(buf1), "%s", "dramsim3");
             obj = json_object_get(obj1, buf1);
 
             if (json_is_undefined(obj))
@@ -1327,39 +1323,17 @@ sim_params_parse(SimParams *p, JSONValue cfg)
                 log_default_param_str(buf1, "", "");
             }
 
-            tag_name = "ini_file";
+            tag_name = "config_file";
             if (vm_get_str(obj, tag_name, &str) < 0)
             {
-                log_default_param_str(buf1, tag_name, p->dramsim_ini_file);
+                log_default_param_str(buf1, tag_name, p->dramsim_config_file);
             }
             else
             {
-                free(p->dramsim_ini_file);
-                p->dramsim_ini_file = strdup(str);
+                free(p->dramsim_config_file);
+                p->dramsim_config_file = strdup(str);
             }
 
-            tag_name = "system_ini_file";
-            if (vm_get_str(obj, tag_name, &str) < 0)
-            {
-                log_default_param_str(buf1, tag_name,
-                                      p->dramsim_system_ini_file);
-            }
-            else
-            {
-                free(p->dramsim_system_ini_file);
-                p->dramsim_system_ini_file = strdup(str);
-            }
-
-            tag_name = "stats_dir";
-            if (vm_get_str(obj, tag_name, &str) < 0)
-            {
-                log_default_param_str(buf1, tag_name, p->dramsim_stats_dir);
-            }
-            else
-            {
-                free(p->dramsim_stats_dir);
-                p->dramsim_stats_dir = strdup(str);
-            }
             break;
         }
         default:
@@ -1472,12 +1446,7 @@ sim_params_free(SimParams *p)
     free(p->core_name);
     p->core_name = NULL;
 
-    free(p->dramsim_ini_file);
-    p->dramsim_ini_file = NULL;
-    free(p->dramsim_system_ini_file);
-    p->dramsim_system_ini_file = NULL;
-    free(p->dramsim_stats_dir);
-    p->dramsim_stats_dir = NULL;
-
+    free(p->dramsim_config_file);
+    p->dramsim_config_file = NULL;
     free(p);
 }

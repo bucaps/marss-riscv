@@ -1,5 +1,5 @@
 /**
- * DRAMSim2 CPP wrapper
+ * DRAMSim3 CPP wrapper
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
@@ -28,34 +28,31 @@
 #define _DRAMSIM_WRAPPER_H_
 
 #include <cstdint>
+#include <functional>
 
 #include "../riscv_sim_typedefs.h"
-#include "memory_controller_utils.h"
-#include <DRAMSim.h>
+#include <memory_system.h>
 
-using namespace DRAMSim;
+using namespace dramsim3;
 
 class dramsim_wrapper
 {
   public:
     dramsim_wrapper();
-    dramsim_wrapper(const char *dram_ini_file, const char *system_ini_file,
-                    const char *stats_dir, const char *app_name, int size_mb,
-                    StageMemAccessQueue *frontend_mem_access_queue,
-                    StageMemAccessQueue *backend_mem_access_queue);
+    dramsim_wrapper(const char *config_file, const char *output_dir);
     ~dramsim_wrapper();
-    bool can_add_transaction(target_ulong addr);
+    bool can_add_transaction(target_ulong addr, bool isWrite);
     bool add_transaction(target_ulong addr, bool isWrite);
-    void update();
+    int get_max_clock_cycles();
+    void reset_stats();
     void print_stats();
     int get_burst_size();
-    void read_complete(unsigned, uint64_t, uint64_t);
-    void write_complete(unsigned, uint64_t, uint64_t);
+    void read_complete(uint64_t);
+    void write_complete(uint64_t);
 
-    MultiChannelMemorySystem *dramsim;
-    TransactionCompleteCB *read_cb;
-    TransactionCompleteCB *write_cb;
-    StageMemAccessQueue *frontend_mem_access_queue;
-    StageMemAccessQueue *backend_mem_access_queue;
+    MemorySystem *dramsim;
+    std::function<void(uint64_t)> read_cb;
+    std::function<void(uint64_t)> write_cb;
+    int mem_access_active;
 };
 #endif

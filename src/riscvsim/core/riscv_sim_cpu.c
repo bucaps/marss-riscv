@@ -630,15 +630,8 @@ riscv_sim_cpu_start(RISCVSIMCPUState *simcpu, target_ulong pc)
             case MEM_MODEL_DRAMSIM:
             {
                 dramsim_wrapper_destroy();
-                dramsim_wrapper_init(simcpu->params->dramsim_ini_file,
-                                     simcpu->params->dramsim_system_ini_file,
-                                     simcpu->params->dramsim_stats_dir,
-                                     simcpu->params->core_name,
-                                     simcpu->params->guest_ram_size,
-                                     &simcpu->mem_hierarchy->mem_controller
-                                          ->frontend_mem_access_queue,
-                                     &simcpu->mem_hierarchy->mem_controller
-                                          ->backend_mem_access_queue);
+                dramsim_wrapper_init(simcpu->params->dramsim_config_file,
+                                     simcpu->params->sim_file_path);
                 break;
             }
         }

@@ -121,15 +121,16 @@ memory_hierarchy_init(const SimParams *p, SimLog *log)
         mem_controller_set_burst_length(mem_hierarchy->mem_controller,
                                         mem_hierarchy->cache_line_size);
 
-        /* If DRAMSim2 memory model is used, its burst length must be equal to
+        /* If DRAMSim3 memory model is used, its burst length must be equal to
          * cache line size */
         if (mem_hierarchy->mem_controller->dram_model_type == MEM_MODEL_DRAMSIM)
         {
             sim_assert((mem_hierarchy->mem_controller->burst_length
                         == dramsim_get_burst_size()),
                        "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
-                       __func__, "DRAMSim2 burst length must be equal to "
-                                 "MARSS-RISCV cache line size");
+                       __func__, "DRAMSim3 burst length must be equal to "
+                                 "MARSS-RISCV cache line size or CPU memory "
+                                 "controller burst length");
         }
 
         if (p->enable_l2_cache)

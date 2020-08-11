@@ -54,25 +54,7 @@ mem_controller_reset(MemoryController *m)
     mem_controller_reset_cpu_stage_queue(&m->frontend_mem_access_queue);
     mem_controller_reset_cpu_stage_queue(&m->backend_mem_access_queue);
     mem_controller_reset_mem_request_queue(m);
-
-    switch (m->dram_model_type)
-    {
-        case MEM_MODEL_BASE:
-        {
-            base_dram_reset(m->base_dram);
-            break;
-        }
-        case MEM_MODEL_DRAMSIM:
-        {
-            dramsim_wrapper_destroy();
-            break;
-        }
-        default:
-        {
-            fprintf(stderr, "error: invalid memory model\n");
-            exit(1);
-        }
-    }
+    dram_reset(m->dram);
 }
 
 void
@@ -238,46 +220,24 @@ mem_controller_create_mem_request_pte(MemoryController *m, target_ulong paddr,
     }
 }
 
-static void
-mem_controller_clock_base(MemoryController *m)
+void
+mem_controller_clock(MemoryController *m)
 {
     PendingMemAccessEntry *e;
 
-    if (base_dram_can_accept_request(m->base_dram))
+    if (dram_can_accept_request(m->dram))
     {
         if (!cq_empty(&m->mem_request_queue.cq))
         {
             e = &m->mem_request_queue.entry[cq_front(&m->mem_request_queue.cq)];
-            base_dram_send_request(m->base_dram, e);
+            dram_send_request(m->dram, e);
         }
     }
 
-    if (base_dram_clock(m->base_dram))
+    if (dram_clock(m->dram))
     {
         cq_dequeue(&m->mem_request_queue.cq);
     }
-}
-
-static void
-mem_controller_clock_dramsim(MemoryController *m)
-{
-    PendingMemAccessEntry *e;
-
-    while (!cq_empty(&m->mem_request_queue.cq))
-    {
-        e = &m->mem_request_queue.entry[cq_front(&m->mem_request_queue.cq)];
-        if (dramsim_wrapper_can_add_transaction(e->addr))
-        {
-            dramsim_wrapper_add_transaction(e->addr, e->type);
-            cq_dequeue(&m->mem_request_queue.cq);
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    dramsim_wrapper_update();
 }
 
 MemoryController *
@@ -304,32 +264,25 @@ mem_controller_init(const SimParams *p)
     memset((void *)m->mem_request_queue.entry, 0,
            sizeof(PendingMemAccessEntry) * MEM_REQUEST_QUEUE_SIZE);
 
+    m->dram = dram_create(p, &m->frontend_mem_access_queue,
+                          &m->backend_mem_access_queue);
+
     switch (m->dram_model_type)
     {
         case MEM_MODEL_BASE:
         {
-            m->clock = &mem_controller_clock_base;
             mem_controller_set_burst_length(m, p->burst_length);
-            m->base_dram = base_dram_create(p, &m->frontend_mem_access_queue,
-                                            &m->backend_mem_access_queue);
             break;
         }
         case MEM_MODEL_DRAMSIM:
         {
-            PRINT_INIT_MSG("Setting up DRAMSim2");
-            dramsim_wrapper_init(
-                p->dramsim_ini_file, p->dramsim_system_ini_file,
-                p->dramsim_stats_dir, p->core_name, p->guest_ram_size,
-                &m->frontend_mem_access_queue, &m->backend_mem_access_queue);
-
-            m->clock = &mem_controller_clock_dramsim;
             mem_controller_set_burst_length(m, dramsim_get_burst_size());
             break;
         }
         default:
         {
-            fprintf(stderr, "error: invalid memory model\n");
-            exit(1);
+            sim_assert((0), "error: %s at line %d in %s(): %s", __FILE__,
+                       __LINE__, __func__, "invalid memory model");
         }
     }
     mem_controller_log_config(m);
@@ -339,24 +292,7 @@ mem_controller_init(const SimParams *p)
 void
 mem_controller_free(MemoryController **m)
 {
-    switch ((*m)->dram_model_type)
-    {
-        case MEM_MODEL_BASE:
-        {
-            base_dram_free(&(*m)->base_dram);
-            break;
-        }
-        case MEM_MODEL_DRAMSIM:
-        {
-            dramsim_wrapper_destroy();
-            break;
-        }
-        default:
-        {
-            fprintf(stderr, "error: invalid memory model\n");
-            exit(1);
-        }
-    }
+    dram_free(&(*m)->dram);
     free((*m)->backend_mem_access_queue.entry);
     (*m)->backend_mem_access_queue.entry = NULL;
     free((*m)->frontend_mem_access_queue.entry);

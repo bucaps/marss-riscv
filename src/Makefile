@@ -60,8 +60,8 @@ ifdef CONFIG_FS_NET
 PROGS+=build_filelist splitimg
 endif
 
-# DRAMSim2 connector for the simulator
-DRAMSIM2_CONNECTOR+= libdramsim_wrapper_c_connector.so
+# DRAMSIM3 connector for the simulator
+DRAMSIM3_CONNECTOR+= libdramsim_wrapper_c_connector.so
 
 # Top-level simulator object file
 SIM_OBJ_FILE=riscvsim.o
@@ -70,7 +70,7 @@ SIM_OBJ_FILE=riscvsim.o
 SIM_UTILS:=$(addprefix riscvsim/utils/, sim_exception.o sim_trace.o cpu_latches.o evict_policy.o circular_queue.o sim_params.o sim_stats.o sim_log.o)
 SIM_DECODER_OBJS:=$(addprefix riscvsim/decoder/, riscv_isa_string_generator.o riscv_isa_decoder.o riscv_isa_execute.o)
 SIM_BPU_OBJS:=$(addprefix riscvsim/bpu/, ras.o bht.o btb.o adaptive_predictor.o bpu.o)
-SIM_MEM_HY_OBJS:=$(addprefix riscvsim/memory_hierarchy/, temu_mem_map_wrapper.o base_dram.o memory_hierarchy.o memory_controller.o cache.o )
+SIM_MEM_HY_OBJS:=$(addprefix riscvsim/memory_hierarchy/, temu_mem_map_wrapper.o dram.o memory_hierarchy.o memory_controller.o cache.o )
 SIM_IN_CORE_OBJS:=$(addprefix riscvsim/core/, inorder_frontend.o inorder_backend.o inorder.o)
 SIM_CORE_OBJS:=$(addprefix riscvsim/core/, riscv_sim_cpu.o)
 SIM_OO_CORE_OBJS:=$(addprefix riscvsim/core/, ooo_frontend.o ooo_branch.o ooo_lsu.o ooo_backend.o ooo.o)
@@ -104,14 +104,21 @@ endif
 EMU_OBJS+=riscv_machine.o softfp.o riscv_cpu.o
 CFLAGS+=-DCONFIG_RISCV_MAX_XLEN=64
 
-libdramsim_wrapper_c_connector.so: libdramsim_wrapper_cpp_lib.so
-	$(CXX) -g -DMAX_XLEN=$(CONFIG_XLEN) -fpic -shared -o libdramsim_wrapper_c_connector.so riscvsim/memory_hierarchy/dramsim_wrapper_c_connector.cpp -I./DRAMSim2 -L. -ldramsim_wrapper_cpp_lib -Wl,-rpath=. -std=c++11
+# Include paths for DRAMsim3
+DRAMSIM3_FMT_LIB_DIR=DRAMsim3/ext/fmt/include
+DRAMSIM3_INI_LIB_DIR=DRAMsim3/ext/headers
+DRAMSIM3_JSON_LIB_DIR=DRAMsim3/ext/headers
+DRAMSIM3_ARGS_LIB_DIR=DRAMsim3/ext/headers
+DRAMSIM3_INC=-IDRAMsim3/src/ -I$(DRAMSIM3_FMT_LIB_DIR) -I$(DRAMSIM3_INI_LIB_DIR) -I$(DRAMSIM3_ARGS_LIB_DIR) -I$(DRAMSIM3_JSON_LIB_DIR)
 
-libdramsim_wrapper_cpp_lib.so: libdramsim.so
-	$(CXX) -g -DMAX_XLEN=$(CONFIG_XLEN) -fpic -shared -o libdramsim_wrapper_cpp_lib.so riscvsim/memory_hierarchy/dramsim_wrapper.cpp -I./DRAMSim2 -L./DRAMSim2 -ldramsim -Wl,-rpath=./DRAMSim2 -std=c++11
+libdramsim_wrapper_c_connector.so: libdramsim_wrapper_cpp_lib.so riscvsim/memory_hierarchy/dramsim_wrapper_c_connector.o
+	$(CXX) -shared -o libdramsim_wrapper_c_connector.so riscvsim/memory_hierarchy/dramsim_wrapper_c_connector.o -L. -ldramsim_wrapper_cpp_lib -Wl,-rpath=.
 
-libdramsim.so:
-	cd DRAMSim2/ && $(MAKE) libdramsim.so && cd ..
+libdramsim_wrapper_cpp_lib.so: libdramsim3.so riscvsim/memory_hierarchy/dramsim_wrapper.o
+	$(CXX) -shared -o libdramsim_wrapper_cpp_lib.so riscvsim/memory_hierarchy/dramsim_wrapper.o  -L./DRAMsim3 -ldramsim3 -Wl,-rpath=./DRAMsim3
+
+libdramsim3.so:
+	cd DRAMsim3/ && $(MAKE) libdramsim3.so
 
 riscvsim.o: $(SIM_OBJS)
 	$(LD) -r -o $@ $^ $(SIM_LIBS)
@@ -119,7 +126,7 @@ riscvsim.o: $(SIM_OBJS)
 sim-stats-display: stats_display.o
 	$(CC) -o sim-stats-display stats_display.o -lrt
 
-marss-riscv$(EXE): $(SIM_OBJ_FILE) $(DRAMSIM2_CONNECTOR) $(EMU_OBJS)
+marss-riscv$(EXE): $(SIM_OBJ_FILE) $(DRAMSIM3_CONNECTOR) $(EMU_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS) -L. -ldramsim_wrapper_c_connector -Wl,-rpath=.
 
 riscv_cpu.o: riscv_cpu.c
@@ -133,6 +140,9 @@ splitimg: splitimg.o
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+%.o: %.cpp
+	$(CXX) -g -DMAX_XLEN=$(CONFIG_XLEN) $(DRAMSIM3_INC) -fpic -shared -c -std=c++11 -o $@ $<
 
 clean:
 	rm -f *.o *.so *.d *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/bpu/*.d riscvsim/core/*.d  riscvsim/decoder/*.d riscvsim/utils/*.d  riscvsim/memory_hierarchy/*.d $(SIM_OBJS)

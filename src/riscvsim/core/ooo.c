@@ -231,8 +231,7 @@ oo_core_run(void *core_type)
     while (1)
     {
         /* Advance DRAM clock */
-        core->simcpu->mem_hierarchy->mem_controller->clock(
-            core->simcpu->mem_hierarchy->mem_controller);
+        mem_controller_clock(core->simcpu->mem_hierarchy->mem_controller);
 
         if (oo_core_rob_commit(core))
         {

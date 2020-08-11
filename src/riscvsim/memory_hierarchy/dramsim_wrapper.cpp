@@ -1,5 +1,5 @@
 /**
- * DRAMSim2 CPP wrapper
+ * DRAMSim3 CPP wrapper
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
@@ -27,32 +27,20 @@
 #include <cstdio>
 #include <string>
 
+#include "../../cutils.h"
 #include "dramsim_wrapper.h"
 
-dramsim_wrapper::dramsim_wrapper(const char *dram_ini_file,
-                                 const char *system_ini_file,
-                                 const char *stats_dir, const char *app_name,
-                                 int size_mb,
-                                 StageMemAccessQueue *frontend_queue,
-                                 StageMemAccessQueue *backend_queue)
+dramsim_wrapper::dramsim_wrapper(const char *config_file,
+                                 const char *output_dir)
+    : read_cb(std::bind(&dramsim_wrapper::read_complete, this,
+                        std::placeholders::_1)),
+      write_cb(std::bind(&dramsim_wrapper::write_complete, this,
+                         std::placeholders::_1))
 {
-    read_cb = new Callback<dramsim_wrapper, void, unsigned, uint64_t, uint64_t>(
-        this, &dramsim_wrapper::read_complete);
+    dramsim = GetMemorySystem(std::string(config_file), std::string(output_dir),
+                              read_cb, write_cb);
 
-    write_cb
-        = new Callback<dramsim_wrapper, void, unsigned, uint64_t, uint64_t>(
-            this, &dramsim_wrapper::write_complete);
-
-    frontend_mem_access_queue = frontend_queue;
-    backend_mem_access_queue = backend_queue;
-
-    dramsim = getMemorySystemInstance(
-        std::string(dram_ini_file), std::string(system_ini_file),
-        std::string(stats_dir), std::string(app_name), size_mb);
-
-    dramsim->RegisterCallbacks(read_cb, write_cb, NULL);
-
-    dramsim->setCPUClockSpeed(0);
+    mem_access_active = FALSE;
 }
 
 dramsim_wrapper::~dramsim_wrapper()
@@ -61,102 +49,58 @@ dramsim_wrapper::~dramsim_wrapper()
 }
 
 void
-dramsim_wrapper::read_complete(unsigned id, uint64_t addr, uint64_t clock_cycle)
+dramsim_wrapper::read_complete(uint64_t addr)
 {
-    int i;
-
-    for (i = 0; i < frontend_mem_access_queue->cur_idx; ++i)
-    {
-        if ((frontend_mem_access_queue->entry[i].valid)
-            && (frontend_mem_access_queue->entry[i].addr == addr)
-            && (frontend_mem_access_queue->entry[i].type == MEM_ACCESS_READ))
-        {
-            frontend_mem_access_queue->entry[i].valid = 0;
-            --frontend_mem_access_queue->cur_size;
-            return;
-        }
-    }
-
-    for (i = 0; i < backend_mem_access_queue->cur_idx; ++i)
-    {
-        if ((backend_mem_access_queue->entry[i].valid)
-            && (backend_mem_access_queue->entry[i].addr == addr)
-            && (backend_mem_access_queue->entry[i].type == MEM_ACCESS_READ))
-        {
-            backend_mem_access_queue->entry[i].valid = 0;
-            --backend_mem_access_queue->cur_size;
-            return;
-        }
-    }
+    mem_access_active = FALSE;
 }
 
 void
-dramsim_wrapper::write_complete(unsigned id, uint64_t addr,
-                                uint64_t clock_cycle)
+dramsim_wrapper::write_complete(uint64_t addr)
 {
-    int i;
-
-    for (i = 0; i < frontend_mem_access_queue->cur_idx; ++i)
-    {
-        if ((frontend_mem_access_queue->entry[i].valid)
-            && (frontend_mem_access_queue->entry[i].addr == addr)
-            && (frontend_mem_access_queue->entry[i].type == MEM_ACCESS_WRITE))
-        {
-            frontend_mem_access_queue->entry[i].valid = 0;
-            --frontend_mem_access_queue->cur_size;
-            return;
-        }
-    }
-
-    for (i = 0; i < backend_mem_access_queue->cur_idx; ++i)
-    {
-        if ((backend_mem_access_queue->entry[i].valid)
-            && (backend_mem_access_queue->entry[i].addr == addr)
-            && (backend_mem_access_queue->entry[i].type == MEM_ACCESS_WRITE))
-        {
-            backend_mem_access_queue->entry[i].valid = 0;
-            --backend_mem_access_queue->cur_size;
-            return;
-        }
-    }
+    mem_access_active = FALSE;
 }
 
 bool
-dramsim_wrapper::can_add_transaction(target_ulong addr)
+dramsim_wrapper::can_add_transaction(target_ulong addr, bool isWrite)
 {
-    return dramsim->willAcceptTransaction(addr);
+    return dramsim->WillAcceptTransaction(addr, isWrite);
 }
 
 bool
 dramsim_wrapper::add_transaction(target_ulong addr, bool isWrite)
 {
-    return dramsim->addTransaction(isWrite, addr);
+    mem_access_active = TRUE;
+    return dramsim->AddTransaction(addr, isWrite);
 }
 
-void
-dramsim_wrapper::update()
+int
+dramsim_wrapper::get_max_clock_cycles()
 {
-    dramsim->update();
+    uint64_t clock_cycles_elasped = 0;
+
+    while (mem_access_active)
+    {
+        dramsim->ClockTick();
+        clock_cycles_elasped++;
+    }
+
+    return clock_cycles_elasped;
 }
 
 void
 dramsim_wrapper::print_stats()
 {
-    dramsim->printStats(true);
+    dramsim->PrintStats();
+}
+
+void
+dramsim_wrapper::reset_stats()
+{
+    dramsim->ResetStats();
 }
 
 int
 dramsim_wrapper::get_burst_size()
 {
-    unsigned int BL, jdec_bus_bits;
-
-    if (dramsim->getIniUint("BL", &BL)
-        || dramsim->getIniUint("JEDEC_DATA_BUS_BITS", &jdec_bus_bits))
-    {
-        fprintf(stderr, "%s\n", "unable to read BL and JEDEC_DATA_BUS_BITS "
-                                "from DRAMSim2 configuration files");
-        exit(1);
-    }
-
-    return (jdec_bus_bits * BL) / 8;
+    return (dramsim->GetBusBits() * (dramsim->GetBurstLength() / 8));
 }

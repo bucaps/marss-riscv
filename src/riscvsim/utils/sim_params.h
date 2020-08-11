@@ -167,9 +167,7 @@ enum MEM_MODEL_TYPE
 #define DEF_PTE_RW_LATENCY 27
 #define DEF_MEM_ACCESS_LATENCY 46
 
-#define DEF_DRAMSIM_INI_FILE "DRAMSim2/ini/DDR2_micron_16M_8b_x8_sg3E.ini"
-#define DEF_DRAMSIM_SYSTEM_INI_FILE "DRAMSim2/system.ini.example"
-#define DEF_DRAMSIM_STATS_DIR "."
+#define DEF_DRAMSIM_CONFIG_FILE "DRAMsim3/configs/DDR4_4Gb_x16_2400.ini"
 
 #define DEF_SIM_EMULATE_AFTER_ICOUNT 0
 
@@ -277,10 +275,8 @@ typedef struct SimParams
     int pte_rw_latency;
     int mem_access_latency;
 
-    /* DRAMSim2 Params */
-    char *dramsim_ini_file;
-    char *dramsim_system_ini_file;
-    char *dramsim_stats_dir;
+    /* DRAMSim3 Params */
+    char *dramsim_config_file;
 
     uint64_t sim_emulate_after_icount;
 } SimParams;

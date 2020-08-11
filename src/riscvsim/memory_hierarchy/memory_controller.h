@@ -36,7 +36,7 @@
 #include "../riscv_sim_typedefs.h"
 #include "../utils/circular_queue.h"
 #include "../utils/sim_params.h"
-#include "base_dram.h"
+#include "dram.h"
 #include "memory_controller_utils.h"
 
 #define FRONTEND_MEM_ACCESS_QUEUE_SIZE 64
@@ -51,7 +51,7 @@ typedef struct MemRequestQueue
 
 typedef struct MemoryController
 {
-    /* Type of DRAM model: base or dramsim2 */
+    /* Type of DRAM model: base or dramsim3 */
     int dram_model_type;
 
     /* Memory controller burst length in bytes (or cache line size) */
@@ -66,16 +66,13 @@ typedef struct MemoryController
      * memory access requests */
     MemRequestQueue mem_request_queue;
 
-    /* Simplistic base DRAM model */
-    BaseDram *base_dram;
-
-    /* Points to clock function of base dram model or dramsim2 */
-    void (*clock)(struct MemoryController *m);
+    Dram *dram;
 } MemoryController;
 
 MemoryController *mem_controller_init(const SimParams *p);
 void mem_controller_free(MemoryController **m);
 void mem_controller_reset(MemoryController *m);
+void mem_controller_clock(MemoryController *m);
 void mem_controller_reset_cpu_stage_queue(StageMemAccessQueue *q);
 void mem_controller_reset_mem_request_queue(MemoryController *m);
 void mem_controller_set_burst_length(MemoryController *m, int burst_length);

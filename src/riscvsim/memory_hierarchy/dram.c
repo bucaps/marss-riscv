@@ -1,5 +1,5 @@
 /**
- * Base DRAM model
+ * DRAM model
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
@@ -30,14 +30,103 @@
 #include <string.h>
 
 #include "../utils/sim_log.h"
-#include "base_dram.h"
+#include "dram.h"
+#include "dramsim_wrapper_c_connector.h"
 
 static void
-base_dram_log_config(const BaseDram *d)
+dram_log_config(const Dram *d, const SimParams *p)
 {
     sim_log_event_to_file(sim_log, "%s", "Setting up base dram");
-    sim_log_param_to_file(sim_log, "%s: %d cycle(s)", "mem_access_latency", d->mem_access_latency);
-    sim_log_param_to_file(sim_log, "%s: %d cycle(s)", "pte_rw_latency", d->pte_rw_latency);
+    sim_log_param_to_file(sim_log, "%s: %s", "dram_model_type",
+                          dram_model_type_str[p->dram_model_type]);
+    switch (p->dram_model_type)
+    {
+        case MEM_MODEL_BASE:
+        {
+            sim_log_param_to_file(sim_log, "%s: %d cycle(s)",
+                                  "mem_access_latency", d->mem_access_latency);
+            sim_log_param_to_file(sim_log, "%s: %d cycle(s)", "pte_rw_latency",
+                                  d->pte_rw_latency);
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            sim_log_param_to_file(sim_log, "%s: %s)", "config_file",
+                                  p->dramsim_config_file);
+            sim_log_param_to_file(sim_log, "%s: %s", "output-directory",
+                                  p->sim_file_path);
+            break;
+        }
+    }
+}
+
+/* Base DRAM model keeps track of the physical page number of the latest
+ * request processed. Any subsequent accesses to the same physical page
+ * occupies a lower delay, which is roughly 60 percent of the fixed
+ * mem_access_latency. */
+static int
+base_dram_model_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
+{
+    uint64_t current_page_num;
+    int max_clock_cycles = 0;
+
+    if (e->req_pte)
+    {
+        /* This access is related to reading/writing page table entry */
+        max_clock_cycles = d->pte_rw_latency;
+    }
+    else
+    {
+        max_clock_cycles = d->mem_access_latency;
+    }
+
+    /* Remove page offset to get current page number, page size is always 4KB */
+    current_page_num = e->addr >> 12;
+
+    if (d->last_accessed_page_num == current_page_num)
+    {
+        /* Page hit */
+        max_clock_cycles *= 0.6;
+    }
+    else
+    {
+        /* Page miss */
+        d->last_accessed_page_num = current_page_num;
+    }
+
+    return max_clock_cycles;
+}
+
+#define DRAMSIM3_RAM_BASE_ADDR 0x0
+#define TINYEMU_RAM_BASE_ADDR 0x80000000
+
+/* In TinyEMU, physical memory from 0x0 to 0x80000000 is allocated for the
+ * TinyEMU devices. Guest RAM starts from address  0x80000000. Hence all the
+ * physical addresses obtained after TLB lookup for guest RAM are above
+ * 0x80000000. So before sending the address to DRAMsim3 (which starts from
+ * 0x0), convert the given address. */
+static target_ulong
+convert_tinyemu_ram_addr_into_dramsim3_ram_addr(target_ulong tinyemu_ram_addr)
+{
+    target_ulong offset;
+
+    if (tinyemu_ram_addr >= TINYEMU_RAM_BASE_ADDR)
+    {
+        offset = tinyemu_ram_addr - TINYEMU_RAM_BASE_ADDR;
+        tinyemu_ram_addr = DRAMSIM3_RAM_BASE_ADDR + offset;
+    }
+
+    return tinyemu_ram_addr;
+}
+
+static int
+dramsim_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
+{
+    target_ulong dramsim3_ram_addr
+        = convert_tinyemu_ram_addr_into_dramsim3_ram_addr(e->addr);
+    assert(dramsim_wrapper_can_add_transaction(dramsim3_ram_addr, e->type));
+    dramsim_wrapper_add_transaction(dramsim3_ram_addr, e->type);
+    return dramsim_wrapper_get_max_clock_cycles();
 }
 
 static void
@@ -99,39 +188,16 @@ write_complete_callback(target_ulong addr, StageMemAccessQueue *f,
 }
 
 int
-base_dram_can_accept_request(const BaseDram *d)
+dram_can_accept_request(const Dram *d)
 {
     return !d->mem_access_active;
 }
 
 void
-base_dram_send_request(BaseDram *d, PendingMemAccessEntry *e)
+dram_send_request(Dram *d, PendingMemAccessEntry *e)
 {
-    uint64_t current_page_num;
-
-    if (e->req_pte)
-    {
-        /* This access is related to reading/writing page table entry */
-        d->max_clock_cycles = d->pte_rw_latency;
-    }
-    else
-    {
-        d->max_clock_cycles = d->mem_access_latency;
-    }
-
-    /* Remove page offset to get current page number, page size is always 4KB */
-    current_page_num = e->addr >> 12;
-
-    if (d->last_accessed_page_num == current_page_num)
-    {
-        /* Page hit */
-        d->max_clock_cycles *= 0.6;
-    }
-    else
-    {
-        /* Page miss */
-        d->last_accessed_page_num = current_page_num;
-    }
+    d->max_clock_cycles = d->get_max_clock_cycles_for_request(d, e);
+    assert(d->max_clock_cycles);
 
     /* Send a write complete callback to the calling pipeline stage as
      * we don't want the pipeline stage to wait for write to complete.
@@ -149,7 +215,7 @@ base_dram_send_request(BaseDram *d, PendingMemAccessEntry *e)
 }
 
 int
-base_dram_clock(BaseDram *d)
+dram_clock(Dram *d)
 {
     if (d->mem_access_active)
     {
@@ -179,35 +245,68 @@ base_dram_clock(BaseDram *d)
 }
 
 void
-base_dram_reset(BaseDram *d)
+dram_reset(Dram *d)
 {
     d->elasped_clock_cycles = 0;
     d->max_clock_cycles = 0;
     d->mem_access_active = FALSE;
     d->active_mem_request = NULL;
+
+    /* For base DRAM model */
     d->last_accessed_page_num = 0;
 }
 
-BaseDram *
-base_dram_create(const SimParams *p, StageMemAccessQueue *f,
+Dram *
+dram_create(const SimParams *p, StageMemAccessQueue *f,
                  StageMemAccessQueue *b)
 {
-    BaseDram *d;
+    Dram *d;
 
-    d = calloc(1, sizeof(BaseDram));
+    d = calloc(1, sizeof(Dram));
     assert(d);
 
     d->pte_rw_latency = p->pte_rw_latency;
     d->mem_access_latency = p->mem_access_latency;
     d->frontend_mem_access_queue = f;
     d->backend_mem_access_queue = b;
-    base_dram_reset(d);
-    base_dram_log_config(d);
+
+    d->dram_model_type = p->dram_model_type;
+
+    switch (d->dram_model_type)
+    {
+        case MEM_MODEL_BASE:
+        {
+            d->get_max_clock_cycles_for_request
+                = &base_dram_model_get_max_clock_cycles;
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            dramsim_wrapper_init(p->dramsim_config_file, p->sim_file_path);
+            d->get_max_clock_cycles_for_request = &dramsim_get_max_clock_cycles;
+            break;
+        }
+    }
+
+    dram_reset(d);
+    dram_log_config(d, p);
     return d;
 }
 
 void
-base_dram_free(BaseDram **d)
+dram_free(Dram **d)
 {
+    switch ((*d)->dram_model_type)
+    {
+        case MEM_MODEL_BASE:
+        {
+            break;
+        }
+        case MEM_MODEL_DRAMSIM:
+        {
+            dramsim_wrapper_destroy();
+            break;
+        }
+    }
     free(*d);
 }

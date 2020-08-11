@@ -1,5 +1,5 @@
 /**
- * DRAMSim2 wrapper C connector
+ * DRAMSim3 wrapper C connector
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
@@ -30,21 +30,17 @@
 #include <inttypes.h>
 
 #include "../riscv_sim_typedefs.h"
-#include "memory_controller_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-void dramsim_wrapper_init(const char *dram_ini_file,
-                          const char *system_ini_file, const char *stats_dir,
-                          const char *app_name, int size_mb,
-                          StageMemAccessQueue *frontend_mem_access_queue,
-                          StageMemAccessQueue *backend_mem_access_queue);
+void dramsim_wrapper_init(const char *config_file, const char *output_dir);
 void dramsim_wrapper_destroy();
-int dramsim_wrapper_can_add_transaction(target_ulong addr);
+int dramsim_wrapper_can_add_transaction(target_ulong addr, int isWrite);
 int dramsim_wrapper_add_transaction(target_ulong addr, int isWrite);
-void dramsim_wrapper_update();
+int dramsim_wrapper_get_max_clock_cycles();
 void dramsim_wrapper_print_stats();
+void dramsim_wrapper_reset_stats();
 int dramsim_get_burst_size();
 
 #ifdef __cplusplus

@@ -1,5 +1,5 @@
 /**
- * DRAMSim2 wrapper C connector
+ * DRAMSim3 wrapper C connector
  *
  * MARSS-RISCV : Micro-Architectural System Simulator for RISC-V
  *
@@ -36,16 +36,11 @@ extern "C" {
 static dramsim_wrapper *dramsim_wrapper_obj = NULL;
 
 void
-dramsim_wrapper_init(const char *dram_ini_file, const char *system_ini_file,
-                     const char *stats_dir, const char *app_name, int size_mb,
-                     StageMemAccessQueue *frontend_mem_access_queue,
-                     StageMemAccessQueue *backend_mem_access_queue)
+dramsim_wrapper_init(const char *config_file, const char *output_dir)
 {
     if (dramsim_wrapper_obj == NULL)
     {
-        dramsim_wrapper_obj = new dramsim_wrapper(
-            dram_ini_file, system_ini_file, stats_dir, app_name, size_mb,
-            frontend_mem_access_queue, backend_mem_access_queue);
+        dramsim_wrapper_obj = new dramsim_wrapper(config_file, output_dir);
     }
 }
 
@@ -57,9 +52,9 @@ dramsim_wrapper_destroy()
 }
 
 int
-dramsim_wrapper_can_add_transaction(target_ulong addr)
+dramsim_wrapper_can_add_transaction(target_ulong addr, int isWrite)
 {
-    return dramsim_wrapper_obj->can_add_transaction(addr);
+    return dramsim_wrapper_obj->can_add_transaction(addr, (bool)isWrite);
 }
 
 int
@@ -68,16 +63,22 @@ dramsim_wrapper_add_transaction(target_ulong addr, int isWrite)
     return dramsim_wrapper_obj->add_transaction(addr, (bool)isWrite);
 }
 
-void
-dramsim_wrapper_update()
+int
+dramsim_wrapper_get_max_clock_cycles()
 {
-    dramsim_wrapper_obj->update();
+    return dramsim_wrapper_obj->get_max_clock_cycles();
 }
 
 void
 dramsim_wrapper_print_stats()
 {
     dramsim_wrapper_obj->print_stats();
+}
+
+void
+dramsim_wrapper_reset_stats()
+{
+    dramsim_wrapper_obj->reset_stats();
 }
 
 int
