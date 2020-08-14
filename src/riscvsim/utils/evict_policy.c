@@ -43,14 +43,14 @@ bit_plru_use(EvictPolicy *p, int set, int way)
     }
 
     /* Set MRU bit for this way in this set to 1 */
-    p->sets[set] |= (1 << way);
+    SET_BIT(p->sets[set], way);
 
     /* Whenever the last remaining 0 bit of a set's status bits is set to 1, all
      * other bits are reset to 0. */
-    if (p->sets[set] == ((1 << p->num_ways) - 1))
+    if (p->sets[set] == BITMASK(p->num_ways))
     {
         p->sets[set] = 0;
-        p->sets[set] |= (1 << way);
+        SET_BIT(p->sets[set], way);
     }
 }
 
@@ -68,11 +68,10 @@ bit_plru_evict(EvictPolicy *p, int set)
     /* Return the first way address whose MRU bit is set to 0 */
     for (i = 0; i < p->num_ways; i++)
     {
-        if ((current_set & 1) == 0)
+        if (GET_BIT(current_set, i) == 0)
         {
             return i;
         }
-        current_set >>= 1;
     }
 
     sim_assert((0), "error: %s at line %d in %s(): %s", __FILE__, __LINE__,
