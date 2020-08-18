@@ -122,11 +122,21 @@ convert_tinyemu_ram_addr_into_dramsim3_ram_addr(target_ulong tinyemu_ram_addr)
 static int
 dramsim_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
 {
+    uint64_t max_clock_cycles;
     target_ulong dramsim3_ram_addr
         = convert_tinyemu_ram_addr_into_dramsim3_ram_addr(e->addr);
     assert(dramsim_wrapper_can_add_transaction(dramsim3_ram_addr, e->type));
     dramsim_wrapper_add_transaction(dramsim3_ram_addr, e->type);
-    return dramsim_wrapper_get_max_clock_cycles();
+    max_clock_cycles = dramsim_wrapper_get_max_clock_cycles();
+
+    if (max_clock_cycles >= 1000)
+    {
+        sim_log_event(sim_log,
+                      "possible dramsim3 block detected: %lu cycle(s) reported",
+                      max_clock_cycles);
+    }
+
+    return max_clock_cycles;
 }
 
 static void
