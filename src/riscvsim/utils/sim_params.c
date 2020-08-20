@@ -247,7 +247,6 @@ sim_params_set_defaults(SimParams *p)
     p->burst_length = DEF_DRAM_BURST_SIZE;
     p->flush_sim_mem_on_simstart = DEF_FLUSH_SIM_MEM_ON_SIMSTART;
 
-    p->pte_rw_latency = DEF_PTE_RW_LATENCY;
     p->mem_access_latency = DEF_MEM_ACCESS_LATENCY;
 
     p->dramsim_config_file = strdup(DEF_DRAMSIM_CONFIG_FILE);
@@ -431,7 +430,6 @@ sim_params_validate(SimParams *p)
 
     validate_param("tlb_size", 0, 1, 2048, p->tlb_size);
     validate_param("burst_length", 0, 1, 2048, (int)p->burst_length);
-    validate_param("pte_rw_latency", 0, 1, 2048, p->pte_rw_latency);
     validate_param("mem_access_latency", 0, 1, 2048, p->mem_access_latency);
 
     /* Create full trace file name */
@@ -1305,13 +1303,6 @@ sim_params_parse(SimParams *p, JSONValue cfg)
             {
                 log_default_param_int(buf1, tag_name, p->mem_access_latency);
             }
-
-            tag_name = "pte_rw_latency";
-            if (vm_get_int(obj, tag_name, &p->pte_rw_latency) < 0)
-            {
-                log_default_param_int(buf1, tag_name, p->pte_rw_latency);
-            }
-            break;
         }
         case MEM_MODEL_DRAMSIM:
         {

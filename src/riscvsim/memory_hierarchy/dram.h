@@ -60,10 +60,8 @@ typedef struct Dram
     /* Following parameters are used by base DRAM model */
     uint64_t last_accessed_page_num;
 
-    /* Fixed configurable latency in CPU cycles used by the base DRAM model for
-     * data and page walk */
+    /* Fixed configurable latency in CPU cycles used by the base DRAM model */
     int mem_access_latency;
-    int pte_rw_latency;
 } Dram;
 
 Dram *dram_create(const SimParams *p, StageMemAccessQueue *f,

@@ -66,6 +66,9 @@ typedef struct MemoryController
      * memory access requests */
     MemRequestQueue mem_request_queue;
 
+    /* To keep track of cache lookup cycle(s) for reading/writing page table
+     * entries during hardware page walk */
+    int page_walk_delay;
     Dram *dram;
 } MemoryController;
 
@@ -80,9 +83,4 @@ int mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
                                       int bytes_to_access,
                                       MemAccessType op_type,
                                       void *p_mem_access_info);
-void mem_controller_create_mem_request_pte(MemoryController *m,
-                                           target_ulong paddr,
-                                           int bytes_to_access,
-                                           MemAccessType op_type,
-                                           void *p_mem_access_info);
 #endif

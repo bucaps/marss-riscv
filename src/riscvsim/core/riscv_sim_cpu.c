@@ -471,6 +471,10 @@ fetch_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
     s->ins_tlb_lookup_accounted = FALSE;
     s->ins_tlb_hit_accounted = FALSE;
 
+    /* Reset page walk delay before fetching current instruction. This is the
+     * cache hierarchy lookup delay for page table entries, on a TLB miss */
+    s->simcpu->mem_hierarchy->mem_controller->page_walk_delay = 0;
+
     /* elasped_clock_cycles: number of CPU cycles spent by this instruction
      * in fetch stage so far */
     e->elasped_clock_cycles = 1;
@@ -489,8 +493,11 @@ fetch_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
     {
         /* max_clock_cycles: Number of CPU cycles required for TLB and Cache
          * look-up */
-        e->max_clock_cycles = s->simcpu->mem_hierarchy->insn_read_delay(
-            s->simcpu->mem_hierarchy, s->code_guest_paddr, 4, FETCH, s->priv);
+        e->max_clock_cycles
+            = s->simcpu->mem_hierarchy->mem_controller->page_walk_delay
+              + s->simcpu->mem_hierarchy->insn_read_delay(
+                    s->simcpu->mem_hierarchy, s->code_guest_paddr, 4, FETCH,
+                    s->priv);
 
         sim_assert((e->max_clock_cycles), "error: %s at line %d in %s(): %s",
                    __FILE__, __LINE__, __func__,
@@ -536,6 +543,10 @@ mem_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
     e->max_clock_cycles = 1;
     s->hw_pg_tb_wlk_stage_id = MEMORY;
 
+    /* Reset page walk delay before executing current memory instruction. This
+     * is the cache hierarchy lookup delay for page table entries, on a TLB miss */
+    s->simcpu->mem_hierarchy->mem_controller->page_walk_delay = 0;
+
     if (s->simcpu->temu_mem_map_wrapper->exec_load_store_atomic(s, e))
     {
         /* This load, store or atomic instruction raised a page
@@ -547,22 +558,24 @@ mem_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
     {
         /* Memory access was successful, no page fault, so calculate the memory
          * access latency */
-        e->max_clock_cycles = 0;
+        e->max_clock_cycles
+            = s->simcpu->mem_hierarchy->mem_controller->page_walk_delay;
 
         if (s->is_device_io || !s->data_guest_paddr)
         {
             /* This was a non RAM access, probably a device, so set
              * max_clock_cycles to 1 */
-            e->max_clock_cycles = 1;
+            e->max_clock_cycles += 1;
         }
         else
         {
             /* RAM access */
             if ((e->ins.is_load || e->ins.is_atomic_load))
             {
-                e->max_clock_cycles = s->simcpu->mem_hierarchy->data_read_delay(
-                    s->simcpu->mem_hierarchy, s->data_guest_paddr,
-                    e->ins.bytes_to_rw, MEMORY, s->priv);
+                e->max_clock_cycles
+                    += s->simcpu->mem_hierarchy->data_read_delay(
+                        s->simcpu->mem_hierarchy, s->data_guest_paddr,
+                        e->ins.bytes_to_rw, MEMORY, s->priv);
             }
 
             if ((e->ins.is_store || e->ins.is_atomic_store))

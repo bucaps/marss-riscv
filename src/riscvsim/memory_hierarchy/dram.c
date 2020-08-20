@@ -45,8 +45,6 @@ dram_log_config(const Dram *d, const SimParams *p)
         {
             sim_log_param_to_file(sim_log, "%s: %d cycle(s)",
                                   "mem_access_latency", d->mem_access_latency);
-            sim_log_param_to_file(sim_log, "%s: %d cycle(s)", "pte_rw_latency",
-                                  d->pte_rw_latency);
             break;
         }
         case MEM_MODEL_DRAMSIM:
@@ -68,17 +66,7 @@ static int
 base_dram_model_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
 {
     uint64_t current_page_num;
-    int max_clock_cycles = 0;
-
-    if (e->req_pte)
-    {
-        /* This access is related to reading/writing page table entry */
-        max_clock_cycles = d->pte_rw_latency;
-    }
-    else
-    {
-        max_clock_cycles = d->mem_access_latency;
-    }
+    int max_clock_cycles = d->mem_access_latency;
 
     /* Remove page offset to get current page number, page size is always 4KB */
     current_page_num = e->addr >> 12;
@@ -275,7 +263,6 @@ dram_create(const SimParams *p, StageMemAccessQueue *f,
     d = calloc(1, sizeof(Dram));
     assert(d);
 
-    d->pte_rw_latency = p->pte_rw_latency;
     d->mem_access_latency = p->mem_access_latency;
     d->frontend_mem_access_queue = f;
     d->backend_mem_access_queue = b;

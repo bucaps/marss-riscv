@@ -60,9 +60,9 @@ typedef struct MemoryHierarchy
 
     /* Page table entries are not cached, but requests are directly sent to
      * memory controller queue */
-    void (*pte_read_req_send)(struct MemoryHierarchy *mmu, target_ulong paddr,
+    int (*pte_read_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
                               int bytes, int cpu_stage_id, int priv);
-    void (*pte_write_req_send)(struct MemoryHierarchy *mmu, target_ulong paddr,
+    int (*pte_write_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
                                int bytes, int cpu_stage_id, int priv);
 } MemoryHierarchy;
 

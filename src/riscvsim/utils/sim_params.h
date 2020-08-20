@@ -164,7 +164,6 @@ enum MEM_MODEL_TYPE
 #define DEF_FLUSH_SIM_MEM_ON_SIMSTART DISABLE
 #define DEF_MEM_MODEL MEM_MODEL_BASE
 
-#define DEF_PTE_RW_LATENCY 27
 #define DEF_MEM_ACCESS_LATENCY 46
 
 #define DEF_DRAMSIM_CONFIG_FILE "DRAMsim3/configs/DDR4_4Gb_x16_2400.ini"
@@ -272,7 +271,6 @@ typedef struct SimParams
     int tlb_size;
     int dram_model_type;
     int burst_length;
-    int pte_rw_latency;
     int mem_access_latency;
 
     /* DRAMSim3 Params */

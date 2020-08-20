@@ -80,22 +80,21 @@ mem_hierarchy_dcache_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
                        priv);
 }
 
-static void
-mem_hierarchy_pte_read(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
-                       int bytes, int stage_id, int priv)
+static int
+mem_hierarchy_pte_read_dcache(MemoryHierarchy *mem_hierarchy,
+                              target_ulong paddr, int bytes, int stage_id,
+                              int priv)
 {
-    mem_controller_create_mem_request_pte(mem_hierarchy->mem_controller, paddr,
-                                          bytes, MEM_ACCESS_READ,
-                                          (void *)&stage_id);
+    return cache_read(mem_hierarchy->dcache, paddr, bytes, (void *)&stage_id,
+                      priv);
 }
 
-static void
-mem_hierarchy_pte_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
+static int
+mem_hierarchy_pte_write_dcache(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
                         int bytes, int stage_id, int priv)
 {
-    mem_controller_create_mem_request_pte(mem_hierarchy->mem_controller, paddr,
-                                          bytes, MEM_ACCESS_WRITE,
-                                          (void *)&stage_id);
+    return cache_write(mem_hierarchy->dcache, paddr, bytes, (void *)&stage_id,
+                       priv);
 }
 
 MemoryHierarchy *
@@ -176,16 +175,17 @@ memory_hierarchy_init(const SimParams *p, SimLog *log)
         mem_hierarchy->insn_read_delay = &mem_hierarchy_icache_read;
         mem_hierarchy->data_read_delay = &mem_hierarchy_dcache_read;
         mem_hierarchy->data_write_delay = &mem_hierarchy_dcache_write;
+        mem_hierarchy->pte_read_delay = &mem_hierarchy_pte_read_dcache;
+        mem_hierarchy->pte_write_delay = &mem_hierarchy_pte_write_dcache;
     }
     else
     {
         mem_hierarchy->insn_read_delay = &mem_hierarchy_cache_disabled_read;
         mem_hierarchy->data_read_delay = &mem_hierarchy_cache_disabled_read;
         mem_hierarchy->data_write_delay = &mem_hierarchy_cache_disabled_write;
+        mem_hierarchy->pte_read_delay = &mem_hierarchy_cache_disabled_read;
+        mem_hierarchy->pte_write_delay = &mem_hierarchy_cache_disabled_write;
     }
-
-    mem_hierarchy->pte_read_req_send = &mem_hierarchy_pte_read;
-    mem_hierarchy->pte_write_req_send = &mem_hierarchy_pte_write;
 
     return mem_hierarchy;
 }
