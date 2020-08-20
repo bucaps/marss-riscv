@@ -50,6 +50,7 @@
 #endif
 
 #include "riscvsim/utils/sim_params.h"
+#include "riscvsim/utils/sim_log.h"
 
 static char *strdup_null(const char *str)
 {
@@ -210,6 +211,10 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         p->files[VM_FILE_KERNEL].filename = strdup(str);
     }
 
+    sim_log_event(sim_log, "%s: %s", "bios", p->files[VM_FILE_BIOS].filename);
+    sim_log_event(sim_log, "%s: %s", "kernel",
+                  p->files[VM_FILE_KERNEL].filename);
+
     tag_name = "initrd";
     if (vm_get_str_opt(cfg, tag_name, &str) < 0)
         goto tag_fail;
@@ -235,6 +240,10 @@ static int virt_machine_parse_config(VirtMachineParams *p,
         if (vm_get_str(obj, "file", &str) < 0)
             goto tag_fail;
         p->tab_drive[p->drive_count].filename = strdup(str);
+
+        sim_log_event(sim_log, "drive%d-file: %s", p->drive_count,
+                      p->tab_drive[p->drive_count].filename);
+
         if (vm_get_str_opt(obj, "device", &str) < 0)
             goto tag_fail;
         p->tab_drive[p->drive_count].device = strdup_null(str);
