@@ -128,8 +128,9 @@ dramsim_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
     if (max_clock_cycles >= 1000)
     {
         sim_log_event(sim_log,
-                      "possible dramsim3 block detected: %d cycle(s) reported",
-                      max_clock_cycles);
+                      "possible dramsim3 block detected, callback for physical "
+                      "addr 0x% " TARGET_ULONG_HEX "received after %d cycle(s)",
+                      ram_addr, max_clock_cycles);
     }
 
     return max_clock_cycles;
@@ -146,8 +147,9 @@ ramulator_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
     if (max_clock_cycles >= 1000)
     {
         sim_log_event(sim_log,
-                      "possible ramulator block detected: %d cycle(s) reported",
-                      max_clock_cycles);
+                      "possible ramulator block detected, callback for physical "
+                      "addr 0x% " TARGET_ULONG_HEX "received after %d cycle(s)",
+                      ram_addr, max_clock_cycles);
     }
 
     return max_clock_cycles;
