@@ -60,8 +60,17 @@ ifdef CONFIG_FS_NET
 PROGS+=build_filelist splitimg
 endif
 
-# DRAMSIM3 connector for the simulator
-DRAMSIM3_CONNECTOR+= libdramsim_wrapper_c_connector.so
+# DRAMSIM3 connections for the simulator
+DRAMSIM3_WRAPPER_C_CONNECTOR_LIB+=libdramsim_wrapper_c_connector.so
+DRAMSIM3_WRAPPER_C_CONNECTOR_OBJ:=$(addprefix riscvsim/memory_hierarchy/, dramsim_wrapper_c_connector.o)
+DRAMSIM3_WRAPPER_LIB+=libdramsim_wrapper_lib.so
+DRAMSIM3_WRAPPER_OBJ:=$(addprefix riscvsim/memory_hierarchy/, dramsim_wrapper.o)
+DRAMSIM3_LIB_SO+=libdramsim3.so
+DRAMSIM3_FMT_LIB_DIR=DRAMsim3/ext/fmt/include
+DRAMSIM3_INI_LIB_DIR=DRAMsim3/ext/headers
+DRAMSIM3_JSON_LIB_DIR=DRAMsim3/ext/headers
+DRAMSIM3_ARGS_LIB_DIR=DRAMsim3/ext/headers
+DRAMSIM3_INC=-IDRAMsim3/src/ -I$(DRAMSIM3_FMT_LIB_DIR) -I$(DRAMSIM3_INI_LIB_DIR) -I$(DRAMSIM3_ARGS_LIB_DIR) -I$(DRAMSIM3_JSON_LIB_DIR)
 
 # Ramulator connections for the simulator
 RAMULATOR_WRAPPER_C_CONNECTOR_LIB+=libramulator_wrapper_c_connector.so
@@ -112,21 +121,14 @@ endif
 EMU_OBJS+=riscv_machine.o softfp.o riscv_cpu.o
 CFLAGS+=-DCONFIG_RISCV_MAX_XLEN=64
 
-# Include paths for DRAMsim3
-DRAMSIM3_FMT_LIB_DIR=DRAMsim3/ext/fmt/include
-DRAMSIM3_INI_LIB_DIR=DRAMsim3/ext/headers
-DRAMSIM3_JSON_LIB_DIR=DRAMsim3/ext/headers
-DRAMSIM3_ARGS_LIB_DIR=DRAMsim3/ext/headers
-DRAMSIM3_INC=-IDRAMsim3/src/ -I$(DRAMSIM3_FMT_LIB_DIR) -I$(DRAMSIM3_INI_LIB_DIR) -I$(DRAMSIM3_ARGS_LIB_DIR) -I$(DRAMSIM3_JSON_LIB_DIR)
+libdramsim_wrapper_c_connector.so: $(DRAMSIM3_WRAPPER_LIB) $(DRAMSIM3_WRAPPER_C_CONNECTOR_OBJ)
+	$(CXX) -shared -o $(DRAMSIM3_WRAPPER_C_CONNECTOR_LIB) $(DRAMSIM3_WRAPPER_C_CONNECTOR_OBJ) -L. -ldramsim_wrapper_lib -Wl,-rpath=.
 
-libdramsim_wrapper_c_connector.so: libdramsim_wrapper_cpp_lib.so riscvsim/memory_hierarchy/dramsim_wrapper_c_connector.o
-	$(CXX) -shared -o libdramsim_wrapper_c_connector.so riscvsim/memory_hierarchy/dramsim_wrapper_c_connector.o -L. -ldramsim_wrapper_cpp_lib -Wl,-rpath=.
-
-libdramsim_wrapper_cpp_lib.so: libdramsim3.so riscvsim/memory_hierarchy/dramsim_wrapper.o
-	$(CXX) -shared -o libdramsim_wrapper_cpp_lib.so riscvsim/memory_hierarchy/dramsim_wrapper.o  -L./DRAMsim3 -ldramsim3 -Wl,-rpath=./DRAMsim3
+libdramsim_wrapper_lib.so: $(DRAMSIM3_LIB_SO) $(DRAMSIM3_WRAPPER_OBJ)
+	$(CXX) -shared -o $(DRAMSIM3_WRAPPER_LIB) $(DRAMSIM3_WRAPPER_OBJ) -L./DRAMsim3 -ldramsim3 -Wl,-rpath=./DRAMsim3
 
 libdramsim3.so:
-	cd DRAMsim3/ && $(MAKE) libdramsim3.so
+	cd DRAMsim3/ && $(MAKE) $(DRAMSIM3_LIB_SO) && cd ..
 
 libramulator_wrapper_c_connector.so: $(RAMULATOR_WRAPPER_LIB) $(RAMULATOR_WRAPPER_C_CONNECTOR_OBJ)
 	$(CXX) -shared -o $(RAMULATOR_WRAPPER_C_CONNECTOR_LIB) $(RAMULATOR_WRAPPER_C_CONNECTOR_OBJ) -L. -lramulator_wrapper_lib -Wl,-rpath=.
@@ -143,7 +145,7 @@ riscvsim.o: $(SIM_OBJS)
 sim-stats-display: stats_display.o
 	$(CC) -o sim-stats-display stats_display.o -lrt
 
-marss-riscv$(EXE): $(SIM_OBJ_FILE) $(DRAMSIM3_CONNECTOR) $(RAMULATOR_WRAPPER_C_CONNECTOR_LIB) $(EMU_OBJS)
+marss-riscv$(EXE): $(SIM_OBJ_FILE) $(DRAMSIM3_WRAPPER_C_CONNECTOR_LIB) $(RAMULATOR_WRAPPER_C_CONNECTOR_LIB) $(EMU_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS) -L. -ldramsim_wrapper_c_connector -Wl,-rpath=. -L. -lramulator_wrapper_c_connector -Wl,-rpath=.
 
 riscv_cpu.o: riscv_cpu.c
@@ -165,6 +167,8 @@ clean:
 	rm -f *.o *.so *.d *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/bpu/*.d riscvsim/core/*.d  riscvsim/decoder/*.d riscvsim/utils/*.d  riscvsim/memory_hierarchy/*.d $(SIM_OBJS)
 	rm -f $(RAMULATOR_WRAPPER_C_CONNECTOR_OBJ) $(RAMULATOR_WRAPPER_OBJ)
 	cd ramulator && $(MAKE) clean && cd ..
+	rm -f $(DRAMSIM3_WRAPPER_C_CONNECTOR_OBJ) $(DRAMSIM3_WRAPPER_OBJ)
+	cd DRAMsim3 && $(MAKE) clean && cd ..
 
 -include $(wildcard *.d)
 -include $(wildcard slirp/*.d)
