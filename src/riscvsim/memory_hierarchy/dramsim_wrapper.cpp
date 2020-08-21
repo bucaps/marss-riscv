@@ -76,7 +76,7 @@ dramsim_wrapper::add_transaction(target_ulong addr, bool isWrite)
 int
 dramsim_wrapper::get_max_clock_cycles()
 {
-    uint64_t clock_cycles_elasped = 0;
+    int clock_cycles_elasped = 0;
 
     while (mem_access_active)
     {

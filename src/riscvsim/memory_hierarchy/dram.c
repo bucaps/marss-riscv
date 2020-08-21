@@ -119,7 +119,7 @@ get_tinyemu_ram_addr_from_zero(target_ulong tinyemu_ram_addr)
 static int
 dramsim_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
 {
-    uint64_t max_clock_cycles;
+    int max_clock_cycles;
     target_ulong ram_addr = get_tinyemu_ram_addr_from_zero(e->addr);
     assert(dramsim_wrapper_can_add_transaction(ram_addr, e->type));
     dramsim_wrapper_add_transaction(ram_addr, e->type);
@@ -128,7 +128,7 @@ dramsim_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
     if (max_clock_cycles >= 1000)
     {
         sim_log_event(sim_log,
-                      "possible dramsim3 block detected: %lu cycle(s) reported",
+                      "possible dramsim3 block detected: %d cycle(s) reported",
                       max_clock_cycles);
     }
 
