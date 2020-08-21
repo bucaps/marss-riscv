@@ -45,7 +45,7 @@ class dramsim_wrapper
     bool add_transaction(target_ulong addr, bool isWrite);
     int get_max_clock_cycles();
     void reset_stats();
-    void print_stats();
+    void print_stats(const char* timestamp);
     int get_burst_size();
     void read_complete(uint64_t);
     void write_complete(uint64_t);

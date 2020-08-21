@@ -182,7 +182,10 @@ class Config {
     double bank_asr;  // the aspect ratio of a bank: #row_bits / #col_bits
 #endif  // THERMAL
 
-   private:
+    // Called from MARSS-RISCV to print stats
+    void SetOutputFileNames(const char *timestamp);
+
+  private:
     INIReader* reader_;
     void CalculateSize();
     DRAMProtocol GetDRAMProtocol(std::string protocol_str);

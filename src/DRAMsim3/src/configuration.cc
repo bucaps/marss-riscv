@@ -403,4 +403,13 @@ void Config::SetAddressMapping() {
     co_mask = (1 << field_widths.at("co")) - 1;
 }
 
+void Config::SetOutputFileNames(const char *timestamp){
+    output_prefix = output_dir;
+    output_prefix.append("/dramsim3_");
+    output_prefix.append(std::string(timestamp));
+    json_stats_name = output_prefix + ".json";
+    json_epoch_name = output_prefix + "epoch.json";
+    txt_stats_name = output_prefix + ".txt";
+}
+
 }  // namespace dramsim3

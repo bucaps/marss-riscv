@@ -39,7 +39,7 @@ void dramsim_wrapper_destroy();
 int dramsim_wrapper_can_add_transaction(target_ulong addr, int isWrite);
 int dramsim_wrapper_add_transaction(target_ulong addr, int isWrite);
 int dramsim_wrapper_get_max_clock_cycles();
-void dramsim_wrapper_print_stats();
+void dramsim_wrapper_print_stats(const char* timestamp);
 void dramsim_wrapper_reset_stats();
 int dramsim_get_burst_size();
 

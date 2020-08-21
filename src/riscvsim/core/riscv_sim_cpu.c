@@ -697,7 +697,11 @@ riscv_sim_cpu_stop(RISCVSIMCPUState *simcpu, target_ulong pc)
             }
             case MEM_MODEL_DRAMSIM:
             {
-                dramsim_wrapper_print_stats();
+                dramsim_wrapper_print_stats(timestamp);
+                sim_log_event(
+                    sim_log,
+                    "Saved dramsim3 statistics in %s/dramsim3_%s.json",
+                    simcpu->params->sim_file_path, timestamp);
                 break;
             }
             case MEM_MODEL_RAMULATOR:

@@ -55,6 +55,12 @@ MemorySystem* GetMemorySystem(const std::string &config_file, const std::string 
                  std::function<void(uint64_t)> write_callback) {
     return new MemorySystem(config_file, output_dir, read_callback, write_callback);
 }
+
+void MemorySystem::PrintStats(const char *timestamp) {
+    config_->SetOutputFileNames(timestamp);
+    dram_system_->PrintStats();
+}
+
 }  // namespace dramsim3
 
 // This function can be used by autoconf AC_CHECK_LIB since

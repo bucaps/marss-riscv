@@ -88,9 +88,9 @@ dramsim_wrapper::get_max_clock_cycles()
 }
 
 void
-dramsim_wrapper::print_stats()
+dramsim_wrapper::print_stats(const char* timestamp)
 {
-    dramsim->PrintStats();
+    dramsim->PrintStats(timestamp);
 }
 
 void
