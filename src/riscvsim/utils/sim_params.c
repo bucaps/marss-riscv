@@ -47,7 +47,7 @@ const char *cache_wa_str[] = {"true", "false"};
 const char *cache_wp_str[] = {"writeback", "writethrough"};
 const char *bpu_type_str[] = {"bimodal", "adaptive"};
 const char *bpu_aliasing_func_type_str[] = {"xor", "and", "none"};
-const char *dram_model_type_str[] = {"base", "dramsim3"};
+const char *dram_model_type_str[] = {"base", "dramsim3", "ramulator"};
 const char *cpu_mode_str[] = {"user", "supervisor", "hypervisor", "machine"};
 
 void
@@ -251,6 +251,9 @@ sim_params_set_defaults(SimParams *p)
 
     p->dramsim_config_file = strdup(DEF_DRAMSIM_CONFIG_FILE);
     assert(p->dramsim_config_file);
+
+    p->ramulator_config_file = strdup(DEF_RAMULATOR_CONFIG_FILE);
+    assert(p->ramulator_config_file);
 
     p->sim_emulate_after_icount = DEF_SIM_EMULATE_AFTER_ICOUNT;
 }
@@ -1303,6 +1306,7 @@ sim_params_parse(SimParams *p, JSONValue cfg)
             {
                 log_default_param_int(buf1, tag_name, p->mem_access_latency);
             }
+            break;
         }
         case MEM_MODEL_DRAMSIM:
         {
@@ -1324,7 +1328,28 @@ sim_params_parse(SimParams *p, JSONValue cfg)
                 free(p->dramsim_config_file);
                 p->dramsim_config_file = strdup(str);
             }
+            break;
+        }
+        case MEM_MODEL_RAMULATOR:
+        {
+            snprintf(buf1, sizeof(buf1), "%s", "ramulator");
+            obj = json_object_get(obj1, buf1);
 
+            if (json_is_undefined(obj))
+            {
+                log_default_param_str(buf1, "", "");
+            }
+
+            tag_name = "config_file";
+            if (vm_get_str(obj, tag_name, &str) < 0)
+            {
+                log_default_param_str(buf1, tag_name, p->ramulator_config_file);
+            }
+            else
+            {
+                free(p->ramulator_config_file);
+                p->ramulator_config_file = strdup(str);
+            }
             break;
         }
         default:
@@ -1439,5 +1464,9 @@ sim_params_free(SimParams *p)
 
     free(p->dramsim_config_file);
     p->dramsim_config_file = NULL;
+
+    free(p->ramulator_config_file);
+    p->ramulator_config_file = NULL;
+
     free(p);
 }

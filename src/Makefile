@@ -63,6 +63,14 @@ endif
 # DRAMSIM3 connector for the simulator
 DRAMSIM3_CONNECTOR+= libdramsim_wrapper_c_connector.so
 
+# Ramulator connections for the simulator
+RAMULATOR_WRAPPER_C_CONNECTOR_LIB+=libramulator_wrapper_c_connector.so
+RAMULATOR_WRAPPER_C_CONNECTOR_OBJ:=$(addprefix riscvsim/memory_hierarchy/, ramulator_wrapper_c_connector.o)
+RAMULATOR_WRAPPER_LIB+=libramulator_wrapper_lib.so
+RAMULATOR_WRAPPER_OBJ:=$(addprefix riscvsim/memory_hierarchy/, ramulator_wrapper.o)
+RAMULATOR_LIB_SO+=libramulator.so
+RAMULATOR_INC+=-I./ramulator/src
+
 # Top-level simulator object file
 SIM_OBJ_FILE=riscvsim.o
 
@@ -120,14 +128,23 @@ libdramsim_wrapper_cpp_lib.so: libdramsim3.so riscvsim/memory_hierarchy/dramsim_
 libdramsim3.so:
 	cd DRAMsim3/ && $(MAKE) libdramsim3.so
 
+libramulator_wrapper_c_connector.so: $(RAMULATOR_WRAPPER_LIB) $(RAMULATOR_WRAPPER_C_CONNECTOR_OBJ)
+	$(CXX) -shared -o $(RAMULATOR_WRAPPER_C_CONNECTOR_LIB) $(RAMULATOR_WRAPPER_C_CONNECTOR_OBJ) -L. -lramulator_wrapper_lib -Wl,-rpath=.
+
+libramulator_wrapper_lib.so: $(RAMULATOR_LIB_SO) $(RAMULATOR_WRAPPER_OBJ)
+	$(CXX) -shared -o $(RAMULATOR_WRAPPER_LIB) $(RAMULATOR_WRAPPER_OBJ) -L./ramulator -lramulator -Wl,-rpath=./ramulator
+
+libramulator.so:
+	cd ramulator && $(MAKE) $(RAMULATOR_LIB_SO) && cd ..
+
 riscvsim.o: $(SIM_OBJS)
 	$(LD) -r -o $@ $^ $(SIM_LIBS)
 
 sim-stats-display: stats_display.o
 	$(CC) -o sim-stats-display stats_display.o -lrt
 
-marss-riscv$(EXE): $(SIM_OBJ_FILE) $(DRAMSIM3_CONNECTOR) $(EMU_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS) -L. -ldramsim_wrapper_c_connector -Wl,-rpath=.
+marss-riscv$(EXE): $(SIM_OBJ_FILE) $(DRAMSIM3_CONNECTOR) $(RAMULATOR_WRAPPER_C_CONNECTOR_LIB) $(EMU_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(EMU_LIBS) -L. -ldramsim_wrapper_c_connector -Wl,-rpath=. -L. -lramulator_wrapper_c_connector -Wl,-rpath=.
 
 riscv_cpu.o: riscv_cpu.c
 	$(CC) $(CFLAGS) -DMAX_XLEN=$(CONFIG_XLEN) -c -o $@ $<
@@ -142,10 +159,12 @@ splitimg: splitimg.o
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 %.o: %.cpp
-	$(CXX) -g -DMAX_XLEN=$(CONFIG_XLEN) $(DRAMSIM3_INC) -fpic -shared -c -std=c++11 -o $@ $<
+	$(CXX) -g -DMAX_XLEN=$(CONFIG_XLEN) $(DRAMSIM3_INC) -I./ramulator/src -fpic -shared -c -std=c++11 -o $@ $<
 
 clean:
 	rm -f *.o *.so *.d *~ $(PROGS) slirp/*.o slirp/*.d slirp/*~ riscvsim/bpu/*.d riscvsim/core/*.d  riscvsim/decoder/*.d riscvsim/utils/*.d  riscvsim/memory_hierarchy/*.d $(SIM_OBJS)
+	rm -f $(RAMULATOR_WRAPPER_C_CONNECTOR_OBJ) $(RAMULATOR_WRAPPER_OBJ)
+	cd ramulator && $(MAKE) clean && cd ..
 
 -include $(wildcard *.d)
 -include $(wildcard slirp/*.d)

@@ -213,6 +213,11 @@ mem_controller_init(const SimParams *p)
             mem_controller_set_burst_length(m, dramsim_get_burst_size());
             break;
         }
+        case MEM_MODEL_RAMULATOR:
+        {
+            mem_controller_set_burst_length(m, p->burst_length);
+            break;
+        }
         default:
         {
             sim_assert((0), "error: %s at line %d in %s(): %s", __FILE__,

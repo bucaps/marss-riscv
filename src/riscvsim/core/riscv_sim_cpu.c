@@ -35,6 +35,7 @@
 
 #include "../../riscv_cpu_priv.h"
 #include "../memory_hierarchy/dramsim_wrapper_c_connector.h"
+#include "../memory_hierarchy/ramulator_wrapper_c_connector.h"
 #include "../utils/sim_log.h"
 #include "../utils/sim_stats.h"
 #include "inorder.h"
@@ -649,6 +650,10 @@ riscv_sim_cpu_start(RISCVSIMCPUState *simcpu, target_ulong pc)
                                      simcpu->params->sim_file_path);
                 break;
             }
+            case MEM_MODEL_RAMULATOR:
+            {
+                break;
+            }
         }
 
         /* Open trace file if running in trace mode */
@@ -670,6 +675,7 @@ riscv_sim_cpu_start(RISCVSIMCPUState *simcpu, target_ulong pc)
 void
 riscv_sim_cpu_stop(RISCVSIMCPUState *simcpu, target_ulong pc)
 {
+    char *timestamp;
     uint64_t sim_time;
 
     if (simcpu->simulation)
@@ -681,10 +687,30 @@ riscv_sim_cpu_stop(RISCVSIMCPUState *simcpu, target_ulong pc)
 
         print_performance_summary(simcpu, sim_time);
 
-        if (simcpu->mem_hierarchy->mem_controller->dram_model_type
-            == MEM_MODEL_DRAMSIM)
+        timestamp = sim_log_get_current_timestamp();
+
+        switch (simcpu->mem_hierarchy->mem_controller->dram_model_type)
         {
-            dramsim_wrapper_print_stats();
+            case MEM_MODEL_BASE:
+            {
+                break;
+            }
+            case MEM_MODEL_DRAMSIM:
+            {
+                dramsim_wrapper_print_stats();
+                break;
+            }
+            case MEM_MODEL_RAMULATOR:
+            {
+                ramulator_wrapper_finish();
+                ramulator_wrapper_print_stats(simcpu->params->sim_file_path,
+                                              timestamp);
+                sim_log_event(
+                    sim_log,
+                    "Saved ramulator statistics in %s/ramulator_%s.stats",
+                    simcpu->params->sim_file_path, timestamp);
+                break;
+            }
         }
 
         if (simcpu->params->do_sim_trace)
@@ -696,11 +722,14 @@ riscv_sim_cpu_stop(RISCVSIMCPUState *simcpu, target_ulong pc)
 
         copy_cache_stats_to_global_stats(simcpu);
         sim_stats_print_to_file(simcpu->stats, simcpu->params->sim_file_path,
-                                simcpu->params->sim_file_prefix, sim_time);
+                                simcpu->params->sim_file_prefix, sim_time,
+                                timestamp);
 
         sim_log_event(sim_log, "Switching to emulation mode "
                                "mode at pc = 0x%" PR_target_ulong,
                       pc);
+
+        free(timestamp);
     }
 }
 

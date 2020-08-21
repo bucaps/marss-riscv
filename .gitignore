@@ -17,3 +17,6 @@ src/sim-stats-display
 src/build_filelist
 src/splitimg
 
+# exclude libraries
+src/*.so
+src/*.a

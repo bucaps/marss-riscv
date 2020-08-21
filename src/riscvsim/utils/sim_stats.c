@@ -31,7 +31,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/stat.h>
 
 #include "sim_log.h"
@@ -71,31 +70,12 @@
 
 void
 sim_stats_print_to_file(const SimStats *s, const char *pathname,
-                        const char *sim_file_prefix, uint64_t sim_time_sec)
+                        const char *sim_file_prefix, uint64_t sim_time_sec,
+                        const char *timestamp)
 {
     FILE *fp;
-    char *filename, *p;
-    time_t rawtime;
-    char timestamp[256];
+    char *filename;
     char buffer[1024];
-
-    /* Generate current time-stamp */
-    time(&rawtime);
-    sprintf(timestamp, "%s", ctime(&rawtime));
-
-    /* Replace ' ', '\n' and ':' from time-stamp with '_' */
-    p = timestamp;
-    for (; *p; ++p)
-    {
-        if (*p == ' ')
-            *p = '_';
-
-        if (*p == '\n')
-            *p = '_';
-
-        if (*p == ':')
-            *p = '_';
-    }
 
     /* Generate stats filename with format: prefix_timestamp.csv */
     sprintf(buffer, "%s_%s.csv", sim_file_prefix, timestamp);

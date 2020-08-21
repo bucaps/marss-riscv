@@ -32,6 +32,7 @@
 #include "../utils/sim_log.h"
 #include "dram.h"
 #include "dramsim_wrapper_c_connector.h"
+#include "ramulator_wrapper_c_connector.h"
 
 static void
 dram_log_config(const Dram *d, const SimParams *p)
@@ -51,6 +52,14 @@ dram_log_config(const Dram *d, const SimParams *p)
         {
             sim_log_param_to_file(sim_log, "%s: %s)", "config_file",
                                   p->dramsim_config_file);
+            sim_log_param_to_file(sim_log, "%s: %s", "output-directory",
+                                  p->sim_file_path);
+            break;
+        }
+        case MEM_MODEL_RAMULATOR:
+        {
+            sim_log_param_to_file(sim_log, "%s: %s)", "config_file",
+                                  p->ramulator_config_file);
             sim_log_param_to_file(sim_log, "%s: %s", "output-directory",
                                   p->sim_file_path);
             break;
@@ -91,10 +100,10 @@ base_dram_model_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
 /* In TinyEMU, physical memory from 0x0 to 0x80000000 is allocated for the
  * TinyEMU devices. Guest RAM starts from address  0x80000000. Hence all the
  * physical addresses obtained after TLB lookup for guest RAM are above
- * 0x80000000. So before sending the address to DRAMsim3 (which starts from
- * 0x0), convert the given address. */
+ * 0x80000000. So before sending the address to DRAMsim3/ramulator (which starts
+ * from 0x0), convert the given address. */
 static target_ulong
-convert_tinyemu_ram_addr_into_dramsim3_ram_addr(target_ulong tinyemu_ram_addr)
+get_tinyemu_ram_addr_from_zero(target_ulong tinyemu_ram_addr)
 {
     target_ulong offset;
 
@@ -111,16 +120,33 @@ static int
 dramsim_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
 {
     uint64_t max_clock_cycles;
-    target_ulong dramsim3_ram_addr
-        = convert_tinyemu_ram_addr_into_dramsim3_ram_addr(e->addr);
-    assert(dramsim_wrapper_can_add_transaction(dramsim3_ram_addr, e->type));
-    dramsim_wrapper_add_transaction(dramsim3_ram_addr, e->type);
+    target_ulong ram_addr = get_tinyemu_ram_addr_from_zero(e->addr);
+    assert(dramsim_wrapper_can_add_transaction(ram_addr, e->type));
+    dramsim_wrapper_add_transaction(ram_addr, e->type);
     max_clock_cycles = dramsim_wrapper_get_max_clock_cycles();
 
     if (max_clock_cycles >= 1000)
     {
         sim_log_event(sim_log,
                       "possible dramsim3 block detected: %lu cycle(s) reported",
+                      max_clock_cycles);
+    }
+
+    return max_clock_cycles;
+}
+
+static int
+ramulator_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
+{
+    int max_clock_cycles;
+    target_ulong ram_addr = get_tinyemu_ram_addr_from_zero(e->addr);
+    assert(ramulator_wrapper_add_transaction(ram_addr, e->type));
+    max_clock_cycles = ramulator_wrapper_get_max_clock_cycles();
+
+    if (max_clock_cycles >= 1000)
+    {
+        sim_log_event(sim_log,
+                      "possible ramulator block detected: %d cycle(s) reported",
                       max_clock_cycles);
     }
 
@@ -283,6 +309,14 @@ dram_create(const SimParams *p, StageMemAccessQueue *f,
             d->get_max_clock_cycles_for_request = &dramsim_get_max_clock_cycles;
             break;
         }
+        case MEM_MODEL_RAMULATOR:
+        {
+            ramulator_wrapper_init(p->ramulator_config_file,
+                                   p->cache_line_size);
+            d->get_max_clock_cycles_for_request
+                = &ramulator_get_max_clock_cycles;
+            break;
+        }
     }
 
     dram_reset(d);
@@ -302,6 +336,11 @@ dram_free(Dram **d)
         case MEM_MODEL_DRAMSIM:
         {
             dramsim_wrapper_destroy();
+            break;
+        }
+        case MEM_MODEL_RAMULATOR:
+        {
+            ramulator_wrapper_destroy();
             break;
         }
     }

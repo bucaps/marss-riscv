@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "sim_log.h"
 
@@ -131,4 +132,32 @@ sim_log_free(SimLog **s)
     fclose((*s)->log_fp);
     free(*s);
     *s = NULL;
+}
+
+char *
+sim_log_get_current_timestamp()
+{
+    time_t rawtime;
+    char *p, *timestamp = calloc(128, sizeof(char));
+    assert(timestamp);
+
+    /* Generate current time-stamp */
+    time(&rawtime);
+    sprintf(timestamp, "%s", ctime(&rawtime));
+
+    /* Replace ' ', '\n' and ':' from time-stamp with '_' */
+    p = timestamp;
+    for (; *p; ++p)
+    {
+        if (*p == ' ')
+            *p = '_';
+
+        if (*p == '\n')
+            *p = '_';
+
+        if (*p == ':')
+            *p = '_';
+    }
+
+    return timestamp;
 }

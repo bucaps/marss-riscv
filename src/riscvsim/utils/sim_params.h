@@ -89,6 +89,7 @@ enum MEM_MODEL_TYPE
 {
     MEM_MODEL_BASE,
     MEM_MODEL_DRAMSIM,
+    MEM_MODEL_RAMULATOR,
 };
 
 /* Default values for simulation parameters */
@@ -167,6 +168,7 @@ enum MEM_MODEL_TYPE
 #define DEF_MEM_ACCESS_LATENCY 46
 
 #define DEF_DRAMSIM_CONFIG_FILE "DRAMsim3/configs/DDR4_4Gb_x16_2400.ini"
+#define DEF_RAMULATOR_CONFIG_FILE "ramulator/configs/DDR4-config.cfg"
 
 #define DEF_SIM_EMULATE_AFTER_ICOUNT 0
 
@@ -275,6 +277,9 @@ typedef struct SimParams
 
     /* DRAMSim3 Params */
     char *dramsim_config_file;
+
+    /* Ramulator Params */
+    char *ramulator_config_file;
 
     uint64_t sim_emulate_after_icount;
 } SimParams;
