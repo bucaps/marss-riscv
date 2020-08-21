@@ -184,7 +184,7 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname,
     SIM_STAT_PRINT_TO_FILE(fp, s, "L2_cache_write_misses", l2_cache_write_miss);
 
     fclose(fp);
-    sim_log_event(sim_log, "Saved stats in %s", filename);
+    sim_log_event(sim_log, "Saved simulation stats in %s", filename);
     free(filename);
 }
 
