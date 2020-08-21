@@ -1,3 +1,0 @@
-[submodule "src/DRAMsim3"]
-	path = src/DRAMsim3
-	url = https://github.com/umd-memsys/DRAMsim3.git
