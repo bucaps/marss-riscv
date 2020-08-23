@@ -1035,7 +1035,7 @@ sim_params_parse(SimParams *p, JSONValue cfg)
             log_default_param_str(buf1, "", "");
         }
 
-        tag_name = "read_latency";
+        tag_name = "latency";
         if (vm_get_int(obj, tag_name, &p->l1_code_cache_read_latency) < 0)
         {
             log_default_param_int(buf1, tag_name,
@@ -1086,18 +1086,11 @@ sim_params_parse(SimParams *p, JSONValue cfg)
             log_default_param_str(buf1, "", "");
         }
 
-        tag_name = "read_latency";
+        tag_name = "latency";
         if (vm_get_int(obj, tag_name, &p->l1_data_cache_read_latency) < 0)
         {
             log_default_param_int(buf1, tag_name,
                                   p->l1_data_cache_read_latency);
-        }
-
-        tag_name = "write_latency";
-        if (vm_get_int(obj, tag_name, &p->l1_data_cache_write_latency) < 0)
-        {
-            log_default_param_int(buf1, tag_name,
-                                  p->l1_data_cache_write_latency);
         }
 
         tag_name = "size";
@@ -1224,19 +1217,11 @@ sim_params_parse(SimParams *p, JSONValue cfg)
 
         if (p->enable_l2_cache)
         {
-            tag_name = "read_latency";
+            tag_name = "latency";
             if (vm_get_int(obj, tag_name, &p->l2_shared_cache_read_latency) < 0)
             {
                 log_default_param_int(buf1, tag_name,
                                       p->l2_shared_cache_read_latency);
-            }
-
-            tag_name = "write_latency";
-            if (vm_get_int(obj, tag_name, &p->l2_shared_cache_write_latency)
-                < 0)
-            {
-                log_default_param_int(buf1, tag_name,
-                                      p->l2_shared_cache_write_latency);
             }
 
             tag_name = "size";

@@ -581,10 +581,10 @@ mem_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
 
             if ((e->ins.is_store || e->ins.is_atomic_store))
             {
-                e->max_clock_cycles
-                    += s->simcpu->mem_hierarchy->data_write_delay(
-                        s->simcpu->mem_hierarchy, s->data_guest_paddr,
-                        e->ins.bytes_to_rw, MEMORY, s->priv);
+                e->max_clock_cycles += 1;
+                s->simcpu->mem_hierarchy->data_write_delay(
+                    s->simcpu->mem_hierarchy, s->data_guest_paddr,
+                    e->ins.bytes_to_rw, MEMORY, s->priv);
             }
         }
 
