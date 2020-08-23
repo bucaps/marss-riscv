@@ -54,6 +54,6 @@ void sim_log_event(SimLog *s, const char *fmt, ...);
 void sim_log_param(SimLog *s, const char *fmt, ...);
 void sim_log_event_to_file(SimLog *s, const char *fmt, ...);
 void sim_log_param_to_file(SimLog *s, const char *fmt, ...);
-char *sim_log_get_current_timestamp();
+char *sim_log_get_current_timestamp(const char* sim_file_prefix);
 void sim_log_free(SimLog **s);
 #endif

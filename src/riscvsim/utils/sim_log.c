@@ -135,15 +135,15 @@ sim_log_free(SimLog **s)
 }
 
 char *
-sim_log_get_current_timestamp()
+sim_log_get_current_timestamp(const char* sim_file_prefix)
 {
     time_t rawtime;
-    char *p, *timestamp = calloc(128, sizeof(char));
+    char *p, *timestamp = calloc(1024, sizeof(char));
     assert(timestamp);
 
     /* Generate current time-stamp */
     time(&rawtime);
-    sprintf(timestamp, "%s", ctime(&rawtime));
+    sprintf(timestamp, "%s_%s", sim_file_prefix, ctime(&rawtime));
 
     /* Replace ' ', '\n' and ':' from time-stamp with '_' */
     p = timestamp;

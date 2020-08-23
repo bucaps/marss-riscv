@@ -70,15 +70,14 @@
 
 void
 sim_stats_print_to_file(const SimStats *s, const char *pathname,
-                        const char *sim_file_prefix, uint64_t sim_time_sec,
-                        const char *timestamp)
+                        uint64_t sim_time_milli_sec, const char *timestamp)
 {
     FILE *fp;
     char *filename;
     char buffer[1024];
 
     /* Generate stats filename with format: prefix_timestamp.csv */
-    sprintf(buffer, "%s_%s.csv", sim_file_prefix, timestamp);
+    sprintf(buffer, "%s.csv", timestamp);
 
     filename = (char *)malloc(strlen(pathname) + strlen(buffer) + 2);
     assert(filename);
@@ -98,8 +97,8 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname,
 
     /* Add simulation time required on host machine to stats file, but only the
      * total time */
-    fprintf(fp, "%s,%lu,%lu,%lu,%lu,%lu\n", "sim_time_sec", (uint64_t)0,
-            (uint64_t)0, (uint64_t)0, (uint64_t)0, sim_time_sec);
+    fprintf(fp, "%s,%lu,%lu,%lu,%lu,%lu\n", "sim_time_milli_sec", (uint64_t)0,
+            (uint64_t)0, (uint64_t)0, (uint64_t)0, sim_time_milli_sec);
 
     SIM_STAT_PRINT_TO_FILE(fp, s, "insn_mem_delay", insn_mem_delay);
     SIM_STAT_PRINT_TO_FILE(fp, s, "data_mem_delay", data_mem_delay);

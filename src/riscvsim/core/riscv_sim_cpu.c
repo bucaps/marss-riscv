@@ -386,8 +386,8 @@ print_performance_summary(RISCVSIMCPUState *simcpu, uint64_t sim_time)
     sim_log_param(sim_log, "total-cycles: %lu", simcpu->clock);
     sim_log_param(sim_log, "total-ipc: %.4lf",
                   (double)simcpu->icount / (double)simcpu->clock);
-    sim_log_param(sim_log, "simulation-time: %lu seconds", sim_time);
-    sim_log_param(sim_log, "total-commits-per-second: %lu",
+    sim_log_param(sim_log, "simulation-time: %lu milliseconds", sim_time);
+    sim_log_param(sim_log, "total-commits-per-millisecond: %lu",
                   simcpu->icount / sim_time);
 }
 
@@ -683,11 +683,12 @@ riscv_sim_cpu_stop(RISCVSIMCPUState *simcpu, target_ulong pc)
         simcpu->simulation = FALSE;
         GET_TIME(simcpu->sim_end_time);
         sim_time = GET_TIMER_DIFF(simcpu->sim_start_time, simcpu->sim_end_time)
-                   / 1000000000;
+                   / 1000000;
 
         print_performance_summary(simcpu, sim_time);
 
-        timestamp = sim_log_get_current_timestamp();
+        timestamp
+            = sim_log_get_current_timestamp(simcpu->params->sim_file_prefix);
 
         switch (simcpu->mem_hierarchy->mem_controller->dram_model_type)
         {
@@ -726,8 +727,7 @@ riscv_sim_cpu_stop(RISCVSIMCPUState *simcpu, target_ulong pc)
 
         copy_cache_stats_to_global_stats(simcpu);
         sim_stats_print_to_file(simcpu->stats, simcpu->params->sim_file_path,
-                                simcpu->params->sim_file_prefix, sim_time,
-                                timestamp);
+                                sim_time, timestamp);
 
         sim_log_event(sim_log, "Switching to emulation mode "
                                "mode at pc = 0x%" PR_target_ulong,
