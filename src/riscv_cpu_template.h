@@ -290,6 +290,10 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                  * them here */
                 ++s->simcpu->stats[s->priv].ins_emulated;
 
+                /* Add the latency for system instructions */
+                s->simcpu->clock += s->simcpu->params->system_insn_latency;
+                s->simcpu->stats[s->simcpu->emu_cpu_state->priv].cycles += s->simcpu->params->system_insn_latency;
+
                 if (s->simcpu->params->do_sim_trace)
                 {
                     sim_trace_exception(s->simcpu->trace, s->simcpu->clock,

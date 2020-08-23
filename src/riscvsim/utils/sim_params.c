@@ -256,6 +256,7 @@ sim_params_set_defaults(SimParams *p)
     assert(p->ramulator_config_file);
 
     p->sim_emulate_after_icount = DEF_SIM_EMULATE_AFTER_ICOUNT;
+    p->system_insn_latency = DEF_STAGE_LATENCY;
 }
 
 static int
@@ -360,6 +361,8 @@ sim_params_validate(SimParams *p)
         validate_param("fpu_fma_stage_latency", 0, 1, 2048,
                        p->fpu_fma_stage_latency[i]);
     }
+
+    validate_param("system_insn_latency", 0, 1, 2048, p->system_insn_latency);
 
     /* Validate BPU config */
     validate_param("enable_bpu", 1, 0, 1, p->enable_bpu);
@@ -675,6 +678,12 @@ sim_params_parse(SimParams *p, JSONValue cfg)
         stage_latency_str[LATENCY_STRING_MAX_LENGTH - 1] = '\0';
         parse_stage_latency_str(&p->fpu_fma_stage_latency,
                                 p->num_fpu_fma_stages, stage_latency_str);
+    }
+
+    tag_name = "system_insn_latency";
+    if (vm_get_int(obj, tag_name, &p->system_insn_latency) < 0)
+    {
+        log_default_param_int(buf1, tag_name, p->system_insn_latency);
     }
 
     snprintf(buf1, sizeof(buf1), "%s", "fpu_alu_stage_latency");
@@ -1422,6 +1431,8 @@ sim_params_log_exec_unit_config(const SimParams *p)
                           p->fpu_alu_latency[FU_FPU_ALU_FMV]);
     sim_log_param_to_file(sim_log, "%s latency: %d cycle(s)", "fclass",
                           p->fpu_alu_latency[FU_FPU_ALU_FCLASS]);
+    sim_log_param_to_file(sim_log, "%s latency: %d", "system_insn_latency",
+                          p->system_insn_latency);
 }
 
 SimParams *

@@ -282,6 +282,7 @@ typedef struct SimParams
     char *ramulator_config_file;
 
     uint64_t sim_emulate_after_icount;
+    int system_insn_latency;
 } SimParams;
 
 SimParams *sim_params_init();
