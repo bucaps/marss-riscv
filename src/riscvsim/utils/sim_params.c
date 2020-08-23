@@ -1464,5 +1464,8 @@ sim_params_free(SimParams *p)
     free(p->ramulator_config_file);
     p->ramulator_config_file = NULL;
 
+    free(p->sim_stats_shm_name);
+    p->sim_stats_shm_name = NULL;
+
     free(p);
 }
