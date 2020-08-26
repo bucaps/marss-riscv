@@ -431,6 +431,36 @@ update_insn_commit_stats(RISCVCPUState *s, InstructionLatch *e)
     {
         ++s->simcpu->stats[s->priv].ins_cond_branch_taken;
     }
+
+    if (e->ins.is_load)
+    {
+        switch (e->ins.bytes_to_rw)
+        {
+            case 1:
+            {
+                ++s->simcpu->stats[s->priv].ins_type[INS_TYPE_LOAD_BYTE];
+                break;
+            }
+
+            case 2:
+            {
+                ++s->simcpu->stats[s->priv].ins_type[INS_TYPE_LOAD_HALF_WORD];
+                break;
+            }
+
+            case 4:
+            {
+                ++s->simcpu->stats[s->priv].ins_type[INS_TYPE_LOAD_WORD];
+                break;
+            }
+
+            case 8:
+            {
+                ++s->simcpu->stats[s->priv].ins_type[INS_TYPE_LOAD_DOUBLE_WORD];
+                break;
+            }
+        }
+    }
 }
 
 void

@@ -124,6 +124,14 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname,
     SIM_STAT_PRINT_TO_FILE(fp, s, "fp_div_sqrt_insn",
                            ins_type[INS_TYPE_FP_DIV_SQRT]);
     SIM_STAT_PRINT_TO_FILE(fp, s, "fp_misc_insn", ins_type[INS_TYPE_FP_MISC]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "load_byte_insn",
+                           ins_type[INS_TYPE_LOAD_BYTE]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "load_half_word_insn",
+                           ins_type[INS_TYPE_LOAD_HALF_WORD]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "load_word_insn",
+                           ins_type[INS_TYPE_LOAD_WORD]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "load_double_word_insn",
+                           ins_type[INS_TYPE_LOAD_DOUBLE_WORD]);
 
     SIM_STAT_PRINT_TO_FILE(fp, s, "itlb_reads", code_tlb_lookups);
     SIM_STAT_PRINT_TO_FILE(fp, s, "itlb_hits", code_tlb_hits);

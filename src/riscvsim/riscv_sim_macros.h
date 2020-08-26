@@ -109,7 +109,7 @@
 
 /* Used for updating performance counters */
 
-#define NUM_MAX_INS_TYPES 17
+#define NUM_MAX_INS_TYPES 21
 #define INS_TYPE_LOAD 0x0
 #define INS_TYPE_STORE 0x1
 #define INS_TYPE_ATOMIC 0x2
@@ -127,6 +127,10 @@
 #define INS_TYPE_FP_FMA 0xe
 #define INS_TYPE_FP_DIV_SQRT 0xf
 #define INS_TYPE_FP_MISC 0x10
+#define INS_TYPE_LOAD_BYTE 0x11
+#define INS_TYPE_LOAD_HALF_WORD 0x12
+#define INS_TYPE_LOAD_WORD 0x13
+#define INS_TYPE_LOAD_DOUBLE_WORD 0x14
 
 #define INS_CLASS_INT 0x11
 #define INS_CLASS_FP 0x12
