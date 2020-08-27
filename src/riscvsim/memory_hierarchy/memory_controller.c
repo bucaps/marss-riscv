@@ -84,6 +84,10 @@ fill_memory_request_entry(PendingMemAccessEntry *e, target_ulong paddr,
     e->type = type;
     e->req_pte = is_pte;
     e->valid = TRUE;
+
+    /* Don't start simulating DRAM access delay until cache lookup delay is
+     * simulated */
+    e->start_access = FALSE;
 }
 
 int
@@ -137,7 +141,7 @@ mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
             }
         }
 
-        /* Add transaction for this access to mem_request_queue */
+        /* Add requests to the mem_request_queue */
         index = cq_enqueue(&m->mem_request_queue.cq);
 
         sim_assert((index != -1), "error: %s at line %d in %s(): %s", __FILE__,
@@ -164,7 +168,10 @@ mem_controller_clock(MemoryController *m)
         if (!cq_empty(&m->mem_request_queue.cq))
         {
             e = &m->mem_request_queue.entry[cq_front(&m->mem_request_queue.cq)];
-            dram_send_request(m->dram, e);
+            if (e->start_access)
+            {
+                dram_send_request(m->dram, e);
+            }
         }
     }
 
@@ -238,4 +245,51 @@ mem_controller_free(MemoryController **m)
     (*m)->frontend_mem_access_queue.entry = NULL;
     free(*m);
     *m = NULL;
+}
+
+void
+mem_controller_cache_lookup_complete_signal(MemoryController *m,
+                                            StageMemAccessQueue *stage_queue)
+{
+    int i, j;
+    target_ulong addr;
+
+    for (j = 0; j < stage_queue->cur_idx; ++j)
+    {
+        addr = stage_queue->entry[j].addr;
+
+        if (!cq_empty(&m->mem_request_queue.cq))
+        {
+            if (m->mem_request_queue.cq.rear >= m->mem_request_queue.cq.front)
+            {
+                for (i = m->mem_request_queue.cq.front;
+                     i <= m->mem_request_queue.cq.rear; i++)
+                {
+                    if (m->mem_request_queue.entry[i].addr == addr)
+                    {
+                        m->mem_request_queue.entry[i].start_access = TRUE;
+                    }
+                }
+            }
+            else
+            {
+                for (i = m->mem_request_queue.cq.front;
+                     i < m->mem_request_queue.cq.max_size; i++)
+                {
+                    if (m->mem_request_queue.entry[i].addr == addr)
+                    {
+                        m->mem_request_queue.entry[i].start_access = TRUE;
+                    }
+                }
+
+                for (i = 0; i <= m->mem_request_queue.cq.rear; i++)
+                {
+                    if (m->mem_request_queue.entry[i].addr == addr)
+                    {
+                        m->mem_request_queue.entry[i].start_access = TRUE;
+                    }
+                }
+            }
+        }
+    }
 }

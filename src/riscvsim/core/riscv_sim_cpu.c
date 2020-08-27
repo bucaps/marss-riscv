@@ -498,6 +498,7 @@ void
 fetch_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
 {
     e->max_clock_cycles = 1;
+    e->cache_lookup_complete_signal_sent = FALSE;
     s->hw_pg_tb_wlk_stage_id = FETCH;
     s->ins_tlb_lookup_accounted = FALSE;
     s->ins_tlb_hit_accounted = FALSE;
@@ -572,6 +573,7 @@ void
 mem_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
 {
     e->max_clock_cycles = 1;
+    e->cache_lookup_complete_signal_sent = FALSE;
     s->hw_pg_tb_wlk_stage_id = MEMORY;
 
     /* Reset page walk delay before executing current memory instruction. This

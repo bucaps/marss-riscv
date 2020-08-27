@@ -38,6 +38,7 @@ typedef enum MemAccessType {
 typedef struct PendingMemAccessEntry
 {
     int valid;
+    int start_access;
     int bytes_to_access;
     int max_bytes_to_access;
     target_ulong addr;

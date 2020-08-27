@@ -46,6 +46,7 @@ typedef struct InstructionLatch
     struct RVInstruction ins;
     int max_clock_cycles;
     int elasped_clock_cycles;
+    int cache_lookup_complete_signal_sent;
 
     int data_fwd_done;
     int read_rs1;
