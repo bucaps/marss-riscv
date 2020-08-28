@@ -773,6 +773,7 @@ void
 riscv_sim_cpu_reset(RISCVSIMCPUState *simcpu)
 {
     simcpu->exception->pending = FALSE;
+    simcpu->skip_fetch_cycle = FALSE;
     reset_insn_latch_pool(simcpu->insn_latch_pool);
     mem_controller_reset(simcpu->mem_hierarchy->mem_controller);
     simcpu->core_reset(simcpu->core);

@@ -52,6 +52,9 @@ restore_cpu_frontend(OOCore *core, const InstructionLatch *e)
     s->code_end = NULL;
     s->code_to_pc_addend = e->branch_target;
     core->fetch.has_data = TRUE;
+
+    /* To start fetching target instruction from next cycle */
+    core->simcpu->skip_fetch_cycle = TRUE;
 }
 
 static int

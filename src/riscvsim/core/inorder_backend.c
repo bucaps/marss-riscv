@@ -319,6 +319,9 @@ flush_speculated_cpu_state(INCore *core, InstructionLatch *e)
     /* To start fetching */
     core->pcgen.has_data = TRUE;
 
+    /* To start fetching target instruction from next cycle */
+    core->simcpu->skip_fetch_cycle = TRUE;
+
     /* Reset exception on speculated path */
     s->simcpu->exception->pending = FALSE;
 

@@ -44,6 +44,14 @@ oo_core_fetch(OOCore *core)
     {
         if (!core->fetch.stage_exec_done)
         {
+            if (core->simcpu->skip_fetch_cycle)
+            {
+                /* This is a branch miss prediction redirect, so skip this cycle
+                 * and fetch this new target from next cycle */
+                core->simcpu->skip_fetch_cycle = FALSE;
+                return;
+            }
+
             /* Calculate current PC*/
             s->simcpu->pc
                 = (target_ulong)((uintptr_t)s->code_ptr + s->code_to_pc_addend);

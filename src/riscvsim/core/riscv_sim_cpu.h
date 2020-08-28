@@ -51,6 +51,7 @@ typedef struct RISCVSIMCPUState
     target_ulong pc; /* Next PC to fetch from */
     uint64_t clock;  /* Clock cycles elapsed since simulation start  */
     uint64_t icount; /* Total instructions committed in simulation mode */
+    int skip_fetch_cycle;
 
     /* Simulator maintains a pool of free instruction latches known as
      * insn_latch_pool. Every instruction fetched into the pipeline is allocated
