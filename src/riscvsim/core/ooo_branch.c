@@ -42,6 +42,11 @@ restore_cpu_frontend(OOCore *core, const InstructionLatch *e)
     cpu_stage_flush_free_insn_latch(&core->dispatch,
                                     s->simcpu->insn_latch_pool);
 
+    /* Invalidate the entries added to mem_request_queue on the speculated path */
+    mem_controller_invalidate_mem_request_queue_entries(
+        s->simcpu->mem_hierarchy->mem_controller,
+        &s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue);
+
     /* Flush the memory transactions added by fetch stage */
     mem_controller_reset_cpu_stage_queue(
         &s->simcpu->mem_hierarchy->mem_controller->frontend_mem_access_queue);

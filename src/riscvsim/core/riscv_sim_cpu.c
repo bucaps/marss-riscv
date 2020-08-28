@@ -116,6 +116,12 @@ bpu_enabled_decode_stage_handler(struct RISCVCPUState *s, InstructionLatch *e)
                 s->code_to_pc_addend = ras_target;
                 e->predicted_target = ras_target;
 
+                /* Invalidate the entries added to mem_request_queue on the speculated path */
+                mem_controller_invalidate_mem_request_queue_entries(
+                    s->simcpu->mem_hierarchy->mem_controller,
+                    &s->simcpu->mem_hierarchy->mem_controller
+                         ->frontend_mem_access_queue);
+
                 mem_controller_reset_cpu_stage_queue(
                     &s->simcpu->mem_hierarchy->mem_controller
                          ->frontend_mem_access_queue);

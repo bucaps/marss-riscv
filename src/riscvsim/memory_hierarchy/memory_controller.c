@@ -51,6 +51,11 @@ mem_controller_log_config(const MemoryController *m)
 void
 mem_controller_reset(MemoryController *m)
 {
+    /* Invalidate the entries added to mem_request_queue on the speculated path */
+    mem_controller_invalidate_mem_request_queue_entries(
+        m, &m->frontend_mem_access_queue);
+    mem_controller_invalidate_mem_request_queue_entries(
+        m, &m->backend_mem_access_queue);
     mem_controller_reset_cpu_stage_queue(&m->frontend_mem_access_queue);
     mem_controller_reset_cpu_stage_queue(&m->backend_mem_access_queue);
     mem_controller_reset_mem_request_queue(m);
@@ -168,9 +173,18 @@ mem_controller_clock(MemoryController *m)
         if (!cq_empty(&m->mem_request_queue.cq))
         {
             e = &m->mem_request_queue.entry[cq_front(&m->mem_request_queue.cq)];
-            if (e->start_access)
+            if (e->valid)
             {
-                dram_send_request(m->dram, e);
+                if (e->start_access)
+                {
+                    dram_send_request(m->dram, e);
+                }
+            }
+            else
+            {
+                /* This entry was on miss speculated path, so it was flushed by
+                 * the CPU pipeline stage */
+                cq_dequeue(&m->mem_request_queue.cq);
             }
         }
     }
@@ -287,6 +301,53 @@ mem_controller_cache_lookup_complete_signal(MemoryController *m,
                     if (m->mem_request_queue.entry[i].addr == addr)
                     {
                         m->mem_request_queue.entry[i].start_access = TRUE;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void
+mem_controller_invalidate_mem_request_queue_entries(
+    MemoryController *m, StageMemAccessQueue *stage_queue)
+{
+    int i, j;
+    target_ulong addr;
+
+    for (j = 0; j < stage_queue->cur_idx; ++j)
+    {
+        addr = stage_queue->entry[j].addr;
+
+        if (!cq_empty(&m->mem_request_queue.cq))
+        {
+            if (m->mem_request_queue.cq.rear >= m->mem_request_queue.cq.front)
+            {
+                for (i = m->mem_request_queue.cq.front;
+                     i <= m->mem_request_queue.cq.rear; i++)
+                {
+                    if (m->mem_request_queue.entry[i].addr == addr)
+                    {
+                        m->mem_request_queue.entry[i].valid = FALSE;
+                    }
+                }
+            }
+            else
+            {
+                for (i = m->mem_request_queue.cq.front;
+                     i < m->mem_request_queue.cq.max_size; i++)
+                {
+                    if (m->mem_request_queue.entry[i].addr == addr)
+                    {
+                        m->mem_request_queue.entry[i].valid = FALSE;
+                    }
+                }
+
+                for (i = 0; i <= m->mem_request_queue.cq.rear; i++)
+                {
+                    if (m->mem_request_queue.entry[i].addr == addr)
+                    {
+                        m->mem_request_queue.entry[i].valid = FALSE;
                     }
                 }
             }

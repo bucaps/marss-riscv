@@ -85,4 +85,6 @@ int mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
                                       void *p_mem_access_info);
 void mem_controller_cache_lookup_complete_signal(MemoryController *m,
                                             StageMemAccessQueue *stage_queue);
+void mem_controller_invalidate_mem_request_queue_entries(
+    MemoryController *m, StageMemAccessQueue *stage_queue);
 #endif
