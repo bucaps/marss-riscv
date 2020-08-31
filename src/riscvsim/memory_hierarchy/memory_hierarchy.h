@@ -45,6 +45,7 @@ typedef struct MemoryHierarchy
     Cache *icache;
     Cache *dcache;
     Cache *l2_cache;
+    Cache *page_walk_cache;
     SimParams *p;
 
     /* If caches are enabled */
@@ -58,10 +59,10 @@ typedef struct MemoryHierarchy
     int (*data_write_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
                             int bytes, int cpu_stage_id, int priv);
 
-    /* Page table entries are not cached, but requests are directly sent to
-     * memory controller queue */
+    /* Page table entries read/write delays are simulated via Data Cache, if
+     * found, else directly sent to memory */
     int (*pte_read_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
-                              int bytes, int cpu_stage_id, int priv);
+                          int bytes, int cpu_stage_id, int priv);
     int (*pte_write_delay)(struct MemoryHierarchy *mmu, target_ulong paddr,
                                int bytes, int cpu_stage_id, int priv);
 } MemoryHierarchy;

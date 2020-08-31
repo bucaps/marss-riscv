@@ -81,20 +81,37 @@ mem_hierarchy_dcache_write(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
 }
 
 static int
-mem_hierarchy_pte_read_dcache(MemoryHierarchy *mem_hierarchy,
+mem_hierarchy_pte_read_cache(MemoryHierarchy *mem_hierarchy,
                               target_ulong paddr, int bytes, int stage_id,
                               int priv)
 {
-    return cache_read(mem_hierarchy->dcache, paddr, bytes, (void *)&stage_id,
+    return cache_read(mem_hierarchy->page_walk_cache, paddr, bytes, (void *)&stage_id,
                       priv);
 }
 
 static int
-mem_hierarchy_pte_write_dcache(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
+mem_hierarchy_pte_write_cache(MemoryHierarchy *mem_hierarchy, target_ulong paddr,
                         int bytes, int stage_id, int priv)
 {
-    return cache_write(mem_hierarchy->dcache, paddr, bytes, (void *)&stage_id,
+    return cache_write(mem_hierarchy->page_walk_cache, paddr, bytes, (void *)&stage_id,
                        priv);
+}
+
+static void
+mem_hierarchy_set_page_walk_cache(MemoryHierarchy *m, const SimParams *p)
+{
+    m->page_walk_cache = NULL;
+    sim_log_event_to_file(sim_log, "%s",
+                          "no caches found, setting page_walk_cache to NULL");
+
+    if (p->enable_l1_caches)
+    {
+        /* If L1 caches are enabled, page walk is simulated via L1-data cache */
+        m->page_walk_cache = m->dcache;
+        sim_log_event_to_file(
+            sim_log, "%s",
+            "found l1-data cache, setting page_walk_cache to dcache");
+    }
 }
 
 MemoryHierarchy *
@@ -170,21 +187,30 @@ memory_hierarchy_init(const SimParams *p, SimLog *log)
             mem_hierarchy->mem_controller);
     }
 
+    mem_hierarchy_set_page_walk_cache(mem_hierarchy, p);
+
+    if (mem_hierarchy->page_walk_cache)
+    {
+        mem_hierarchy->pte_read_delay = &mem_hierarchy_pte_read_cache;
+        mem_hierarchy->pte_write_delay = &mem_hierarchy_pte_write_cache;
+    }
+    else
+    {
+        mem_hierarchy->pte_read_delay = &mem_hierarchy_cache_disabled_read;
+        mem_hierarchy->pte_write_delay = &mem_hierarchy_cache_disabled_write;
+    }
+
     if (p->enable_l1_caches)
     {
         mem_hierarchy->insn_read_delay = &mem_hierarchy_icache_read;
         mem_hierarchy->data_read_delay = &mem_hierarchy_dcache_read;
         mem_hierarchy->data_write_delay = &mem_hierarchy_dcache_write;
-        mem_hierarchy->pte_read_delay = &mem_hierarchy_pte_read_dcache;
-        mem_hierarchy->pte_write_delay = &mem_hierarchy_pte_write_dcache;
     }
     else
     {
         mem_hierarchy->insn_read_delay = &mem_hierarchy_cache_disabled_read;
         mem_hierarchy->data_read_delay = &mem_hierarchy_cache_disabled_read;
         mem_hierarchy->data_write_delay = &mem_hierarchy_cache_disabled_write;
-        mem_hierarchy->pte_read_delay = &mem_hierarchy_cache_disabled_read;
-        mem_hierarchy->pte_write_delay = &mem_hierarchy_cache_disabled_write;
     }
 
     return mem_hierarchy;

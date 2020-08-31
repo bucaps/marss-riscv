@@ -325,21 +325,17 @@ static int get_phys_addr(RISCVCPUState *s,
                 if (pte_size_log2 == 2) {
                     phys_write_u32(s, pte_addr, pte);
                     if (s->simcpu->simulation) {
-                        s->simcpu->mem_hierarchy->mem_controller
-                            ->page_walk_delay
-                            += s->simcpu->mem_hierarchy->pte_write_delay(
-                                s->simcpu->mem_hierarchy, pte_addr, 4,
-                                s->hw_pg_tb_wlk_stage_id, s->priv);
+                        s->simcpu->mem_hierarchy->pte_write_delay(
+                            s->simcpu->mem_hierarchy, pte_addr, 4,
+                            s->hw_pg_tb_wlk_stage_id, s->priv);
                     }
                 }
                 else {
                     phys_write_u64(s, pte_addr, pte);
                     if (s->simcpu->simulation) {
-                        s->simcpu->mem_hierarchy->mem_controller
-                            ->page_walk_delay
-                            += s->simcpu->mem_hierarchy->pte_write_delay(
-                                s->simcpu->mem_hierarchy, pte_addr, 8,
-                                s->hw_pg_tb_wlk_stage_id, s->priv);
+                        s->simcpu->mem_hierarchy->pte_write_delay(
+                            s->simcpu->mem_hierarchy, pte_addr, 8,
+                            s->hw_pg_tb_wlk_stage_id, s->priv);
                     }
                 }
             }
