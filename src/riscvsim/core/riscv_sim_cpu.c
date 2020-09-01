@@ -126,6 +126,9 @@ bpu_enabled_decode_stage_handler(struct RISCVCPUState *s, InstructionLatch *e)
                     &s->simcpu->mem_hierarchy->mem_controller
                          ->frontend_mem_access_queue);
 
+                /* Start fetching the target from next cycle */
+                s->simcpu->skip_fetch_cycle = TRUE;
+
                 /* Signal the calling stage to flush previous stages */
                 return TRUE;
             }
