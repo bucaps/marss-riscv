@@ -686,8 +686,9 @@ static void tlb_init(RISCVCPUState *s)
         s->tlb_code[i].guest_paddr = -1;
     }
 
-    /* Branch prediction unit must be flushed on tlb flush */
-    if (s->simcpu->simulation && s->sim_params->enable_bpu)
+    /* Flush branch prediction unit on a tlb flush or context switch */
+    if (s->simcpu->simulation && s->sim_params->enable_bpu
+        && s->sim_params->bpu_flush_on_context_switch)
     {
         bpu_flush(s->simcpu->bpu);
     }

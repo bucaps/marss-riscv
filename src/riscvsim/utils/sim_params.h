@@ -122,6 +122,7 @@ enum MEM_MODEL_TYPE
 #define DEF_STAGE_LATENCY 1
 
 #define DEF_ENABLE_BPU ENABLE
+#define DEF_BPU_FLUSH_ON_CONTEXT_SWITCH DISABLE
 #define DEF_BTB_SIZE 512
 #define DEF_BTB_WAYS 2
 #define DEF_BHT_SIZE 256
@@ -227,6 +228,7 @@ typedef struct SimParams
 
     /* BPU */
     int enable_bpu;
+    int bpu_flush_on_context_switch;
     int btb_size;
     int btb_ways;
     int bht_size;

@@ -111,6 +111,8 @@ sim_params_log_options(const SimParams *p)
     {
         sim_log_param_to_file(sim_log, "%s: %s", "bpu_type",
                               bpu_type_str[p->bpu_type]);
+        sim_log_param_to_file(sim_log, "%s: %s", "bpu_flush_on_context_switch",
+                              sim_param_status[p->bpu_flush_on_context_switch]);
     }
     sim_log_param_to_file(sim_log, "%s: %s", "enable_l1_caches",
                           sim_param_status[p->enable_l1_caches]);
@@ -257,6 +259,7 @@ sim_params_set_defaults(SimParams *p)
 
     p->sim_emulate_after_icount = DEF_SIM_EMULATE_AFTER_ICOUNT;
     p->system_insn_latency = DEF_STAGE_LATENCY;
+    p->bpu_flush_on_context_switch = DEF_BPU_FLUSH_ON_CONTEXT_SWITCH;
 }
 
 static int
@@ -371,6 +374,8 @@ sim_params_validate(SimParams *p)
         validate_param_p2("btb_size", p->btb_size);
         validate_param("btb_ways", 0, 1, 2048, p->btb_ways);
         validate_param("bpu_type", 1, 0, 1, p->bpu_type);
+        validate_param("bpu_flush_on_context_switch", 1, 0, 1,
+                       p->bpu_flush_on_context_switch);
 
         switch (p->bpu_type)
         {
@@ -822,6 +827,30 @@ sim_params_parse(SimParams *p, JSONValue cfg)
         else if (strcmp(str, "true") == 0)
         {
             p->enable_bpu = ENABLE;
+        }
+        else
+        {
+            sim_assert((0), "error: %s at line %d in %s(): error parsing "
+                            "param - %s->%s has invalid value",
+                       __FILE__, __LINE__, __func__, buf1, tag_name);
+        }
+    }
+
+    tag_name = "flush_on_context_switch";
+    if (vm_get_str(obj, tag_name, &str) < 0)
+    {
+        log_default_param_str(buf1, tag_name,
+                              sim_param_status[p->bpu_flush_on_context_switch]);
+    }
+    else
+    {
+        if (strcmp(str, "false") == 0)
+        {
+            p->bpu_flush_on_context_switch = DISABLE;
+        }
+        else if (strcmp(str, "true") == 0)
+        {
+            p->bpu_flush_on_context_switch = ENABLE;
         }
         else
         {
