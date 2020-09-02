@@ -96,7 +96,7 @@ SIM_OBJS:=$(SIM_UTILS) $(SIM_DECODER_OBJS) $(SIM_BPU_OBJS) $(SIM_MEM_HY_OBJS) $(
 all: $(PROGS)
 
 EMU_OBJS:=virtio.o pci.o fs.o cutils.o iomem.o simplefb.o \
-    json.o machine.o temu.o
+    json.o machine.o rtc_timer.o temu.o
 
 ifdef CONFIG_SLIRP
 CFLAGS+=-DCONFIG_SLIRP

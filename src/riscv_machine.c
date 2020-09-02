@@ -38,6 +38,7 @@
 #include "virtio.h"
 #include "machine.h"
 #include "riscvsim/utils/sim_params.h"
+#include "rtc_timer.h"
 
 #define UART_RX_BUFSIZE 16
 
@@ -51,7 +52,7 @@ typedef struct RISCVMachine {
     uint64_t ram_size;
     /* RTC */
     BOOL rtc_real_time;
-    uint64_t rtc_start_time;
+    RTC *rtc;
     uint64_t timecmp;
     /* PLIC */
     uint32_t plic_pending_irq, plic_served_irq;
@@ -101,19 +102,11 @@ typedef struct RISCVMachine {
 #define RTC_FREQ_DIV 16 /* arbitrary, relative to CPU freq to have a
                            10 MHz frequency */
 
-static uint64_t rtc_get_real_time(RISCVMachine *s)
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * RTC_FREQ +
-        (ts.tv_nsec / (1000000000 / RTC_FREQ));
-}
-
 static uint64_t rtc_get_time(RISCVMachine *m)
 {
     uint64_t val;
     if (m->rtc_real_time) {
-        val = rtc_get_real_time(m) - m->rtc_start_time;
+        val = rtc_get_elasped_time(m->rtc);
     } else {
         val = riscv_cpu_get_cycles(m->cpu_state) / RTC_FREQ_DIV;
     }
@@ -824,7 +817,7 @@ static int riscv_build_fdt(RISCVMachine *m, uint8_t *dst,
     fdt_begin_node(s, "cpus");
     fdt_prop_u32(s, "#address-cells", 1);
     fdt_prop_u32(s, "#size-cells", 0);
-    fdt_prop_u32(s, "timebase-frequency", RTC_FREQ);
+    fdt_prop_u32(s, "timebase-frequency", m->rtc->freq);
 
     /* cpu */
     fdt_begin_node_num(s, "cpu", 0);
@@ -1132,10 +1125,8 @@ static VirtMachine *riscv_machine_init(const VirtMachineParams *p)
     cpu_register_ram(s->mem_map, RAM_BASE_ADDR, p->ram_size, ram_flags);
     cpu_register_ram(s->mem_map, 0x00000000, LOW_RAM_SIZE, 0);
     s->rtc_real_time = p->rtc_real_time;
-    if (p->rtc_real_time) {
-        s->rtc_start_time = rtc_get_real_time(s);
-    }
-    
+    s->rtc = rtc_init(RTC_FREQ);
+
     cpu_register_device(s->mem_map, CLINT_BASE_ADDR, CLINT_SIZE, s,
                         clint_read, clint_write, DEVIO_SIZE32);
     cpu_register_device(s->mem_map, PLIC_BASE_ADDR, PLIC_SIZE, s,
@@ -1257,6 +1248,7 @@ static void riscv_machine_end(VirtMachine *s1)
     /* XXX: stop all */
 
     riscv_cpu_end(s->cpu_state);
+    rtc_free(&s->rtc);
     sim_params_free(s->common.virt_machine_params->sim_params);
     phys_mem_map_end(s->mem_map);
     free(s);
@@ -1277,7 +1269,7 @@ static int riscv_machine_get_sleep_duration(VirtMachine *s1, int delay)
             delay = 0;
         } else {
             /* convert delay to ms */
-            delay1 = delay1 / (RTC_FREQ / 1000);
+            delay1 = delay1 / (m->rtc->freq / 1000);
             if (delay1 < delay)
                 delay = delay1;
         }
