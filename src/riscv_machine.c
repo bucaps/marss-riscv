@@ -843,7 +843,7 @@ static int riscv_build_fdt(RISCVMachine *m, uint8_t *dst,
     fdt_prop_str(s, "riscv,isa", isa_string);
     
     fdt_prop_str(s, "mmu-type", max_xlen <= 32 ? "riscv,sv32" : "riscv,sv48");
-    fdt_prop_u32(s, "clock-frequency", 2000000000);
+    fdt_prop_u32(s, "clock-frequency", (m->common.virt_machine_params->sim_params->cpu_freq_mhz * 1000000));
 
     fdt_begin_node(s, "interrupt-controller");
     fdt_prop_u32(s, "#interrupt-cells", 1);
