@@ -40,6 +40,7 @@
 
 #include "riscvsim/core/riscv_sim_cpu.h"
 #include "riscvsim/utils/sim_params.h"
+#include "rtc_timer.h"
 
 #define __exception __attribute__((warn_unused_result))
 
@@ -211,6 +212,7 @@ typedef struct RISCVCPUState {
     int ins_tlb_hit_accounted;
 
     SimParams *sim_params;
+    RTC *rtc;
 
     /* simulated RISC-V core*/
     RISCVSIMCPUState *simcpu;

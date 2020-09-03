@@ -105,6 +105,7 @@ sim_params_log_options(const SimParams *p)
 
     sim_log_param_to_file(sim_log, "%s: %s", "core_type",
                           core_type_str[p->core_type]);
+    sim_log_param_to_file(sim_log, "%s: %lu MHz", "rtc_freq_mhz", p->rtc_freq_mhz);
     sim_log_param_to_file(sim_log, "%s: %s", "enable_bpu",
                           sim_param_status[p->enable_bpu]);
     if (p->enable_bpu)
@@ -260,6 +261,7 @@ sim_params_set_defaults(SimParams *p)
     p->sim_emulate_after_icount = DEF_SIM_EMULATE_AFTER_ICOUNT;
     p->system_insn_latency = DEF_STAGE_LATENCY;
     p->bpu_flush_on_context_switch = DEF_BPU_FLUSH_ON_CONTEXT_SWITCH;
+    p->rtc_freq_mhz = DEF_RTC_FREQ_MHZ;
 }
 
 static int
@@ -317,6 +319,8 @@ sim_params_validate(SimParams *p)
         validate_param("rob_size", 0, 1, 2048, p->rob_size);
         validate_param("lsq_size", 0, 1, 2048, p->lsq_size);
     }
+
+    validate_param("rtc_freq_mhz", 1, 1, 1000, p->rtc_freq_mhz);
 
     /* Validate FU config */
     validate_param("num_alu_stages", 0, 1, 2048, p->num_alu_stages);
@@ -542,6 +546,12 @@ sim_params_parse(SimParams *p, JSONValue cfg)
         {
             p->core_type = CORE_TYPE_OOCORE;
         }
+    }
+
+    tag_name = "rtc_freq_mhz";
+    if (vm_get_int(core_obj, tag_name, &p->rtc_freq_mhz) < 0)
+    {
+        log_default_param_int(buf1, tag_name, p->rtc_freq_mhz);
     }
 
     if (p->core_type == CORE_TYPE_INCORE)

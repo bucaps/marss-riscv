@@ -171,6 +171,8 @@ enum MEM_MODEL_TYPE
 
 #define DEF_SIM_EMULATE_AFTER_ICOUNT 0
 
+#define DEF_RTC_FREQ_MHZ 10
+
 extern const char *core_type_str[];
 extern const char *sim_param_status[];
 extern const char *evict_policy_str[];
@@ -283,6 +285,7 @@ typedef struct SimParams
 
     uint64_t sim_emulate_after_icount;
     int system_insn_latency;
+    int rtc_freq_mhz;
 } SimParams;
 
 SimParams *sim_params_init();

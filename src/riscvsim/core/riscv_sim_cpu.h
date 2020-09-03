@@ -51,6 +51,11 @@ typedef struct RISCVSIMCPUState
     target_ulong pc; /* Next PC to fetch from */
     uint64_t clock;  /* Clock cycles elapsed since simulation start  */
     uint64_t icount; /* Total instructions committed in simulation mode */
+    uint64_t
+        temu_rtc_time_at_simstart; /* To save TinyEMU's emulated mtime value
+                                      before switching to simulation mode.
+                                      During simulation, mtime increase as
+                                      (temu_rtc_time_at_simstart + clock) */
     int skip_fetch_cycle;
 
     /* Simulator maintains a pool of free instruction latches known as

@@ -41,6 +41,7 @@
 #include "inorder.h"
 #include "ooo.h"
 #include "riscv_sim_cpu.h"
+#include "../../rtc_timer.h"
 
 #define WRITE_STATS_TO_SHM_CLOCK_CYCLES_INTERVAL 500000
 #define GET_TIME(time) clock_gettime(CLOCK_MONOTONIC, &time)
@@ -655,6 +656,9 @@ riscv_sim_cpu_start(RISCVSIMCPUState *simcpu, target_ulong pc)
         sim_stats_reset(simcpu->stats);
         GET_TIME(simcpu->sim_start_time);
 
+        simcpu->temu_rtc_time_at_simstart
+            = rtc_get_elasped_time(simcpu->emu_cpu_state->rtc);
+
         /* Reset BPU at every new simulation run */
         if (simcpu->params->enable_bpu && simcpu->params->flush_bpu_on_simstart)
         {
@@ -873,12 +877,6 @@ riscv_sim_cpu_init(const SimParams *p, struct RISCVCPUState *s)
     if (p->enable_stats_display)
     {
         setup_stats_shm(simcpu);
-    }
-
-    /* We are booting TinyEMU in simulation mode */
-    if (p->start_in_sim)
-    {
-        riscv_sim_cpu_start(simcpu, simcpu->pc);
     }
 
     sim_assert((sim_file_path_valid(p->sim_file_path)),

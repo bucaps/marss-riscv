@@ -39,6 +39,7 @@
 #include "machine.h"
 #include "riscvsim/utils/sim_params.h"
 #include "rtc_timer.h"
+#include "riscv_cpu_priv.h"
 
 #define UART_RX_BUFSIZE 16
 
@@ -106,7 +107,11 @@ static uint64_t rtc_get_time(RISCVMachine *m)
 {
     uint64_t val;
     if (m->rtc_real_time) {
-        val = rtc_get_elasped_time(m->rtc);
+        if (riscv_cpu_in_simulation(m->cpu_state)) {
+            val = riscv_cpu_in_simulation_get_mtime(m->cpu_state);
+        } else {
+            val = rtc_get_elasped_time(m->rtc);
+        }
     } else {
         val = riscv_cpu_get_cycles(m->cpu_state) / RTC_FREQ_DIV;
     }
@@ -1125,7 +1130,8 @@ static VirtMachine *riscv_machine_init(const VirtMachineParams *p)
     cpu_register_ram(s->mem_map, RAM_BASE_ADDR, p->ram_size, ram_flags);
     cpu_register_ram(s->mem_map, 0x00000000, LOW_RAM_SIZE, 0);
     s->rtc_real_time = p->rtc_real_time;
-    s->rtc = rtc_init(RTC_FREQ);
+    s->rtc = rtc_init(p->sim_params->rtc_freq_mhz * 1000000);
+    s->cpu_state->rtc = s->rtc;
 
     cpu_register_device(s->mem_map, CLINT_BASE_ADDR, CLINT_SIZE, s,
                         clint_read, clint_write, DEVIO_SIZE32);
@@ -1237,6 +1243,12 @@ static VirtMachine *riscv_machine_init(const VirtMachineParams *p)
     } else{
         copy_kernel(s, p->files[VM_FILE_BIOS].buf, p->files[VM_FILE_BIOS].len,
                 p->cmdline);
+    }
+
+    /* We are booting TinyEMU in simulation mode */
+    if (p->sim_params->start_in_sim)
+    {
+        riscv_sim_cpu_start(s->cpu_state->simcpu, s->cpu_state->simcpu->pc);
     }
 
     return (VirtMachine *)s;

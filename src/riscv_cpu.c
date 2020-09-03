@@ -1463,6 +1463,16 @@ static uint32_t glue(riscv_cpu_get_misa, MAX_XLEN)(RISCVCPUState *s)
     return s->misa;
 }
 
+static BOOL glue(riscv_cpu_in_simulation, MAX_XLEN)(RISCVCPUState *s)
+{
+    return s->simcpu->simulation;
+}
+
+static uint64_t glue(riscv_cpu_in_simulation_get_mtime, MAX_XLEN)(RISCVCPUState *s)
+{
+    return s->simcpu->temu_rtc_time_at_simstart + s->simcpu->clock;
+}
+
 const RISCVCPUClass glue(riscv_cpu_class, MAX_XLEN) = {
     glue(riscv_cpu_init, MAX_XLEN),
     glue(riscv_cpu_end, MAX_XLEN),
@@ -1474,6 +1484,8 @@ const RISCVCPUClass glue(riscv_cpu_class, MAX_XLEN) = {
     glue(riscv_cpu_get_power_down, MAX_XLEN),
     glue(riscv_cpu_get_misa, MAX_XLEN),
     glue(riscv_cpu_flush_tlb_write_range_ram, MAX_XLEN),
+    glue(riscv_cpu_in_simulation, MAX_XLEN),
+    glue(riscv_cpu_in_simulation_get_mtime, MAX_XLEN),
 };
 
 //#if CONFIG_RISCV_MAX_XLEN == MAX_XLEN
