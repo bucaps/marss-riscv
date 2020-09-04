@@ -65,7 +65,8 @@ typedef struct INCore
     CPUStage pcgen;
     CPUStage fetch;
     CPUStage decode;
-    CPUStage memory;
+    CPUStage memory1;
+    CPUStage memory2;
     CPUStage commit;
 
     /*----------  Register valid bits  ----------*/
@@ -104,7 +105,8 @@ void in_core_pcgen(INCore *core);
 void in_core_fetch(INCore *core);
 void in_core_decode(INCore *core);
 void in_core_execute_all(INCore *core);
-void in_core_memory(INCore *core);
+void in_core_memory1(INCore *core);
+void in_core_memory2(INCore *core);
 int in_core_commit(INCore *core);
 int in_core_run_5_stage(INCore *core);
 int in_core_run_6_stage(INCore *core);

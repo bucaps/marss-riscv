@@ -444,7 +444,8 @@ in_core_decode(INCore *core)
                 if (!core->int_reg_status[e->ins.rd])
                 {
                     set_waw_lock_int_dest(s, &core->commit, e->ins.rd);
-                    set_waw_lock_int_dest(s, &core->memory, e->ins.rd);
+                    set_waw_lock_int_dest(s, &core->memory2, e->ins.rd);
+                    set_waw_lock_int_dest(s, &core->memory1, e->ins.rd);
                     set_waw_lock_int_dest(s, &core->fpu_alu, e->ins.rd);
                     for (i = s->simcpu->params->num_div_stages - 1; i >= 0; i--)
                     {
@@ -466,7 +467,8 @@ in_core_decode(INCore *core)
                 if (!core->fp_reg_status[e->ins.rd])
                 {
                     set_waw_lock_fp_dest(s, &core->commit, e->ins.rd);
-                    set_waw_lock_fp_dest(s, &core->memory, e->ins.rd);
+                    set_waw_lock_fp_dest(s, &core->memory2, e->ins.rd);
+                    set_waw_lock_fp_dest(s, &core->memory1, e->ins.rd);
                     for (i = s->simcpu->params->num_fpu_fma_stages - 1; i >= 0;
                          i--)
                     {

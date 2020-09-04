@@ -619,13 +619,6 @@ mem_cpu_stage_exec(RISCVCPUState *s, InstructionLatch *e)
                     += s->simcpu->mem_hierarchy->data_read_delay(
                         s->simcpu->mem_hierarchy, s->data_guest_paddr,
                         e->ins.bytes_to_rw, MEMORY, s->priv);
-
-                /* Load for non-word quantities such as byte or half word take
-                 * an extra cycle */
-                if (e->ins.bytes_to_rw < 4)
-                {
-                    e->max_clock_cycles += 1;
-                }
             }
 
             if ((e->ins.is_store || e->ins.is_atomic_store))

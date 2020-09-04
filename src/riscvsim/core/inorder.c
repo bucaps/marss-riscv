@@ -114,7 +114,8 @@ in_core_reset(void *core_type)
     cpu_stage_flush(&core->pcgen);
     cpu_stage_flush(&core->fetch);
     cpu_stage_flush(&core->decode);
-    cpu_stage_flush(&core->memory);
+    cpu_stage_flush(&core->memory1);
+    cpu_stage_flush(&core->memory2);
     cpu_stage_flush(&core->commit);
 
     /* To start fetching */
@@ -171,7 +172,7 @@ in_core_pipeline_drained(const INCore *core)
     RISCVSIMCPUState *simcpu = core->simcpu;
 
     if (core->pcgen.has_data || core->fetch.has_data || core->decode.has_data
-        || core->fpu_alu.has_data || core->memory.has_data
+        || core->fpu_alu.has_data || core->memory1.has_data || core->memory2.has_data
         || core->commit.has_data)
     {
         return PIPELINE_NOT_DRAINED;
@@ -252,7 +253,8 @@ in_core_run_6_stage(INCore *core)
         return -1;
     }
 
-    in_core_memory(core);
+    in_core_memory2(core);
+    in_core_memory1(core);
     in_core_execute_all(core);
     in_core_decode(core);
 
@@ -274,7 +276,8 @@ in_core_run_5_stage(INCore *core)
         return -1;
     }
 
-    in_core_memory(core);
+    in_core_memory2(core);
+    in_core_memory1(core);
     in_core_execute_all(core);
     in_core_decode(core);
 
