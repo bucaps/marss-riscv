@@ -182,7 +182,7 @@ adaptive_predictor_get_prediction(const AdaptivePredictor *a, target_ulong pc)
             ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
 
             /* Apply aliasing function for Gshare and Gselect */
-            ghr = a->pfn_ap_aliasing_func(a, ghr, pc);
+            ghr = a->pfn_ap_aliasing_func(a, ghr, pc >> 2);
             if (a->pht[0].ctr[ghr] > 1)
             {
                 return 1;
@@ -293,7 +293,7 @@ adaptive_predictor_update(AdaptivePredictor *a, target_ulong pc, int pred)
             ghr = GET_INDEX(a->ght[0].ghr, a->hreg_bits);
 
             /* Apply aliasing function for Gshare and Gselect */
-            ghr = a->pfn_ap_aliasing_func(a, ghr, pc);
+            ghr = a->pfn_ap_aliasing_func(a, ghr, pc >> 2);
             update_two_bit_counter(&a->pht[0].ctr[ghr], pred);
             a->ght[0].ghr = UPDATE_GHR(a->ght[0].ghr, a->hreg_bits, pred);
             break;
