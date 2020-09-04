@@ -1470,7 +1470,10 @@ static BOOL glue(riscv_cpu_in_simulation, MAX_XLEN)(RISCVCPUState *s)
 
 static uint64_t glue(riscv_cpu_in_simulation_get_mtime, MAX_XLEN)(RISCVCPUState *s)
 {
-    return s->simcpu->temu_rtc_time_at_simstart + s->simcpu->clock;
+    uint64_t scale_offset
+        = s->simcpu->params->cpu_freq_mhz / s->simcpu->params->rtc_freq_mhz;
+    return s->simcpu->temu_rtc_time_at_simstart
+           + (s->simcpu->clock / scale_offset);
 }
 
 const RISCVCPUClass glue(riscv_cpu_class, MAX_XLEN) = {
