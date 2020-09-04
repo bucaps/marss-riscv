@@ -33,6 +33,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "../../riscv_cpu_priv.h"
 #include "sim_log.h"
 #include "sim_stats.h"
 
@@ -168,14 +169,35 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname,
     SIM_STAT_PRINT_TO_FILE(fp, s, "fu_fpu_alu_accesses", fu_access[FU_FPU_ALU]);
     SIM_STAT_PRINT_TO_FILE(fp, s, "fu_fpu_fma_accesses", fu_access[FU_FPU_FMA]);
 
-    SIM_STAT_PRINT_TO_FILE(fp, s, "ecall", ecall);
-    SIM_STAT_PRINT_TO_FILE(fp, s, "interrupts", interrupts);
     SIM_STAT_PRINT_TO_FILE(fp, s, "ins_page_walks", ins_page_walks);
     SIM_STAT_PRINT_TO_FILE(fp, s, "load_page_walks", load_page_walks);
     SIM_STAT_PRINT_TO_FILE(fp, s, "store_page_walks", store_page_walks);
-    SIM_STAT_PRINT_TO_FILE(fp, s, "ins_page_faults", ins_page_faults);
-    SIM_STAT_PRINT_TO_FILE(fp, s, "load_page_faults", load_page_faults);
-    SIM_STAT_PRINT_TO_FILE(fp, s, "store_page_faults", store_page_faults);
+
+    SIM_STAT_PRINT_TO_FILE(fp, s, "misaligned_fetch", exceptions[CAUSE_MISALIGNED_FETCH]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "fault_fetch", exceptions[CAUSE_FAULT_FETCH]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "illegal_instruction", exceptions[CAUSE_ILLEGAL_INSTRUCTION]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "breakpoint", exceptions[CAUSE_BREAKPOINT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "misaligned_load", exceptions[CAUSE_MISALIGNED_LOAD]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "fault_load", exceptions[CAUSE_FAULT_LOAD]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "misaligned_store", exceptions[CAUSE_MISALIGNED_STORE]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "fault_store", exceptions[CAUSE_FAULT_STORE]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "user_ecall", exceptions[CAUSE_USER_ECALL]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "supervisor_ecall", exceptions[CAUSE_SUPERVISOR_ECALL]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "hypervisor_ecall", exceptions[CAUSE_HYPERVISOR_ECALL]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "machine_ecall", exceptions[CAUSE_MACHINE_ECALL]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "fetch_page_fault", exceptions[CAUSE_FETCH_PAGE_FAULT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "load_page_fault", exceptions[CAUSE_LOAD_PAGE_FAULT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "store_page_fault", exceptions[CAUSE_STORE_PAGE_FAULT]);
+
+    SIM_STAT_PRINT_TO_FILE(fp, s, "user_software_interrupt", interrupts[CAUSE_USER_SOFTWARE_INTERRUPT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "supervisor_software_interrupt", interrupts[CAUSE_SUPERVISOR_SOFTWARE_INTERRUPT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "machine_software_interrupt", interrupts[CAUSE_MACHINE_SOFTWARE_INTERRUPT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "user_timer_interrupt", interrupts[CAUSE_USER_TIMER_INTERRUPT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "supervisor_timer_interrupt", interrupts[CAUSE_SUPERVISOR_TIMER_INTERRUPT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "machine_timer_interrupt", interrupts[CAUSE_MACHINE_TIMER_INTERRUPT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "user_external_interrupt", interrupts[CAUSE_USER_EXTERNAL_INTERRUPT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "supervisor_external_interrupt", interrupts[CAUSE_SUPERVISOR_EXTERNAL_INTERRUPT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "machine_external_interrupt", interrupts[CAUSE_MACHINE_EXTERNAL_INTERRUPT]);
 
     SIM_STAT_PRINT_TO_FILE(fp, s, "L1_icache_reads", icache_read);
     SIM_STAT_PRINT_TO_FILE(fp, s, "L1_icache_read_misses", icache_read_miss);

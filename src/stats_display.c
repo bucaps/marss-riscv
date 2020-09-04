@@ -218,17 +218,6 @@ print_caches_stats()
     printf("\n");
 }
 
-static void
-print_exception_stats()
-{
-    printf("%-22s : %-22" PRIu64 "\n", "ins-page-faults",
-           GET_TOTAL_STAT(ins_page_faults));
-    printf("%-22s : %-22" PRIu64 "\n", "load-page-faults",
-           GET_TOTAL_STAT(load_page_faults));
-    printf("%-22s : %-22" PRIu64 "\n", "store-page-faults",
-           GET_TOTAL_STAT(store_page_faults));
-}
-
 int
 main(int argc, char const *argv[])
 {
@@ -253,7 +242,6 @@ main(int argc, char const *argv[])
         print_bpu_stats();
         print_tlb_stats();
         print_caches_stats();
-        print_exception_stats();
         usleep(100000);
     }
     return 0;

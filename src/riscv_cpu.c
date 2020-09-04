@@ -426,11 +426,6 @@ int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
         if (get_phys_addr(s, &paddr, addr, ACCESS_READ)) {
             s->pending_tval = addr;
             s->pending_exception = CAUSE_LOAD_PAGE_FAULT;
-
-            if (s->simcpu->simulation) {
-                ++s->simcpu->stats[s->priv].load_page_faults;
-            }
-
             return -1;
         }
         pr = get_phys_mem_range(s->mem_map, paddr);
@@ -521,11 +516,6 @@ int target_write_slow(RISCVCPUState *s, target_ulong addr,
         if (get_phys_addr(s, &paddr, addr, ACCESS_WRITE)) {
             s->pending_tval = addr;
             s->pending_exception = CAUSE_STORE_PAGE_FAULT;
-
-            if (s->simcpu->simulation) {
-                ++s->simcpu->stats[s->priv].store_page_faults;
-            }
-
             return -1;
         }
         pr = get_phys_mem_range(s->mem_map, paddr);
@@ -620,11 +610,6 @@ no_inline __exception int target_read_insn_slow(RISCVCPUState *s,
     if (get_phys_addr(s, &paddr, addr, ACCESS_CODE)) {
         s->pending_tval = addr;
         s->pending_exception = CAUSE_FETCH_PAGE_FAULT;
-
-        if (s->simcpu->simulation) {
-            ++s->simcpu->stats[s->priv].ins_page_faults;
-        }
-
         return -1;
     }
     pr = get_phys_mem_range(s->mem_map, paddr);
@@ -1158,8 +1143,22 @@ static void raise_exception2(RISCVCPUState *s, uint32_t cause,
                              target_ulong tval)
 {
     BOOL deleg;
-    target_ulong causel;
-    
+    target_ulong causel, cause2;
+
+    /* Count the interrupts and exceptions in simulation mode */
+    if (s->simcpu->simulation)
+    {
+        cause2 = cause & 0x7fffffff;
+        if ((cause & CAUSE_INTERRUPT) != 0)
+        {
+            ++s->simcpu->stats[s->priv].interrupts[cause2];
+        }
+        else
+        {
+            ++s->simcpu->stats[s->priv].exceptions[cause2];
+        }
+    }
+
 #if defined(DUMP_EXCEPTIONS) || defined(DUMP_MMU_EXCEPTIONS) || defined(DUMP_INTERRUPTS)
     {
         int flag;
@@ -1307,9 +1306,6 @@ static __exception int raise_interrupt(RISCVCPUState *s)
     if (mask == 0)
         return 0;
     irq_num = ctz32(mask);
-    if (s->simcpu->simulation){
-        ++s->simcpu->stats[s->priv].interrupts;
-    }
     raise_exception(s, irq_num | CAUSE_INTERRUPT);
     return -1;
 }

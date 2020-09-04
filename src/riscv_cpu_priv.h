@@ -73,6 +73,17 @@
 /* Note: converted to correct bit position at runtime */
 #define CAUSE_INTERRUPT  ((uint32_t)1 << 31) 
 
+/* Only used to count interrupts during simulation */
+#define CAUSE_USER_SOFTWARE_INTERRUPT 0x0
+#define CAUSE_SUPERVISOR_SOFTWARE_INTERRUPT 0x1
+#define CAUSE_MACHINE_SOFTWARE_INTERRUPT 0x3
+#define CAUSE_USER_TIMER_INTERRUPT 0x4
+#define CAUSE_SUPERVISOR_TIMER_INTERRUPT 0x5
+#define CAUSE_MACHINE_TIMER_INTERRUPT 0x7
+#define CAUSE_USER_EXTERNAL_INTERRUPT 0x8
+#define CAUSE_SUPERVISOR_EXTERNAL_INTERRUPT 0x9
+#define CAUSE_MACHINE_EXTERNAL_INTERRUPT 0xb
+
 #define PRV_U 0
 #define PRV_S 1
 #define PRV_H 2

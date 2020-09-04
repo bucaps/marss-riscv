@@ -1412,10 +1412,6 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
                 case 0x000: /* ecall */
                     if (insn & 0x000fff80)
                         goto illegal_insn;
-                    if (s->simcpu->simulation)
-                    {
-                        ++s->simcpu->stats[s->priv].ecall;
-                    }
                     s->pending_exception = CAUSE_USER_ECALL + s->priv;
                     goto exception;
                 case 0x001: /* ebreak */

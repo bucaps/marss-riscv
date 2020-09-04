@@ -82,6 +82,10 @@ typedef struct SimStats
     uint64_t store_tlb_lookups;
     uint64_t store_tlb_hits;
 
+    uint64_t ins_page_walks;
+    uint64_t load_page_walks;
+    uint64_t store_page_walks;
+
     /* Cache Stats */
     uint64_t icache_read;
     uint64_t icache_read_miss;
@@ -95,14 +99,8 @@ typedef struct SimStats
     uint64_t l2_cache_write_miss;
 
     /* Exceptions */
-    uint64_t ecall;
-    uint64_t interrupts;
-    uint64_t ins_page_walks;
-    uint64_t load_page_walks;
-    uint64_t store_page_walks;
-    uint64_t ins_page_faults;
-    uint64_t load_page_faults;
-    uint64_t store_page_faults;
+    uint64_t interrupts[24];
+    uint64_t exceptions[24];
 } SimStats;
 
 /* Performance counters are printed to file in CSV format when simulation
