@@ -176,6 +176,14 @@ in_core_memory1(INCore *core)
 
             /* Hacky way to adjust latency, please verify */
             adjust_latency_hack(core, e);
+
+            /* Load for non-word quantities such as byte or half word take an
+             * extra cycle */
+            if ((e->ins.is_load) && (e->ins.bytes_to_rw < 4))
+            {
+                e->max_clock_cycles += 1;
+            }
+
             core->memory1.stage_exec_done = TRUE;
         }
 
@@ -297,14 +305,6 @@ in_core_memory2(INCore *core)
         {
             e->elasped_clock_cycles = 1;
             e->max_clock_cycles = 1;
-
-            /* Load for non-word quantities such as byte or half word take an
-             * extra cycle */
-            if ((e->ins.is_load) && (e->ins.bytes_to_rw < 4))
-            {
-                e->max_clock_cycles += 1;
-            }
-
             core->memory2.stage_exec_done = TRUE;
         }
 
