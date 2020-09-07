@@ -101,6 +101,7 @@ typedef struct SimStats
     /* Exceptions */
     uint64_t interrupts[24];
     uint64_t exceptions[24];
+    uint64_t pipeline_flush;
 } SimStats;
 
 /* Performance counters are printed to file in CSV format when simulation

@@ -55,6 +55,7 @@ in_core_pcgen(INCore *core)
                 /* This is a branch miss prediction redirect, so skip this cycle
                  * and fetch this new target from next cycle */
                 core->simcpu->skip_fetch_cycle = FALSE;
+                ++core->simcpu->stats[s->priv].pipeline_flush;
                 return;
             }
 
