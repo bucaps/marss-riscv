@@ -802,8 +802,16 @@ riscv_sim_cpu_reset(RISCVSIMCPUState *simcpu)
 int
 riscv_sim_cpu_switch_to_cpu_simulation(RISCVSIMCPUState *simcpu)
 {
+    int sim_exit_status;
+
     riscv_sim_cpu_reset(simcpu);
-    return simcpu->core_run(simcpu->core);
+    sim_exit_status = simcpu->core_run(simcpu->core);
+
+    /* Every-time we exit to TinyEMU emulation loop, simulated CPU pipeline has
+     * been flushed and drained  */
+    ++simcpu->stats[simcpu->emu_cpu_state->priv].pipeline_flush;
+
+    return sim_exit_status;
 }
 
 RISCVSIMCPUState *

@@ -198,6 +198,7 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname,
     SIM_STAT_PRINT_TO_FILE(fp, s, "user_external_interrupt", interrupts[CAUSE_USER_EXTERNAL_INTERRUPT]);
     SIM_STAT_PRINT_TO_FILE(fp, s, "supervisor_external_interrupt", interrupts[CAUSE_SUPERVISOR_EXTERNAL_INTERRUPT]);
     SIM_STAT_PRINT_TO_FILE(fp, s, "machine_external_interrupt", interrupts[CAUSE_MACHINE_EXTERNAL_INTERRUPT]);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "pipeline_flush", pipeline_flush);
 
     SIM_STAT_PRINT_TO_FILE(fp, s, "L1_icache_reads", icache_read);
     SIM_STAT_PRINT_TO_FILE(fp, s, "L1_icache_read_misses", icache_read_miss);
