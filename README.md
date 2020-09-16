@@ -1,8 +1,8 @@
 ## MARSS-RISCV: Micro-Architectural System Simulator for RISC-V
 
-MARSS-RISCV (Micro-ARchitectural System Simulator - RISCV) is an **open-source, cycle-accurate single-core full-system (Linux) micro-architectural simulator** for the [RISC-V](https://riscv.org/specifications/) ISA built on top of [TinyEMU emulator](https://bellard.org/tinyemu) developed by Fabrice Bellard and utilizes the configuration code, RISC-V CPU state, physical memory, MMU, and all the devices emulated by TinyEMU. 
+MARSS-RISCV (Micro-ARchitectural System Simulator - RISCV) is an **open-source, cycle-level single-core full-system (Linux) micro-architectural simulator** for the [RISC-V](https://riscv.org/specifications/) ISA built on top of [TinyEMU emulator](https://bellard.org/tinyemu) developed by Fabrice Bellard and utilizes the configuration code, RISC-V CPU state, physical memory, MMU, and all the devices emulated by TinyEMU.
 
-It consists of detailed cycle-accurate models of a generic RISC-V In-order and Out-of-order processor with a branch prediction unit, TLBs, cache-hierarchy, and a simplistic DRAM model. It comes integrated with [DRAMSim3](https://github.com/umd-memsys/DRAMSim3) and [Ramulator](https://github.com/CMU-SAFARI/ramulator), which are cycle-accurate DRAM simulators. It can simulate the entire RISC-V software stack (from the bootloader and kernel to the user level applications, including system calls) cycle-by-cycle along with the real-time I/O without any modifications and provides simulation statistics for all the RISC-V CPU privilege modes (user, supervisor, hyper-visor and machine). Hence, it makes MARSS-RISCV, a full system simulation framework that simulates an entire RISC-V system-on-a-chip (SoC) comprising cycle-accurate models of CPU, DRAM, network, and peripheral devices.
+It consists of detailed cycle-level models of a generic RISC-V In-order and Out-of-order processor with a branch prediction unit, TLBs, cache-hierarchy, and a simplistic DRAM model. It comes integrated with [DRAMSim3](https://github.com/umd-memsys/DRAMSim3) and [Ramulator](https://github.com/CMU-SAFARI/ramulator), which are cycle-accurate DRAM simulators. It can simulate the entire RISC-V software stack (from the bootloader and kernel to the user level applications, including system calls) cycle-by-cycle along with the real-time I/O without any modifications and provides simulation statistics for all the RISC-V CPU privilege modes (user, supervisor, and machine). Hence, it makes MARSS-RISCV, a full system simulation framework that simulates an entire RISC-V system-on-a-chip (SoC) cycle-by-cycle.
 
 It is currently being developed and maintained by [CAPS](https://github.com/bucaps/) (Computer Architecture and Power-Aware Systems Research Group) at the State University of New York at Binghamton. Our simulator is currently in alpha status as we are validating the cycle accuracy using various development boards. The figure below shows a high-level overview of the MARSS-RISCV simulation framework.
 
@@ -23,13 +23,13 @@ It is currently being developed and maintained by [CAPS](https://github.com/buca
 - [License](#license)
 
 ## Features 
-- **Full system simulator** which simulates the entire system in a cycle-accurate fashion, including the bootloader, kernel, libraries, interrupt handlers, and user-level applications
-- **Configurable RISC-V CPU** with cycle-accurate, in-order and out-of-order processor models
+- **Full system simulator** which simulates the entire system on a cycle-by-cyle basis, including the bootloader, kernel, libraries, interrupt handlers, and user-level applications
+- **Configurable RISC-V CPU** with cycle-level, in-order and out-of-order processor models
 - **Multiple execution units** with configurable latencies (execution units can be configured to run iteratively or in a pipelined fashion)
 - **Simulates memory access delay for instructions, data and page table walk** via three direct-mapped TLBs (for code, loads and stores), two-level cache hierarchy with various allocation and miss handling policies and following DRAM memory models: A simplistic base DRAM model (which simulates a fixed delay for every main memory access), [DRAMSim3](https://github.com/umd-memsys/DRAMSim3), and [Ramulator](https://github.com/CMU-SAFARI/ramulator)
 - **Branch predictor** which supports Bi-modal and 2-level adaptive (Gshare, Gselect, GAg, GAp, PAg, PAp) predictors and a Return address stack (RAS)
 - **RISC-V ISA support** includes `RV32GC` and `RV64GC` (user-level ISA version `2.2`, privileged architecture version `1.10`)
-- **Emulated devices** include standard platform-level interrupt controller (PLIC), core local interrupter (CLINT), real-time clock device (RTC), universal asynchronous receiver/transmitter (UART), VirtIO, network, block device, and 9P filesystem
+- **Emulated devices** include standard platform-level interrupt controller (PLIC), core local interrupter (CLINT), real-time clock device (RTC), universal asynchronous receiver/transmitter (UART), VirtIO, NIC, block device, and 9P filesystem
 - **Single JSON configuration file** to configure TinyEMU and simulator parameters, specify RISC-V BIOS and kernel individually
 - **Easy to install, use and hack** with a small codebase
 
