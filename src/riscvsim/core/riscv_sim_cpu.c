@@ -87,14 +87,6 @@ bpu_enabled_decode_stage_handler(struct RISCVCPUState *s, InstructionLatch *e)
 {
     target_ulong ras_target = 0;
 
-    /* Add the branch PC into BPU structures if probe during fetch results in
-     * miss */
-    if (!e->bpu_resp_pkt.bpu_probe_status)
-    {
-        bpu_add(s->simcpu->bpu, e->ins.pc, e->ins.branch_type, &e->bpu_resp_pkt,
-                s->priv, e->ins.is_func_ret);
-    }
-
     /* If return address stack is enabled */
     if (s->simcpu->params->ras_size)
     {
@@ -252,6 +244,14 @@ bpu_enabled_unconditional_branch_handler(RISCVCPUState *s, InstructionLatch *e)
 static int
 bpu_enabled_execute_stage_handler(struct RISCVCPUState *s, InstructionLatch *e)
 {
+    /* Add the branch PC into BPU structures if probe during fetch results in
+     * miss */
+    if (!e->bpu_resp_pkt.bpu_probe_status)
+    {
+        bpu_add(s->simcpu->bpu, e->ins.pc, e->ins.branch_type, &e->bpu_resp_pkt,
+                s->priv, e->ins.is_func_ret);
+    }
+
     switch (e->ins.branch_type)
     {
         case BRANCH_UNCOND:

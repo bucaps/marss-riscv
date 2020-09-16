@@ -35,6 +35,7 @@
  - Fixed
 	 - Memory leaks
 	 - Don't start simulating DRAM access delay until cache lookup delay is simulated
+	 - Branch entry is added to BTB, only after the branch is resolved
 
 # Version 3.1a
 
