@@ -377,7 +377,7 @@ sim_params_validate(SimParams *p)
     validate_param("enable_bpu", 1, 0, 1, p->enable_bpu);
     if (p->enable_bpu)
     {
-        validate_param_p2("btb_size", p->btb_size);
+        // validate_param_p2("btb_size", p->btb_size);
         validate_param("btb_ways", 0, 1, 2048, p->btb_ways);
         validate_param("bpu_type", 1, 0, 1, p->bpu_type);
         validate_param("bpu_flush_on_context_switch", 1, 0, 1,
