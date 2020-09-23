@@ -98,10 +98,12 @@ exec_insn_and_invalidate_rd(RISCVCPUState *s, INCore *core, InstructionLatch *e,
 static void
 fwd_data_from_ex_to_decode(INCore *core, InstructionLatch *e, int fu_type)
 {
+    /* Bypass all integer instructions except div */
+    /* No bypass for memory and floating point instructions */
     if (!e->data_fwd_done
         && !(e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
-        && !e->keep_dest_busy
-        && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
+        && !e->keep_dest_busy && ((e->ins.has_dest && (e->ins.rd != 0)))
+        && !(e->ins.type == INS_TYPE_INT_DIV))
     {
         core->fwd_latch[fu_type].rd = e->ins.rd;
         core->fwd_latch[fu_type].buffer = e->ins.buffer;
