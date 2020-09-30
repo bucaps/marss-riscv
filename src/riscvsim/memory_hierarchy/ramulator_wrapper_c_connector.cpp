@@ -63,9 +63,9 @@ ramulator_wrapper_add_transaction(target_ulong addr, int isWrite)
 }
 
 int
-ramulator_wrapper_get_max_clock_cycles()
+ramulator_wrapper_get_max_clock_cycles(PendingMemAccessEntry *e)
 {
-    return ramulator_wrapper_obj->get_max_clock_cycles();
+    return ramulator_wrapper_obj->get_max_clock_cycles(e);
 }
 
 void

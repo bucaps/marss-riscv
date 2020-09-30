@@ -82,13 +82,14 @@ mem_controller_reset_mem_request_queue(MemoryController *m)
 }
 
 static void
-fill_memory_request_entry(PendingMemAccessEntry *e, target_ulong paddr,
+fill_memory_request_entry(MemoryController *m, PendingMemAccessEntry *e, target_ulong paddr,
                           MemAccessType type, int is_pte)
 {
     e->addr = paddr;
     e->type = type;
     e->req_pte = is_pte;
     e->valid = TRUE;
+    e->access_size_bytes = m->burst_length;
 
     /* Don't start simulating DRAM access delay until cache lookup delay is
      * simulated */
@@ -120,8 +121,8 @@ mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
             case FETCH:
             {
                 fill_memory_request_entry(
-                    &m->frontend_mem_access_queue
-                         .entry[m->frontend_mem_access_queue.cur_idx],
+                    m, &m->frontend_mem_access_queue
+                            .entry[m->frontend_mem_access_queue.cur_idx],
                     paddr, type, FALSE);
                 ++m->frontend_mem_access_queue.cur_idx;
                 ++m->frontend_mem_access_queue.cur_size;
@@ -130,8 +131,8 @@ mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
             case MEMORY:
             {
                 fill_memory_request_entry(
-                    &m->backend_mem_access_queue
-                         .entry[m->backend_mem_access_queue.cur_idx],
+                    m, &m->backend_mem_access_queue
+                            .entry[m->backend_mem_access_queue.cur_idx],
                     paddr, type, FALSE);
                 ++m->backend_mem_access_queue.cur_idx;
                 ++m->backend_mem_access_queue.cur_size;
@@ -152,7 +153,7 @@ mem_controller_create_mem_request(MemoryController *m, target_ulong paddr,
         sim_assert((index != -1), "error: %s at line %d in %s(): %s", __FILE__,
                    __LINE__, __func__, "memory request queue is full");
 
-        fill_memory_request_entry(&m->mem_request_queue.entry[index], paddr,
+        fill_memory_request_entry(m, &m->mem_request_queue.entry[index], paddr,
                                   type, FALSE);
 
         /* Calculate remaining transactions for this access */

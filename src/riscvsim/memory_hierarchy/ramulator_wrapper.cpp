@@ -25,6 +25,9 @@
  * THE SOFTWARE.
  */
 #include "ramulator_wrapper.h"
+#include "memory_controller_utils.h"
+
+#include <unistd.h>
 
 ramulator_wrapper::ramulator_wrapper(const char *config_file,
                                      int cache_line_size)
@@ -37,7 +40,6 @@ ramulator_wrapper::ramulator_wrapper(const char *config_file,
     Config configs(config_file);
     configs.set_core_num(1);
     gem5_wrapper = new Gem5Wrapper(configs, cache_line_size);
-    mem_access_active = false;
 }
 
 ramulator_wrapper::~ramulator_wrapper()
@@ -54,13 +56,34 @@ ramulator_wrapper::finish()
 void
 ramulator_wrapper::read_complete(ramulator::Request &req)
 {
-    mem_access_active = false;
+    auto it = mem_addr_cb_status.find(req.addr);
+    assert(it != mem_addr_cb_status.end());
+    it->second = true;
 }
 
 void
-ramulator_wrapper::write_complete(Request &req)
+ramulator_wrapper::write_complete(ramulator::Request &req)
 {
-    mem_access_active = false;
+    auto it = mem_addr_cb_status.find(req.addr);
+    assert(it != mem_addr_cb_status.end());
+    it->second = true;
+}
+
+bool
+ramulator_wrapper::access_complete()
+{
+    auto it = mem_addr_cb_status.begin();
+
+    while (it != mem_addr_cb_status.end())
+    {
+        if (it->second == false)
+        {
+            return false;
+        }
+        it++;
+    }
+
+    return true;
 }
 
 bool
@@ -81,16 +104,29 @@ ramulator_wrapper::add_transaction(target_ulong addr, bool isWrite)
         request_sent = gem5_wrapper->send(req);
     }
 
-    mem_access_active = true;
     return request_sent;
 }
 
 int
-ramulator_wrapper::get_max_clock_cycles()
+ramulator_wrapper::get_max_clock_cycles(PendingMemAccessEntry *e)
 {
+    int bytes_accessed = 0;
     int clock_cycles_elasped = 0;
+    target_ulong addr;
 
-    while (mem_access_active)
+    mem_addr_cb_status.clear();
+
+    /* Split the entire request size into MEM_BUS_WIDTH sized parts, and query
+     * latency for each of the part separately */
+    while (bytes_accessed < e->access_size_bytes)
+    {
+        addr = e->addr + bytes_accessed;
+        mem_addr_cb_status.insert(std::pair<target_ulong, bool>(addr, false));
+        assert(add_transaction(addr, (bool)e->type));
+        bytes_accessed += MEM_BUS_WIDTH;
+    }
+
+    while (!access_complete())
     {
         gem5_wrapper->tick();
         clock_cycles_elasped++;

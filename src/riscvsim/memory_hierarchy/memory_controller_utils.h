@@ -29,6 +29,9 @@
 
 #include "../riscv_sim_typedefs.h"
 
+#define MEM_BUS_WIDTH 8               /* bytes */
+#define LLC_TO_MEM_CONTROLLER_DELAY 3 /* cycles, one-way delay */
+
 /* Memory operation type */
 typedef enum MemAccessType {
     MEM_ACCESS_READ = 0x0,
@@ -39,8 +42,7 @@ typedef struct PendingMemAccessEntry
 {
     int valid;
     int start_access;
-    int bytes_to_access;
-    int max_bytes_to_access;
+    int access_size_bytes;
     target_ulong addr;
     target_ulong req_addr;
     target_ulong req_pte;
