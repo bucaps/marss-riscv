@@ -139,17 +139,17 @@ dramsim_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
 static int
 ramulator_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
 {
-    int max_clock_cycles;
+    int max_clock_cycles = 0;
     target_ulong ram_addr = get_tinyemu_ram_addr_from_zero(e->addr);
-    assert(ramulator_wrapper_add_transaction(ram_addr, e->type));
-    max_clock_cycles = ramulator_wrapper_get_max_clock_cycles();
+
+    max_clock_cycles = ramulator_wrapper_get_max_clock_cycles(e);
 
     if (max_clock_cycles >= 1000)
     {
-        sim_log_event(sim_log,
-                      "possible ramulator block detected, callback for physical "
-                      "addr 0x% " TARGET_ULONG_HEX "received after %d cycle(s)",
-                      ram_addr, max_clock_cycles);
+        sim_log_event(
+            sim_log, "possible ramulator block detected, callback for physical "
+                     "addr 0x% " TARGET_ULONG_HEX "received after %d cycle(s)",
+            ram_addr, max_clock_cycles);
     }
 
     return max_clock_cycles;
@@ -224,6 +224,17 @@ dram_send_request(Dram *d, PendingMemAccessEntry *e)
 {
     d->max_clock_cycles = d->get_max_clock_cycles_for_request(d, e);
     assert(d->max_clock_cycles);
+
+    /* To model latency between LLC and Memory controller */
+    if (e->type == MEM_ACCESS_READ)
+    {
+        d->max_clock_cycles += (2 * LLC_TO_MEM_CONTROLLER_DELAY);
+    }
+    else if (e->type == MEM_ACCESS_WRITE)
+    {
+        /* One way delay LLC - Memory Controller */
+        d->max_clock_cycles += LLC_TO_MEM_CONTROLLER_DELAY;
+    }
 
     /* Send a write complete callback to the calling pipeline stage as
      * we don't want the pipeline stage to wait for write to complete.

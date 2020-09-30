@@ -28,8 +28,11 @@
 #define _RAMULATOR_WRAPPER_H_
 
 #include "../riscv_sim_typedefs.h"
+#include "memory_controller_utils.h"
+
 #include <Gem5Wrapper.h>
 #include <Request.h>
+#include <map>
 
 using namespace ramulator;
 
@@ -40,15 +43,19 @@ class ramulator_wrapper
     ramulator_wrapper(const char *config_file, int cache_line_size);
     ~ramulator_wrapper();
     bool add_transaction(target_ulong addr, bool isWrite);
-    int get_max_clock_cycles();
+    int get_max_clock_cycles(PendingMemAccessEntry *e);
+    bool access_complete();
     void write_complete(ramulator::Request &req);
     void read_complete(ramulator::Request &req);
     void finish();
-    void print_stats(const char* stats_dir, const char* timestamp);
+    void print_stats(const char *stats_dir, const char *timestamp);
+
+    /* We split the cache-line address into MEM_BUS_WIDTH sized parts, so this map
+     * keeps track of callbacks for each of this part */
+    std::map<target_ulong, bool> mem_addr_cb_status;
 
     std::function<void(ramulator::Request &)> read_cb_func;
     std::function<void(ramulator::Request &)> write_cb_func;
     Gem5Wrapper *gem5_wrapper;
-    bool mem_access_active;
 };
 #endif

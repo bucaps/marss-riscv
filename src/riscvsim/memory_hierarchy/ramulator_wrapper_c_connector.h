@@ -30,6 +30,7 @@
 #include <inttypes.h>
 
 #include "../riscv_sim_typedefs.h"
+#include "memory_controller_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,7 +40,7 @@ void ramulator_wrapper_destroy();
 void ramulator_wrapper_finish();
 void ramulator_wrapper_print_stats(const char* stats_dir, const char* timestamp);
 int ramulator_wrapper_add_transaction(target_ulong addr, int isWrite);
-int ramulator_wrapper_get_max_clock_cycles();
+int ramulator_wrapper_get_max_clock_cycles(PendingMemAccessEntry *e);
 
 #ifdef __cplusplus
 }
