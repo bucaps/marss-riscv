@@ -61,7 +61,7 @@ bpu_enabled_fetch_stage_handler(struct RISCVCPUState *s, InstructionLatch *e)
                                     e->bpu_resp_pkt.btb_entry);
 
         /* Non-zero target means branch is taken, according to the prediction,
-         * so set the predicted address into pcgen unit */
+         * so set the predicted address into fetch unit */
         if (bpu_target)
         {
             s->code_ptr = NULL;

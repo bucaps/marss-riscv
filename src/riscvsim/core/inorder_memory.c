@@ -76,7 +76,7 @@ flush_speculated_cpu_state(INCore *core, InstructionLatch *e)
     int i;
     RISCVCPUState *s = core->simcpu->emu_cpu_state;
 
-    /* Send target PC to pcgen */
+    /* Send target PC to fetch */
     s->code_ptr = NULL;
     s->code_end = NULL;
     s->code_to_pc_addend = e->branch_target;
@@ -87,7 +87,6 @@ flush_speculated_cpu_state(INCore *core, InstructionLatch *e)
     e->branch_target = e->branch_target;
 
     /* Flush all the preceding stages */
-    cpu_stage_flush(&core->pcgen);
     cpu_stage_flush(&core->fetch);
     cpu_stage_flush(&core->decode);
 
@@ -108,7 +107,8 @@ flush_speculated_cpu_state(INCore *core, InstructionLatch *e)
     mem_controller_reset(s->simcpu->mem_hierarchy->mem_controller);
 
     /* To start fetching */
-    core->pcgen.has_data = TRUE;
+    core->fetch.has_data = TRUE;
+    core->fetch.stage_exec_done = FALSE;
 
     /* To start fetching target instruction from next cycle */
     core->simcpu->skip_fetch_cycle = TRUE;
@@ -216,7 +216,6 @@ in_core_memory1(INCore *core)
             if (e->ins.exception)
             {
                 sim_exception_set(s->simcpu->exception, e);
-                cpu_stage_flush(&core->pcgen);
                 cpu_stage_flush(&core->fetch);
                 cpu_stage_flush(&core->decode);
                 cpu_stage_flush(&core->memory1);

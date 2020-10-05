@@ -90,11 +90,6 @@ in_core_init(const SimParams *p, struct RISCVSIMCPUState *simcpu)
             core->pfn_incore_run_internal = &in_core_run_5_stage;
             break;
         }
-        case 6:
-        {
-            core->pfn_incore_run_internal = &in_core_run_6_stage;
-            break;
-        }
     }
 
     core->simcpu = simcpu;
@@ -111,7 +106,6 @@ in_core_reset(void *core_type)
     core = (INCore *)core_type;
 
     /* Reset stages */
-    cpu_stage_flush(&core->pcgen);
     cpu_stage_flush(&core->fetch);
     cpu_stage_flush(&core->decode);
     cpu_stage_flush(&core->memory1);
@@ -119,7 +113,7 @@ in_core_reset(void *core_type)
     cpu_stage_flush(&core->commit);
 
     /* To start fetching */
-    core->pcgen.has_data = TRUE;
+    core->fetch.has_data = TRUE;
 
     /* Reset register valid bits */
     for (i = 0; i < NUM_INT_REG; ++i)
@@ -171,7 +165,7 @@ in_core_pipeline_drained(const INCore *core)
     int i;
     RISCVSIMCPUState *simcpu = core->simcpu;
 
-    if (core->pcgen.has_data || core->fetch.has_data || core->decode.has_data
+    if (core->fetch.has_data || core->decode.has_data
         || core->fpu_alu.has_data || core->memory1.has_data || core->memory2.has_data
         || core->commit.has_data)
     {
@@ -245,29 +239,6 @@ in_core_run(void *core_type)
 }
 
 int
-in_core_run_6_stage(INCore *core)
-{
-    if (in_core_commit(core))
-    {
-        /* Timeout */
-        return -1;
-    }
-
-    in_core_memory2(core);
-    in_core_memory1(core);
-    in_core_execute_all(core);
-    in_core_decode(core);
-
-    /* After the instruction in decode reads forwarded value, clear
-     * forwarding latches. This keeps the data on forwarding latches valid
-     * for exactly one cycle */
-    memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
-    in_core_fetch(core);
-    in_core_pcgen(core);
-    return 0;
-}
-
-int
 in_core_run_5_stage(INCore *core)
 {
     if (in_core_commit(core))
@@ -285,7 +256,6 @@ in_core_run_5_stage(INCore *core)
      * forwarding latches. This keeps the data on forwarding latches valid
      * for exactly one cycle */
     memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
-    in_core_pcgen(core);
     in_core_fetch(core);
     return 0;
 }

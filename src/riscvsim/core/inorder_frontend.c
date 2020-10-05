@@ -1,5 +1,5 @@
 /*
- * In-order Pipeline Front-end Stages: pcgen, fetch and decode
+ * In-order Pipeline Front-end Stages: fetch and decode
  *
  * Copyright (c) 2016-2017 Fabrice Bellard
  *
@@ -35,20 +35,20 @@
 #include "../utils/circular_queue.h"
 #include "riscv_sim_cpu.h"
 
-/*===========================================
-=            PC Generation Stage            =
-===========================================*/
+/*===============================================
+=            Instruction Fetch Stage            =
+===============================================*/
 
 void
-in_core_pcgen(INCore *core)
+in_core_fetch(INCore *core)
 {
     InstructionLatch *e;
     RISCVCPUState *s;
 
     s = core->simcpu->emu_cpu_state;
-    if (core->pcgen.has_data)
+    if (core->fetch.has_data)
     {
-        if (!core->pcgen.stage_exec_done)
+        if (!core->fetch.stage_exec_done)
         {
             if (core->simcpu->skip_fetch_cycle)
             {
@@ -75,45 +75,11 @@ in_core_pcgen(INCore *core)
              * info is stored in this insn_latch_pool entry.
              * NOTE: This avoids copying of whole decoded instruction info when
              * instruction flows to next stage */
-            core->pcgen.insn_latch_index = e->insn_latch_index;
-            core->pcgen.stage_exec_done = TRUE;
-        }
+            core->fetch.insn_latch_index = e->insn_latch_index;
 
-        /* If next stage is free, pass this instruction to the next stage, else
-         * stall */
-        if (!core->fetch.has_data)
-        {
-            core->pcgen.stage_exec_done = FALSE;
-            core->fetch = core->pcgen;
-            core->pcgen.insn_latch_index = -1;
-        }
-    }
-}
-
-/*=====  End of PC Generation Stage  ======*/
-
-/*===============================================
-=            Instruction Fetch Stage            =
-===============================================*/
-
-void
-in_core_fetch(INCore *core)
-{
-    InstructionLatch *e;
-    RISCVCPUState *s;
-
-    s = core->simcpu->emu_cpu_state;
-    if (core->fetch.has_data)
-    {
-        e = get_insn_latch(s->simcpu->insn_latch_pool,
-                           core->fetch.insn_latch_index);
-        if (!core->fetch.stage_exec_done)
-        {
             fetch_cpu_stage_exec(s, e);
             if (e->ins.exception)
             {
-                /* Stop pcgen stage and save exception context */
-                cpu_stage_flush(&core->pcgen);
                 sim_exception_set(s->simcpu->exception, e);
             }
             core->fetch.stage_exec_done = TRUE;
@@ -138,7 +104,7 @@ in_core_fetch(INCore *core)
                     s->simcpu->mem_hierarchy->mem_controller,
                     &s->simcpu->mem_hierarchy->mem_controller
                          ->frontend_mem_access_queue);
-                e->cache_lookup_complete_signal_sent =  TRUE;
+                e->cache_lookup_complete_signal_sent = TRUE;
             }
 
             /* Wait on memory controller callback for any pending memory
@@ -166,6 +132,9 @@ in_core_fetch(INCore *core)
                         e->elasped_clock_cycles = 0;
                         core->decode = core->fetch;
                         cpu_stage_flush(&core->fetch);
+
+                        /* For next fetch */
+                        core->fetch.has_data = TRUE;
                     }
                 }
             }
@@ -396,9 +365,7 @@ in_core_decode(INCore *core)
                     /* RAS has redirected the control flow, so flush */
                     cpu_stage_flush_free_insn_latch(&core->fetch,
                                                     s->simcpu->insn_latch_pool);
-                    cpu_stage_flush_free_insn_latch(&core->pcgen,
-                                                    s->simcpu->insn_latch_pool);
-                    core->pcgen.has_data = TRUE;
+                    core->fetch.has_data = TRUE;
                 }
                 e->is_decoded = TRUE;
             }
@@ -407,7 +374,6 @@ in_core_decode(INCore *core)
             if (unlikely(e->ins.exception))
             {
                 sim_exception_set(s->simcpu->exception, e);
-                cpu_stage_flush(&core->pcgen);
                 cpu_stage_flush(&core->fetch);
                 cpu_stage_flush(&core->decode);
                 return;

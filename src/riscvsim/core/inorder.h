@@ -62,7 +62,6 @@ typedef struct DataFWDLatch
 typedef struct INCore
 {
     /*----------  In-order pipeline stages   ----------*/
-    CPUStage pcgen;
     CPUStage fetch;
     CPUStage decode;
     CPUStage memory1;
@@ -101,7 +100,6 @@ void in_core_free(void *core_type);
 int in_core_run(void *core_type);
 
 /*----------  In-order core stages  ----------*/
-void in_core_pcgen(INCore *core);
 void in_core_fetch(INCore *core);
 void in_core_decode(INCore *core);
 void in_core_execute_all(INCore *core);
