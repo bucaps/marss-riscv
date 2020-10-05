@@ -64,9 +64,9 @@ dramsim_wrapper_add_transaction(target_ulong addr, int isWrite)
 }
 
 int
-dramsim_wrapper_get_max_clock_cycles()
+dramsim_wrapper_get_max_clock_cycles(PendingMemAccessEntry *e)
 {
-    return dramsim_wrapper_obj->get_max_clock_cycles();
+    return dramsim_wrapper_obj->get_max_clock_cycles(e);
 }
 
 void

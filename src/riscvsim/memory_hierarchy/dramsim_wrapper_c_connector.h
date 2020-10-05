@@ -30,6 +30,7 @@
 #include <inttypes.h>
 
 #include "../riscv_sim_typedefs.h"
+#include "memory_controller_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,8 +39,8 @@ void dramsim_wrapper_init(const char *config_file, const char *output_dir);
 void dramsim_wrapper_destroy();
 int dramsim_wrapper_can_add_transaction(target_ulong addr, int isWrite);
 int dramsim_wrapper_add_transaction(target_ulong addr, int isWrite);
-int dramsim_wrapper_get_max_clock_cycles();
-void dramsim_wrapper_print_stats(const char* timestamp);
+int dramsim_wrapper_get_max_clock_cycles(PendingMemAccessEntry *e);
+void dramsim_wrapper_print_stats(const char *timestamp);
 void dramsim_wrapper_reset_stats();
 int dramsim_get_burst_size();
 

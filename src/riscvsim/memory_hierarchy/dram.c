@@ -121,15 +121,13 @@ dramsim_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
 {
     int max_clock_cycles;
     target_ulong ram_addr = get_tinyemu_ram_addr_from_zero(e->addr);
-    assert(dramsim_wrapper_can_add_transaction(ram_addr, e->type));
-    dramsim_wrapper_add_transaction(ram_addr, e->type);
-    max_clock_cycles = dramsim_wrapper_get_max_clock_cycles();
+    max_clock_cycles = dramsim_wrapper_get_max_clock_cycles(e);
 
     if (max_clock_cycles >= 1000)
     {
         sim_log_event(sim_log,
                       "possible dramsim3 block detected, callback for physical "
-                      "addr 0x% " TARGET_ULONG_HEX "received after %d cycle(s)",
+                      "addr 0x% " TARGET_ULONG_HEX " received after %d cycle(s)",
                       ram_addr, max_clock_cycles);
     }
 
@@ -148,7 +146,7 @@ ramulator_get_max_clock_cycles(Dram *d, PendingMemAccessEntry *e)
     {
         sim_log_event(
             sim_log, "possible ramulator block detected, callback for physical "
-                     "addr 0x% " TARGET_ULONG_HEX "received after %d cycle(s)",
+                     "addr 0x% " TARGET_ULONG_HEX " received after %d cycle(s)",
             ram_addr, max_clock_cycles);
     }
 

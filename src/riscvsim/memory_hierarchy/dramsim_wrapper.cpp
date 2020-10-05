@@ -39,8 +39,6 @@ dramsim_wrapper::dramsim_wrapper(const char *config_file,
 {
     dramsim = GetMemorySystem(std::string(config_file), std::string(output_dir),
                               read_cb, write_cb);
-
-    mem_access_active = FALSE;
 }
 
 dramsim_wrapper::~dramsim_wrapper()
@@ -51,13 +49,34 @@ dramsim_wrapper::~dramsim_wrapper()
 void
 dramsim_wrapper::read_complete(uint64_t addr)
 {
-    mem_access_active = FALSE;
+    auto it = mem_addr_cb_status.find(addr);
+    assert(it != mem_addr_cb_status.end());
+    it->second = true;
 }
 
 void
 dramsim_wrapper::write_complete(uint64_t addr)
 {
-    mem_access_active = FALSE;
+    auto it = mem_addr_cb_status.find(addr);
+    assert(it != mem_addr_cb_status.end());
+    it->second = true;
+}
+
+bool
+dramsim_wrapper::access_complete()
+{
+    auto it = mem_addr_cb_status.begin();
+
+    while (it != mem_addr_cb_status.end())
+    {
+        if (it->second == false)
+        {
+            return false;
+        }
+        it++;
+    }
+
+    return true;
 }
 
 bool
@@ -69,16 +88,29 @@ dramsim_wrapper::can_add_transaction(target_ulong addr, bool isWrite)
 bool
 dramsim_wrapper::add_transaction(target_ulong addr, bool isWrite)
 {
-    mem_access_active = TRUE;
     return dramsim->AddTransaction(addr, isWrite);
 }
 
 int
-dramsim_wrapper::get_max_clock_cycles()
+dramsim_wrapper::get_max_clock_cycles(PendingMemAccessEntry *e)
 {
+    int bytes_accessed = 0;
     int clock_cycles_elasped = 0;
+    target_ulong addr;
 
-    while (mem_access_active)
+    mem_addr_cb_status.clear();
+
+    /* Split the entire request size into MEM_BUS_WIDTH sized parts, and query
+     * latency for each of the part separately */
+    while (bytes_accessed < e->access_size_bytes)
+    {
+        addr = e->addr + bytes_accessed;
+        mem_addr_cb_status.insert(std::pair<target_ulong, bool>(addr, false));
+        assert(add_transaction(addr, (bool)e->type));
+        bytes_accessed += MEM_BUS_WIDTH;
+    }
+
+    while (!access_complete())
     {
         dramsim->ClockTick();
         clock_cycles_elasped++;
@@ -88,7 +120,7 @@ dramsim_wrapper::get_max_clock_cycles()
 }
 
 void
-dramsim_wrapper::print_stats(const char* timestamp)
+dramsim_wrapper::print_stats(const char *timestamp)
 {
     dramsim->PrintStats(timestamp);
 }

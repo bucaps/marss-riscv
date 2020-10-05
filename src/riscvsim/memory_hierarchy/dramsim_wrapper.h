@@ -29,8 +29,10 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 
 #include "../riscv_sim_typedefs.h"
+#include "memory_controller_utils.h"
 #include <memory_system.h>
 
 using namespace dramsim3;
@@ -43,16 +45,20 @@ class dramsim_wrapper
     ~dramsim_wrapper();
     bool can_add_transaction(target_ulong addr, bool isWrite);
     bool add_transaction(target_ulong addr, bool isWrite);
-    int get_max_clock_cycles();
+    int get_max_clock_cycles(PendingMemAccessEntry *e);
     void reset_stats();
     void print_stats(const char* timestamp);
     int get_burst_size();
     void read_complete(uint64_t);
     void write_complete(uint64_t);
+    bool access_complete();
+
+    /* We split the cache-line address into MEM_BUS_WIDTH sized parts, so this map
+     * keeps track of callbacks for each of this part */
+    std::map<target_ulong, bool> mem_addr_cb_status;
 
     MemorySystem *dramsim;
     std::function<void(uint64_t)> read_cb;
     std::function<void(uint64_t)> write_cb;
-    int mem_access_active;
 };
 #endif
