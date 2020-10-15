@@ -91,6 +91,7 @@ exec_insn_and_invalidate_rd(RISCVCPUState *s, INCore *core, InstructionLatch *e,
     }
 
     e->elasped_clock_cycles = 1;
+    e->ins.rm = get_insn_rm(s, (e->ins.binary >> 12) & 7);
     execute_riscv_instruction(&e->ins, &s->fflags);
     ++s->simcpu->stats[s->priv].fu_access[fu_type];
 }
