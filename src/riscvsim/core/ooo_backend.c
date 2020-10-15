@@ -241,6 +241,7 @@ oo_core_execute_non_pipe(OOCore *core, int fu_type, CPUStage *stage)
         e = get_insn_latch(s->simcpu->insn_latch_pool, stage->insn_latch_index);
         if (!stage->stage_exec_done)
         {
+            e->ins.rm = get_insn_rm(s, (e->ins.binary >> 12) & 7);
             execute_riscv_instruction(&e->ins, &s->fflags);
 
             /* Update FU stats */
@@ -310,6 +311,7 @@ oo_core_execute_pipe(OOCore *core, int cur_stage_id, int fu_type, CPUStage *stag
         e = get_insn_latch(s->simcpu->insn_latch_pool, stage->insn_latch_index);
         if (!stage->stage_exec_done)
         {
+            e->ins.rm = get_insn_rm(s, (e->ins.binary >> 12) & 7);
             execute_riscv_instruction(&e->ins, &s->fflags);
 
             /* Update FU stats */
