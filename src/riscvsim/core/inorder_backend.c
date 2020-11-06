@@ -99,17 +99,11 @@ exec_insn_and_invalidate_rd(RISCVCPUState *s, INCore *core, InstructionLatch *e,
 static void
 fwd_data_from_ex_to_decode(INCore *core, InstructionLatch *e, int fu_type)
 {
-    if (!e->data_fwd_done
-        && !(e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
+    if (!(e->ins.is_load || e->ins.is_store || e->ins.is_atomic)
         && !e->keep_dest_busy
-        && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
+        && ((e->ins.has_dest && (e->ins.rd != 0)) || e->ins.has_fp_dest))
     {
-        core->fwd_latch[fu_type].rd = e->ins.rd;
-        core->fwd_latch[fu_type].buffer = e->ins.buffer;
-        core->fwd_latch[fu_type].int_dest = e->ins.has_dest;
-        core->fwd_latch[fu_type].fp_dest = e->ins.has_fp_dest;
-        core->fwd_latch[fu_type].valid = TRUE;
-        e->data_fwd_done = TRUE;
+        e->result_ready = TRUE;
     }
 }
 
@@ -123,7 +117,6 @@ push_insn_from_ex_to_mem(INCore *core, InstructionLatch *e, CPUStage *stage)
         {
             cq_dequeue(&core->ex_to_mem_queue.cq);
             e->elasped_clock_cycles = 0;
-            e->data_fwd_done = FALSE;
             stage->stage_exec_done = FALSE;
             core->memory1 = *stage;
             cpu_stage_flush(stage);

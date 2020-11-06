@@ -72,9 +72,6 @@ typedef struct INCore
     uint32_t int_reg_status[NUM_INT_REG];
     uint32_t fp_reg_status[NUM_FP_REG];
 
-    /*----------  Forwarding buses  ----------*/
-    DataFWDLatch fwd_latch[NUM_FWD_BUS];
-
     /*----------  EX to Mem Queue  ----------*/
     ExToMemQueue ex_to_mem_queue;
 

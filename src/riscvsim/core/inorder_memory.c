@@ -100,9 +100,6 @@ flush_speculated_cpu_state(INCore *core, InstructionLatch *e)
     /* Reset FU to MEM selector queue */
     cq_reset(&core->ex_to_mem_queue.cq);
 
-    /* Flush FWD latches */
-    memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
-
     /* Flush memory controller queues on flush */
     mem_controller_reset(s->simcpu->mem_hierarchy->mem_controller);
 
@@ -251,17 +248,12 @@ in_core_memory1(INCore *core)
                 return;
             }
 
-            /* Push the data read by loads/atomics on forwarding bus*/
-            if (!e->ins.exception && !e->data_fwd_done && !e->keep_dest_busy
+            if (!e->ins.exception && !e->keep_dest_busy
                 && !(e->ins.is_load || e->ins.is_atomic)
-                && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
+                && ((e->ins.has_dest && (e->ins.rd != 0))
+                    || e->ins.has_fp_dest))
             {
-                core->fwd_latch[NUM_FWD_BUS - 2].rd = e->ins.rd;
-                core->fwd_latch[NUM_FWD_BUS - 2].buffer = e->ins.buffer;
-                core->fwd_latch[NUM_FWD_BUS - 2].int_dest = e->ins.has_dest;
-                core->fwd_latch[NUM_FWD_BUS - 2].fp_dest = e->ins.has_fp_dest;
-                core->fwd_latch[NUM_FWD_BUS - 2].valid = TRUE;
-                e->data_fwd_done = TRUE;
+                e->result_ready = TRUE;
             }
 
             /* If the commit stage is available, send this instruction to commit
@@ -276,7 +268,6 @@ in_core_memory1(INCore *core)
                     core->memory1.stage_exec_done = FALSE;
                     e->max_clock_cycles = 0;
                     e->elasped_clock_cycles = 0;
-                    e->data_fwd_done = FALSE;
                     core->memory2 = core->memory1;
                     cpu_stage_flush(&core->memory1);
                 }
@@ -292,7 +283,6 @@ in_core_memory1(INCore *core)
                     core->memory1.stage_exec_done = FALSE;
                     e->max_clock_cycles = 0;
                     e->elasped_clock_cycles = 0;
-                    e->data_fwd_done = FALSE;
                     core->commit = core->memory1;
                     cpu_stage_flush(&core->memory1);
                 }
@@ -329,17 +319,12 @@ in_core_memory2(INCore *core)
 
         if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
-            /* Push the data read by loads/atomics on forwarding bus*/
-            if (!e->ins.exception && !e->data_fwd_done && !e->keep_dest_busy
+            if (!e->ins.exception && !e->keep_dest_busy
                 && (e->ins.is_load || e->ins.is_atomic)
-                && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
+                && ((e->ins.has_dest && (e->ins.rd != 0))
+                    || e->ins.has_fp_dest))
             {
-                core->fwd_latch[NUM_FWD_BUS - 1].rd = e->ins.rd;
-                core->fwd_latch[NUM_FWD_BUS - 1].buffer = e->ins.buffer;
-                core->fwd_latch[NUM_FWD_BUS - 1].int_dest = e->ins.has_dest;
-                core->fwd_latch[NUM_FWD_BUS - 1].fp_dest = e->ins.has_fp_dest;
-                core->fwd_latch[NUM_FWD_BUS - 1].valid = TRUE;
-                e->data_fwd_done = TRUE;
+                e->result_ready = TRUE;
             }
 
             if (!core->commit.has_data)
@@ -350,7 +335,6 @@ in_core_memory2(INCore *core)
                 core->memory2.stage_exec_done = FALSE;
                 e->max_clock_cycles = 0;
                 e->elasped_clock_cycles = 0;
-                e->data_fwd_done = FALSE;
                 core->commit = core->memory2;
                 cpu_stage_flush(&core->memory2);
             }

@@ -51,7 +51,6 @@ in_core_log_config(const INCore *core)
                   core_type_str[core->simcpu->params->core_type]);
     sim_log_param_to_file(sim_log, "%s: %d", "num_cpu_stages",
                   core->simcpu->params->num_cpu_stages);
-    sim_log_param_to_file(sim_log, "%s: %d", "num_data_fwd_buses", NUM_FWD_BUS);
     sim_log_param_to_file(sim_log, "%s: %d", "ex_to_mem_selector_queue_size",
                   INCORE_EX_TO_MEM_QUEUE_SIZE);
 }
@@ -137,9 +136,6 @@ in_core_reset(void *core_type)
     /* Reset EX to Memory queue */
     core->ins_dispatch_id = 0;
     cq_reset(&core->ex_to_mem_queue.cq);
-
-    /* Reset Data FWD latches */
-    memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
 }
 
 void
@@ -251,11 +247,6 @@ in_core_run_5_stage(INCore *core)
     in_core_memory1(core);
     in_core_execute_all(core);
     in_core_decode(core);
-
-    /* After the instruction in decode reads forwarded value, clear
-     * forwarding latches. This keeps the data on forwarding latches valid
-     * for exactly one cycle */
-    memset((void *)core->fwd_latch, 0, sizeof(DataFWDLatch) * NUM_FWD_BUS);
     in_core_fetch(core);
     return 0;
 }

@@ -48,11 +48,11 @@ typedef struct InstructionLatch
     int elasped_clock_cycles;
     int cache_lookup_complete_signal_sent;
 
-    int data_fwd_done;
     int read_rs1;
     int read_rs2;
     int read_rs3;
     int keep_dest_busy;
+    int result_ready;
 
     int renamed;
     int rob_idx;

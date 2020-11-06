@@ -155,26 +155,143 @@ in_core_fetch(INCore *core)
 /*================================================
 =            Instruction Decode Stage            =
 ================================================*/
+static int
+get_int_operand_from_stage(const INCore *core, const CPUStage *stage, int rs,
+                           uint64_t *buffer)
+{
+    InstructionLatch *e;
+
+    if (stage->has_data)
+    {
+        e = get_insn_latch(core->simcpu->insn_latch_pool,
+                           stage->insn_latch_index);
+
+        if (e->ins.has_dest && (e->ins.rd == rs) && e->result_ready
+            && !e->keep_dest_busy)
+        {
+            *buffer = (target_ulong)e->ins.buffer;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static int
+get_fp_operand_from_stage(const INCore *core, const CPUStage *stage, int rs,
+                          uint64_t *buffer)
+{
+    InstructionLatch *e;
+
+    if (stage->has_data)
+    {
+        e = get_insn_latch(core->simcpu->insn_latch_pool,
+                           stage->insn_latch_index);
+
+        if (e->ins.has_fp_dest && (e->ins.rd == rs) && e->result_ready
+            && !e->keep_dest_busy)
+        {
+            *buffer = e->ins.buffer;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static int
+look_ahead_for_int_operand(const INCore *core, int rs, uint64_t *buffer)
+{
+    if (get_int_operand_from_stage(core, &core->commit, rs, buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_int_operand_from_stage(core, &core->memory2, rs, buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_int_operand_from_stage(core, &core->memory1, rs, buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_int_operand_from_stage(core, &core->fpu_alu, rs, buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_int_operand_from_stage(
+            core, &core->idiv[core->simcpu->params->num_div_stages - 1], rs,
+            buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_int_operand_from_stage(
+            core, &core->imul[core->simcpu->params->num_mul_stages - 1], rs,
+            buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_int_operand_from_stage(
+            core, &core->ialu[core->simcpu->params->num_alu_stages - 1], rs,
+            buffer))
+    {
+        return TRUE;
+    }
+
+    /* Operand read attempt failure */
+    return FALSE;
+}
+
+static int
+look_ahead_for_fp_operand(const INCore *core, int rs, uint64_t *buffer)
+{
+    if (get_fp_operand_from_stage(core, &core->commit, rs, buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_fp_operand_from_stage(core, &core->memory2, rs, buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_fp_operand_from_stage(core, &core->memory1, rs, buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_fp_operand_from_stage(core, &core->fpu_alu, rs, buffer))
+    {
+        return TRUE;
+    }
+
+    if (get_fp_operand_from_stage(
+            core, &core->fpu_fma[core->simcpu->params->num_fpu_fma_stages - 1],
+            rs, buffer))
+    {
+        return TRUE;
+    }
+
+    /* Operand read attempt failure */
+    return FALSE;
+}
 
 static void
 read_int_operand(const INCore *core, int has_src, int *read_rs, int rs,
                  uint64_t *buffer, int *reg_file_read_done)
 {
-    int i;
-
     if (has_src && !(*read_rs))
     {
         if (!core->int_reg_status[rs])
         {
-            for (i = 0; i < NUM_FWD_BUS; ++i)
+            if (look_ahead_for_int_operand(core, rs, buffer))
             {
-                if (core->fwd_latch[i].valid && core->fwd_latch[i].int_dest
-                    && (core->fwd_latch[i].rd == rs))
-                {
-                    *buffer = (target_ulong)core->fwd_latch[i].buffer;
-                    *read_rs = TRUE;
-                    break;
-                }
+                *read_rs = TRUE;
             }
         }
         else
@@ -190,22 +307,13 @@ static void
 read_fp_operand(const INCore *core, int has_src, int *read_rs, int rs,
                 uint64_t *buffer, int *reg_file_read_done)
 {
-    int i;
-
     if (has_src && !(*read_rs))
     {
         if (!core->fp_reg_status[rs])
         {
-            /* Floating point execution units start from ID 3 onwards */
-            for (i = 3; i < NUM_FWD_BUS; ++i)
+            if (look_ahead_for_fp_operand(core, rs, buffer))
             {
-                if (core->fwd_latch[i].valid && core->fwd_latch[i].fp_dest
-                    && (core->fwd_latch[i].rd == rs))
-                {
-                    *buffer = core->fwd_latch[i].buffer;
-                    *read_rs = TRUE;
-                    break;
-                }
+                *read_rs = TRUE;
             }
         }
         else
