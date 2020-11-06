@@ -311,10 +311,9 @@ in_core_memory2(INCore *core)
 
         if (e->elasped_clock_cycles == e->max_clock_cycles)
         {
-            /* Bypass result of only integer and FP load instructions */
+            /* Bypass only integer load instructions */
             if (!e->ins.exception && !e->data_fwd_done && !e->keep_dest_busy
-                && (e->ins.is_load)
-                && ((e->ins.has_dest && (e->ins.rd != 0)) || e->ins.has_fp_dest)
+                && (e->ins.is_load) && (e->ins.has_dest && (e->ins.rd != 0))
                 && !(e->ins.type == INS_TYPE_INT_DIV))
             {
                 core->fwd_latch[NUM_FWD_BUS - 1].rd = e->ins.rd;
