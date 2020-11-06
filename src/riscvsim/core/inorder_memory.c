@@ -143,6 +143,26 @@ adjust_latency_hack(INCore *core, InstructionLatch *e)
     }
 }
 
+static int
+push_insn_from_memory1_to_commit(INCore *core, InstructionLatch *e)
+{
+    InstructionLatch *e1;
+
+    /* Check if memory 2 has earlier instruction */
+    if (core->memory2.has_data)
+    {
+        e1 = get_insn_latch(core->simcpu->insn_latch_pool,
+                            core->memory2.insn_latch_index);
+
+        if (e1->ins_dispatch_id < e->ins_dispatch_id)
+        {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 /**
  * Memory 1 stage: main stage for all the instructions
  */
@@ -236,11 +256,11 @@ in_core_memory1(INCore *core)
                 && !(e->ins.is_load || e->ins.is_atomic)
                 && ((e->ins.has_dest && e->ins.rd != 0) || e->ins.has_fp_dest))
             {
-                core->fwd_latch[NUM_FWD_BUS - 1].rd = e->ins.rd;
-                core->fwd_latch[NUM_FWD_BUS - 1].buffer = e->ins.buffer;
-                core->fwd_latch[NUM_FWD_BUS - 1].int_dest = e->ins.has_dest;
-                core->fwd_latch[NUM_FWD_BUS - 1].fp_dest = e->ins.has_fp_dest;
-                core->fwd_latch[NUM_FWD_BUS - 1].valid = TRUE;
+                core->fwd_latch[NUM_FWD_BUS - 2].rd = e->ins.rd;
+                core->fwd_latch[NUM_FWD_BUS - 2].buffer = e->ins.buffer;
+                core->fwd_latch[NUM_FWD_BUS - 2].int_dest = e->ins.has_dest;
+                core->fwd_latch[NUM_FWD_BUS - 2].fp_dest = e->ins.has_fp_dest;
+                core->fwd_latch[NUM_FWD_BUS - 2].valid = TRUE;
                 e->data_fwd_done = TRUE;
             }
 
@@ -263,8 +283,8 @@ in_core_memory1(INCore *core)
             }
             else
             {
-                assert(!core->memory2.has_data);
-                if (!core->commit.has_data)
+                if (!core->commit.has_data
+                    && push_insn_from_memory1_to_commit(core, e))
                 {
                     s->simcpu->mem_hierarchy->mem_controller
                         ->backend_mem_access_queue.cur_idx

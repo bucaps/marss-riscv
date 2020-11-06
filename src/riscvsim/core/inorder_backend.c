@@ -119,30 +119,14 @@ push_insn_from_ex_to_mem(INCore *core, InstructionLatch *e, CPUStage *stage)
     if (core->ex_to_mem_queue.data[cq_front(&core->ex_to_mem_queue.cq)]
         == e->ins_dispatch_id)
     {
-        if (e->ins.is_load || e->ins.is_atomic)
+        if (!core->memory1.has_data)
         {
-            if (!core->memory1.has_data)
-            {
-                cq_dequeue(&core->ex_to_mem_queue.cq);
-                e->elasped_clock_cycles = 0;
-                e->data_fwd_done = FALSE;
-                stage->stage_exec_done = FALSE;
-                core->memory1 = *stage;
-                cpu_stage_flush(stage);
-            }
-        }
-        else
-        {
-
-            if (!core->memory1.has_data && !core->memory2.has_data)
-            {
-                cq_dequeue(&core->ex_to_mem_queue.cq);
-                e->elasped_clock_cycles = 0;
-                e->data_fwd_done = FALSE;
-                stage->stage_exec_done = FALSE;
-                core->memory1 = *stage;
-                cpu_stage_flush(stage);
-            }
+            cq_dequeue(&core->ex_to_mem_queue.cq);
+            e->elasped_clock_cycles = 0;
+            e->data_fwd_done = FALSE;
+            stage->stage_exec_done = FALSE;
+            core->memory1 = *stage;
+            cpu_stage_flush(stage);
         }
     }
 }

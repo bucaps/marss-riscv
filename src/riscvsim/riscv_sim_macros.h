@@ -89,7 +89,7 @@
 #define NUM_INT_REG 32
 #define NUM_FP_REG 32
 #define NUM_FU 5 /* ALU, MUL, DIV, FP ALU, FP FMA */
-#define NUM_FWD_BUS 6 /* Total 6 forwarding buses, 5 for functional units  and 1 for memory stage */
+#define NUM_FWD_BUS 7 /* Total 7 forwarding buses, 5 for functional units and 2 for memory stages */
 #define INCORE_EX_TO_MEM_QUEUE_SIZE 16
 #define SPEC_REG_STATE_ENTRY 128
 
