@@ -2059,10 +2059,13 @@ static void fs_create_cmd(FSDevice *fs)
     FSFile *root_fd;
     FSQID qid;
     FSINode *n;
+    int ret;
     
-    assert(!fs->fs_attach(fs, &root_fd, &qid, 0, "", ""));
-    assert(!fs->fs_create(fs, &qid, root_fd, FSCMD_NAME, P9_O_RDWR | P9_O_TRUNC,
-                          0666, 0));
+    ret = fs->fs_attach(fs, &root_fd, &qid, 0, "", "");
+    assert(ret == 0);
+    ret = fs->fs_create(fs, &qid, root_fd, FSCMD_NAME, P9_O_RDWR | P9_O_TRUNC,
+                    0666, 0);
+    assert(ret == 0);
     n = root_fd->inode;
     n->u.reg.is_fscmd = TRUE;
     fs->fs_delete(fs, root_fd);
@@ -2129,13 +2132,15 @@ static void fs_initial_sync(FSDevice *fs,
     char *head_url;
     char buf[128];
     struct timeval tv;
+    int err;
     
     s = mallocz(sizeof(*s));
     s->fs = fs;
     s->url = strdup(url);
     s->start_cb = start_cb;
     s->start_opaque = start_opaque;
-    assert(!fs->fs_attach(fs, &s->root_fd, &qid, 0, "", ""));
+    err = fs->fs_attach(fs, &s->root_fd, &qid, 0, "", "");
+    assert(err == 0);
     
     /* avoid using cached version */
     gettimeofday(&tv, NULL);
@@ -2143,8 +2148,9 @@ static void fs_initial_sync(FSDevice *fs,
              (int64_t)tv.tv_sec * 1000000 + tv.tv_usec);
     head_url = compose_url(s->url, buf);
     head_fd = fs_dup(fs, s->root_fd);
-    assert(!fs->fs_create(fs, &qid, head_fd, ".head",
-                          P9_O_RDWR | P9_O_TRUNC, 0644, 0));
+    err = fs->fs_create(fs, &qid, head_fd, ".head",
+                    P9_O_RDWR | P9_O_TRUNC, 0644, 0);
+    assert(err == 0);
     fs_wget_file2(fs, head_fd, head_url, NULL, NULL, NULL, 0,
                   head_loaded, s, NULL);
     free(head_url);
@@ -2159,6 +2165,7 @@ static void head_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
     FSFile *new_filelist_fd;
     FSQID qid;
     uint64_t fs_max_size;
+    int err;
     
     if (size < 0)
         fatal_error("could not load 'head' file (HTTP error=%d)", -(int)size);
@@ -2185,8 +2192,9 @@ static void head_loaded(FSDevice *fs, FSFile *f, int64_t size, void *opaque)
     fs_net_set_base_url(fs, "/", root_url, NULL, NULL, NULL);
     
     new_filelist_fd = fs_dup(fs, s->root_fd);
-    assert(!fs->fs_create(fs, &qid, new_filelist_fd, ".filelist.txt",
-                          P9_O_RDWR | P9_O_TRUNC, 0644, 0));
+    err = fs->fs_create(fs, &qid, new_filelist_fd, ".filelist.txt",
+                    P9_O_RDWR | P9_O_TRUNC, 0644, 0);
+    assert(err == 0);
 
     file_id_to_filename(fname, root_id);
     url = compose_url(root_url, fname);
@@ -2516,7 +2524,8 @@ static int fs_cmd_xhr(FSDevice *fs, FSFile *f,
         password = NULL;
 
     //    printf("url='%s' '%s' '%s' filename='%s'\n", url, user, password, filename);
-    assert(!fs->fs_attach(fs, &root_fd, &qid, uid, "", ""));
+    err = fs->fs_attach(fs, &root_fd, &qid, uid, "", "");
+    assert(err == 0);
     post_fd = NULL;
 
     fd = fs_walk_path1(fs, root_fd, filename, &name);
@@ -2854,12 +2863,15 @@ void fs_net_set_pwd(FSDevice *fs, const char *pwd)
 {
     FSFile *root_fd;
     FSQID qid;
+    int err;
     
     assert(fs_is_net(fs));
     
-    assert(!fs->fs_attach(fs, &root_fd, &qid, 0, "", ""));
-    assert(!fs->fs_create(fs, &qid, root_fd, ".fscmd_pwd", P9_O_RDWR | P9_O_TRUNC,
-                          0600, 0));
+    err = fs->fs_attach(fs, &root_fd, &qid, 0, "", "");
+    assert(err == 0);
+    err = fs->fs_create(fs, &qid, root_fd, ".fscmd_pwd", P9_O_RDWR | P9_O_TRUNC,
+                    0600, 0);
+    assert(err == 0);
     fs->fs_write(fs, root_fd, 0, (uint8_t *)pwd, strlen(pwd));
     fs->fs_delete(fs, root_fd);
 }
@@ -2874,6 +2886,7 @@ void fs_import_file(const char *filename, uint8_t *buf, int buf_len)
     FSDeviceMem *fs1;
     FSFile *fd, *root_fd;
     FSQID qid;
+    int err;
     
     //    printf("importing file: %s len=%d\n", filename, buf_len);
     fs = fs_import_fs;
@@ -2882,7 +2895,8 @@ void fs_import_file(const char *filename, uint8_t *buf, int buf_len)
         return;
     }
     
-    assert(!fs->fs_attach(fs, &root_fd, &qid, 1000, "", ""));
+    err = fs->fs_attach(fs, &root_fd, &qid, 1000, "", "");
+    assert(err == 0);
     fs1 = (FSDeviceMem *)fs;
     fd = fs_walk_path(fs, root_fd, fs1->import_dir);
     if (!fd)
