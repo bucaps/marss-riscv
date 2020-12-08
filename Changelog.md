@@ -1,3 +1,12 @@
+# Version 4.1a
+
+ - Added
+	 - Model a arbitrary fixed latency between LLC cache and Memory controller
+ - Changed
+	 - For Ramulator and DRAMSim3, memory access request is split into MEM_BUS_WIDTH sized parts and latency for each part is queried
+ - Fixed
+	 - Rounding mode (rm) must be calculated again before executing FP instruction during simulation
+
 # Version 4.0a
 
  - Added
