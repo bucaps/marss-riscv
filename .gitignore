@@ -8,8 +8,10 @@ src/*.d
 src/riscvsim/*.d
 src/slirp/*.d
 
-# exclude stats file
+# exclude stats, log and trace files
 src/*.csv
+src/*.log
+src/*.trace
 
 # exclude executables
 src/marss-riscv
