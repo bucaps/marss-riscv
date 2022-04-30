@@ -271,13 +271,15 @@ temu_read_insn(RISCVCPUState *s, InstructionLatch *e)
         ++simcpu->stats[s->priv].code_tlb_lookups;
 
         /* TLB Lookup */
-        code_tlb_entry
-            = tlb_entry_lookup(s->tlb_code, TLB_SIZE, (addr & ~PG_MASK));
+        code_tlb_entry = tlb_entry_lookup(
+            s->tlb_code, TLB_SIZE, (addr & ~PG_MASK), s->tlb_code_eviction);
         if (likely(code_tlb_entry))
         {
             /* TLB match */
             ptr = (uint8_t *)(code_tlb_entry->mem_addend + (uintptr_t)addr);
             ++simcpu->stats[s->priv].code_tlb_hits;
+            s->code_guest_paddr
+                = code_tlb_entry->guest_paddr + (addr - code_tlb_entry->vaddr);
         }
         else
         {
@@ -288,12 +290,6 @@ temu_read_insn(RISCVCPUState *s, InstructionLatch *e)
         s->code_ptr = ptr;
         s->code_end = ptr + (PG_MASK - 1 - (addr & PG_MASK));
         s->code_to_pc_addend = addr - (uintptr_t)s->code_ptr;
-
-        code_tlb_entry
-            = tlb_entry_lookup(s->tlb_code, TLB_SIZE, (addr & ~PG_MASK));
-        assert(code_tlb_entry != NULL);
-        s->code_guest_paddr
-            = code_tlb_entry->guest_paddr + (addr - code_tlb_entry->vaddr);
 
         if (unlikely(s->code_ptr >= s->code_end))
         {
