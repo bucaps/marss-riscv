@@ -349,11 +349,58 @@ static int get_phys_addr(RISCVCPUState *s,
     return -1;
 }
 
+TLBEntry *
+tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag)
+{
+    int i;
+
+    for (i = 0; i < tlb_size; ++i)
+    {
+        if (tlb[i].valid && (tlb[i].vaddr == tag))
+        {
+            return &tlb[i];
+        }
+    }
+
+    return NULL;
+}
+
+void
+tlb_entry_insert(TLBEntry *tlb, int tlb_size, target_ulong vaddr,
+                 uintptr_t mem_addend, target_ulong guest_paddr)
+{
+    int fill_index = -1;
+
+    for (int i = 0; i < tlb_size; ++i)
+    {
+        if (!tlb[i].valid)
+        {
+            // empty TLB entry
+            fill_index = i;
+            break;
+        }
+    }
+
+    // empty TLB entry not found
+    // eviction required, use random eviction for now
+    // https://stackoverflow.com/questions/1202687/how-do-i-get-a-specific-range-of-numbers-from-rand
+    if (fill_index == -1)
+    {
+        fill_index = rand() / ((RAND_MAX / tlb_size) + 1);
+        assert(fill_index >= 0 && fill_index < tlb_size);
+    }
+
+    tlb[fill_index].vaddr       = vaddr;
+    tlb[fill_index].mem_addend  = mem_addend;
+    tlb[fill_index].guest_paddr = guest_paddr;
+    tlb[fill_index].valid       = 1;
+}
+
 /* return 0 if OK, != 0 if exception */
 int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
                      target_ulong addr, int size_log2)
 {
-    int size, tlb_idx, err, al;
+    int size, err, al;
     target_ulong paddr, offset;
     uint8_t *ptr;
     PhysMemoryRange *pr;
@@ -437,21 +484,20 @@ int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
 #endif
             return 0;
         } else if (pr->is_ram) {
-            tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);
             ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
-            s->tlb_read[tlb_idx].vaddr = addr & ~PG_MASK;
-            s->tlb_read[tlb_idx].mem_addend = (uintptr_t)ptr - addr;
-            s->tlb_read[tlb_idx].guest_paddr = paddr & ~PG_MASK;
-            switch(size_log2) {
-            case 0:
-                ret = *(uint8_t *)ptr;
-                break;
-            case 1:
-                ret = *(uint16_t *)ptr;
-                break;
-            case 2:
-                ret = *(uint32_t *)ptr;
-                break;
+            tlb_entry_insert(s->tlb_read, TLB_SIZE, addr & ~PG_MASK,
+                             (uintptr_t)ptr - addr, paddr & ~PG_MASK);
+            switch (size_log2)
+            {
+                case 0:
+                    ret = *(uint8_t *)ptr;
+                    break;
+                case 1:
+                    ret = *(uint16_t *)ptr;
+                    break;
+                case 2:
+                    ret = *(uint32_t *)ptr;
+                    break;
 #if MLEN >= 64
             case 3:
                 ret = *(uint64_t *)ptr;
@@ -498,7 +544,7 @@ int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
 int target_write_slow(RISCVCPUState *s, target_ulong addr,
                       mem_uint_t val, int size_log2)
 {
-    int size, i, tlb_idx, err;
+    int size, i, err;
     target_ulong paddr, offset;
     uint8_t *ptr;
     PhysMemoryRange *pr;
@@ -527,11 +573,9 @@ int target_write_slow(RISCVCPUState *s, target_ulong addr,
 #endif
         } else if (pr->is_ram) {
             phys_mem_set_dirty_bit(pr, paddr - pr->addr);
-            tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);
             ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
-            s->tlb_write[tlb_idx].vaddr = addr & ~PG_MASK;
-            s->tlb_write[tlb_idx].mem_addend = (uintptr_t)ptr - addr;
-            s->tlb_write[tlb_idx].guest_paddr = paddr & ~PG_MASK;
+            tlb_entry_insert(s->tlb_write, TLB_SIZE, addr & ~PG_MASK,
+                             (uintptr_t)ptr - addr, paddr & ~PG_MASK);
             switch(size_log2) {
             case 0:
                 *(uint8_t *)ptr = val;
@@ -602,7 +646,6 @@ no_inline __exception int target_read_insn_slow(RISCVCPUState *s,
                                                        uint8_t **pptr,
                                                        target_ulong addr)
 {
-    int tlb_idx;
     target_ulong paddr;
     uint8_t *ptr;
     PhysMemoryRange *pr;
@@ -619,11 +662,10 @@ no_inline __exception int target_read_insn_slow(RISCVCPUState *s,
         s->pending_exception = CAUSE_FAULT_FETCH;
         return -1;
     }
-    tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);
+
     ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
-    s->tlb_code[tlb_idx].vaddr = addr & ~PG_MASK;
-    s->tlb_code[tlb_idx].mem_addend = (uintptr_t)ptr - addr;
-    s->tlb_code[tlb_idx].guest_paddr = paddr & ~PG_MASK;
+    tlb_entry_insert(s->tlb_code, TLB_SIZE, addr & ~PG_MASK,
+                     (uintptr_t)ptr - addr, paddr & ~PG_MASK);
     *pptr = ptr;
     return 0;
 }
@@ -632,18 +674,18 @@ no_inline __exception int target_read_insn_slow(RISCVCPUState *s,
 __exception int target_read_insn_u16(RISCVCPUState *s, uint16_t *pinsn,
                                                    target_ulong addr)
 {
-    uint32_t tlb_idx;
-    uint8_t *ptr;
+    uint8_t * ptr;
+    TLBEntry *tlb_entry;
 
     if (s->simcpu->simulation && !s->ins_tlb_lookup_accounted) {
         ++s->simcpu->stats[s->priv].code_tlb_lookups;
         s->ins_tlb_lookup_accounted = 1;
     }
 
-    tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);
-    if (likely(s->tlb_code[tlb_idx].vaddr == (addr & ~PG_MASK))) {
-        ptr = (uint8_t *)(s->tlb_code[tlb_idx].mem_addend +
-                          (uintptr_t)addr);
+    tlb_entry = tlb_entry_lookup(s->tlb_code, TLB_SIZE, (addr & ~PG_MASK));
+
+    if (likely(tlb_entry)) {
+        ptr = (uint8_t *)(tlb_entry->mem_addend + (uintptr_t)addr);
 
         if (s->simcpu->simulation && !s->ins_tlb_hit_accounted) {
             ++s->simcpu->stats[s->priv].code_tlb_hits;
@@ -669,6 +711,9 @@ static void tlb_init(RISCVCPUState *s)
         s->tlb_read[i].guest_paddr = -1;
         s->tlb_write[i].guest_paddr = -1;
         s->tlb_code[i].guest_paddr = -1;
+        s->tlb_read[i].valid = 0;
+        s->tlb_write[i].valid = 0;
+        s->tlb_code[i].valid = 0;
     }
 
     /* Flush branch prediction unit on a tlb flush or context switch */
