@@ -353,7 +353,7 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
        for emscripten */
     for(;;) {
         if (unlikely(code_ptr >= code_end)) {
-            uint32_t tlb_idx;
+            TLBEntry *code_tlb_entry;
             uint16_t insn_high;
             target_ulong addr;
             uint8_t *ptr;
@@ -374,10 +374,10 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
             }
     
             addr = s->pc;
-            tlb_idx = (addr >> PG_SHIFT) & (TLB_SIZE - 1);
-            if (likely(s->tlb_code[tlb_idx].vaddr == (addr & ~PG_MASK))) {
+            code_tlb_entry = tlb_entry_lookup(s->tlb_code, TLB_SIZE, (addr & ~PG_MASK));
+            if (likely(code_tlb_entry)) {
                 /* TLB match */ 
-                ptr = (uint8_t *)(s->tlb_code[tlb_idx].mem_addend +
+                ptr = (uint8_t *)(code_tlb_entry->mem_addend +
                                   (uintptr_t)addr);
             } else {
                 if (unlikely(target_read_insn_slow(s, &ptr, addr)))
