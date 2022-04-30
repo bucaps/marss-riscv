@@ -247,6 +247,7 @@ sim_params_set_defaults(SimParams *p)
     p->cache_write_policy = DEF_CACHE_WRITE_POLICY;
 
     p->tlb_size = DEF_TLB_SIZE;
+    p->tlb_evict = DEF_TLB_EVICT_POLICY;
     p->dram_model_type = DEF_MEM_MODEL;
     p->burst_length = DEF_DRAM_BURST_SIZE;
     p->flush_sim_mem_on_simstart = DEF_FLUSH_SIM_MEM_ON_SIMSTART;
@@ -446,6 +447,7 @@ sim_params_validate(SimParams *p)
     }
 
     validate_param("tlb_size", 0, 1, 2048, p->tlb_size);
+    validate_param("tlb_evict", 1, 0, 1, p->tlb_evict);
     validate_param("burst_length", 0, 1, 2048, (int)p->burst_length);
     validate_param("mem_access_latency", 0, 1, 2048, p->mem_access_latency);
 
@@ -1322,6 +1324,30 @@ sim_params_parse(SimParams *p, JSONValue cfg)
     if (vm_get_int(obj1, tag_name, &p->tlb_size) < 0)
     {
         log_default_param_int(buf1, tag_name, p->tlb_size);
+    }
+
+    tag_name = "tlb_evict_policy";
+    if (vm_get_str(obj1, tag_name, &str) < 0)
+    {
+        log_default_param_str(buf1, tag_name,
+                              evict_policy_str[p->tlb_evict]);
+    }
+    else
+    {
+        if (strcmp(str, "lru") == 0)
+        {
+            p->tlb_evict = EVICT_POLICY_BIT_PLRU;
+        }
+        else if (strcmp(str, "random") == 0)
+        {
+            p->tlb_evict = EVICT_POLICY_RANDOM;
+        }
+        else
+        {
+            sim_assert((0), "error: %s at line %d in %s(): error parsing "
+                            "param - %s->%s has invalid value",
+                       __FILE__, __LINE__, __func__, buf1, tag_name);
+        }
     }
 
     tag_name = "burst_length";

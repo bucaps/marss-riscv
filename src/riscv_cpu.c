@@ -350,7 +350,7 @@ static int get_phys_addr(RISCVCPUState *s,
 }
 
 TLBEntry *
-tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag)
+tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag, EvictPolicy *evict_policy)
 {
     int i;
 
@@ -358,6 +358,7 @@ tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag)
     {
         if (tlb[i].valid && (tlb[i].vaddr == tag))
         {
+            evict_policy->use(evict_policy, 0, i);
             return &tlb[i];
         }
     }
@@ -367,7 +368,8 @@ tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag)
 
 void
 tlb_entry_insert(TLBEntry *tlb, int tlb_size, target_ulong vaddr,
-                 uintptr_t mem_addend, target_ulong guest_paddr)
+                 uintptr_t mem_addend, target_ulong guest_paddr,
+                 EvictPolicy *evict_policy)
 {
     int fill_index = -1;
 
@@ -386,7 +388,7 @@ tlb_entry_insert(TLBEntry *tlb, int tlb_size, target_ulong vaddr,
     // https://stackoverflow.com/questions/1202687/how-do-i-get-a-specific-range-of-numbers-from-rand
     if (fill_index == -1)
     {
-        fill_index = rand() / ((RAND_MAX / tlb_size) + 1);
+        fill_index = evict_policy->evict(evict_policy, 0);
         assert(fill_index >= 0 && fill_index < tlb_size);
     }
 
@@ -394,6 +396,7 @@ tlb_entry_insert(TLBEntry *tlb, int tlb_size, target_ulong vaddr,
     tlb[fill_index].mem_addend  = mem_addend;
     tlb[fill_index].guest_paddr = guest_paddr;
     tlb[fill_index].valid       = 1;
+    evict_policy->use(evict_policy, 0, fill_index);
 }
 
 /* return 0 if OK, != 0 if exception */
@@ -486,7 +489,10 @@ int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
         } else if (pr->is_ram) {
             ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
             tlb_entry_insert(s->tlb_read, TLB_SIZE, addr & ~PG_MASK,
-                             (uintptr_t)ptr - addr, paddr & ~PG_MASK);
+                             (uintptr_t)ptr - addr, paddr & ~PG_MASK,
+                             s->tlb_read_eviction);
+            s->data_guest_paddr
+                = (paddr & ~PG_MASK) + (addr - (addr & ~PG_MASK));
             switch (size_log2)
             {
                 case 0:
@@ -575,7 +581,10 @@ int target_write_slow(RISCVCPUState *s, target_ulong addr,
             phys_mem_set_dirty_bit(pr, paddr - pr->addr);
             ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
             tlb_entry_insert(s->tlb_write, TLB_SIZE, addr & ~PG_MASK,
-                             (uintptr_t)ptr - addr, paddr & ~PG_MASK);
+                             (uintptr_t)ptr - addr, paddr & ~PG_MASK,
+                             s->tlb_write_eviction);
+            s->data_guest_paddr
+                = (paddr & ~PG_MASK) + (addr - (addr & ~PG_MASK));
             switch(size_log2) {
             case 0:
                 *(uint8_t *)ptr = val;
@@ -665,7 +674,9 @@ no_inline __exception int target_read_insn_slow(RISCVCPUState *s,
 
     ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
     tlb_entry_insert(s->tlb_code, TLB_SIZE, addr & ~PG_MASK,
-                     (uintptr_t)ptr - addr, paddr & ~PG_MASK);
+                     (uintptr_t)ptr - addr, paddr & ~PG_MASK,
+                     s->tlb_code_eviction);
+    s->code_guest_paddr = (paddr & ~PG_MASK) + (addr - (addr & ~PG_MASK));
     *pptr = ptr;
     return 0;
 }
@@ -682,7 +693,8 @@ __exception int target_read_insn_u16(RISCVCPUState *s, uint16_t *pinsn,
         s->ins_tlb_lookup_accounted = 1;
     }
 
-    tlb_entry = tlb_entry_lookup(s->tlb_code, TLB_SIZE, (addr & ~PG_MASK));
+    tlb_entry = tlb_entry_lookup(s->tlb_code, TLB_SIZE, (addr & ~PG_MASK),
+                                 s->tlb_code_eviction);
 
     if (likely(tlb_entry)) {
         ptr = (uint8_t *)(tlb_entry->mem_addend + (uintptr_t)addr);
@@ -692,6 +704,8 @@ __exception int target_read_insn_u16(RISCVCPUState *s, uint16_t *pinsn,
             s->ins_tlb_hit_accounted = 1;
         }
 
+        s->code_guest_paddr
+            = tlb_entry->guest_paddr + (addr - tlb_entry->vaddr);
     } else {
         if (target_read_insn_slow(s, &ptr, addr))
             return -1;
@@ -722,6 +736,10 @@ static void tlb_init(RISCVCPUState *s)
     {
         bpu_flush(s->simcpu->bpu);
     }
+
+    s->tlb_code_eviction->reset(s->tlb_code_eviction);
+    s->tlb_read_eviction->reset(s->tlb_read_eviction);
+    s->tlb_write_eviction->reset(s->tlb_write_eviction);
 }
 
 static void tlb_flush_all(RISCVCPUState *s)
@@ -1484,6 +1502,10 @@ static RISCVCPUState *glue(riscv_cpu_init, MAX_XLEN)(PhysMemoryMap *mem_map, con
     assert(s->tlb_read);
     assert(s->tlb_write);
 
+    s->tlb_code_eviction = evict_policy_create(0, s->sim_params->tlb_size, s->sim_params->tlb_evict);
+    s->tlb_read_eviction = evict_policy_create(0, s->sim_params->tlb_size, s->sim_params->tlb_evict);
+    s->tlb_write_eviction = evict_policy_create(0, s->sim_params->tlb_size, s->sim_params->tlb_evict);
+
     s->simcpu = riscv_sim_cpu_init(s->sim_params, s);
     tlb_init(s);
 
@@ -1495,6 +1517,11 @@ static void glue(riscv_cpu_end, MAX_XLEN)(RISCVCPUState *s)
     free(s->tlb_code);
     free(s->tlb_read);
     free(s->tlb_write);
+
+    evict_policy_free(&s->tlb_code_eviction);
+    evict_policy_free(&s->tlb_read_eviction);
+    evict_policy_free(&s->tlb_write_eviction);
+
     riscv_sim_cpu_free(&s->simcpu);
     free(s);
 }

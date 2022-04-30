@@ -40,6 +40,7 @@
 
 #include "riscvsim/core/riscv_sim_cpu.h"
 #include "riscvsim/utils/sim_params.h"
+#include "riscvsim/utils/evict_policy.h"
 #include "rtc_timer.h"
 
 #define __exception __attribute__((warn_unused_result))
@@ -143,9 +144,11 @@ typedef struct {
     BOOL valid;
 } TLBEntry;
 
-TLBEntry *tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag);
+TLBEntry *tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag,
+                           EvictPolicy *evict_policy);
 void tlb_entry_insert(TLBEntry *tlb, int tlb_size, target_ulong vaddr,
-                      uintptr_t mem_addend, target_ulong guest_paddr);
+                      uintptr_t mem_addend, target_ulong guest_paddr,
+                      EvictPolicy *evict_policy);
 
 typedef struct RISCVCPUState {
     RISCVCPUCommonState common; /* must be first */
@@ -211,6 +214,11 @@ typedef struct RISCVCPUState {
     TLBEntry *tlb_write;
     TLBEntry *tlb_code;
 
+    /* Support TinyEMU's fully associative TLBs with various eviction policies */
+    EvictPolicy *tlb_read_eviction;
+    EvictPolicy *tlb_write_eviction;
+    EvictPolicy *tlb_code_eviction;
+
     /* used to fetch instructions from TinyEMU memory map */
     uint8_t *code_ptr, *code_end;
     target_ulong code_to_pc_addend;
@@ -260,7 +268,8 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
     {                                                                          \
         TLBEntry *tlb_entry;                                                   \
         tlb_entry = tlb_entry_lookup(s->tlb_read, TLB_SIZE,                    \
-                                     (addr & ~(PG_MASK & ~((size / 8) - 1)))); \
+                                     (addr & ~(PG_MASK & ~((size / 8) - 1))),  \
+                                     s->tlb_read_eviction);                    \
         s->is_device_io = 0;                                                   \
         if (s->simcpu->simulation)                                             \
         {                                                                      \
@@ -274,6 +283,8 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
             {                                                                  \
                 ++s->simcpu->stats[s->priv].load_tlb_hits;                     \
             }                                                                  \
+            s->data_guest_paddr                                                \
+                = tlb_entry->guest_paddr + (addr - tlb_entry->vaddr);          \
         }                                                                      \
         else                                                                   \
         {                                                                      \
@@ -285,15 +296,6 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
             *pval = val;                                                       \
         }                                                                      \
                                                                                \
-        if (!s->is_device_io)                                                  \
-        {                                                                      \
-            tlb_entry                                                          \
-                = tlb_entry_lookup(s->tlb_read, TLB_SIZE,                      \
-                                   (addr & ~(PG_MASK & ~((size / 8) - 1))));   \
-            s->data_guest_paddr                                                \
-                = tlb_entry->guest_paddr + (addr - tlb_entry->vaddr);          \
-            assert(tlb_entry != NULL);                                         \
-        }                                                                      \
         return 0;                                                              \
     }                                                                          \
                                                                                \
@@ -302,7 +304,8 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
     {                                                                          \
         TLBEntry *tlb_entry;                                                   \
         tlb_entry = tlb_entry_lookup(s->tlb_write, TLB_SIZE,                   \
-                                     (addr & ~(PG_MASK & ~((size / 8) - 1)))); \
+                                     (addr & ~(PG_MASK & ~((size / 8) - 1))),  \
+                                     s->tlb_write_eviction);                   \
         s->is_device_io = 0;                                                   \
         if (s->simcpu->simulation)                                             \
         {                                                                      \
@@ -315,6 +318,8 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
             {                                                                  \
                 ++s->simcpu->stats[s->priv].store_tlb_hits;                    \
             }                                                                  \
+            s->data_guest_paddr                                                \
+                = tlb_entry->guest_paddr + (addr - tlb_entry->vaddr);          \
         }                                                                      \
         else                                                                   \
         {                                                                      \
@@ -324,14 +329,6 @@ DLL_PUBLIC int target_write_slow(RISCVCPUState *s, target_ulong addr,
                 return ret;                                                    \
         }                                                                      \
                                                                                \
-        if (!s->is_device_io)                                                  \
-        {                                                                      \
-            tlb_entry                                                          \
-                = tlb_entry_lookup(s->tlb_write, TLB_SIZE,                     \
-                                   (addr & ~(PG_MASK & ~((size / 8) - 1))));   \
-            s->data_guest_paddr                                                \
-                = tlb_entry->guest_paddr + (addr - tlb_entry->vaddr);          \
-        }                                                                      \
         return 0;                                                              \
     }
 
