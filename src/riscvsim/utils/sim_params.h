@@ -160,6 +160,7 @@ enum MEM_MODEL_TYPE
 #define DEF_CACHE_LINE_SIZE 64
 
 #define DEF_TLB_SIZE 32
+#define DEF_VICTIM_TLB_SIZE 512
 #define DEF_TLB_EVICT_POLICY EVICT_POLICY_RANDOM
 #define DEF_DRAM_BURST_SIZE 32
 #define DEF_FLUSH_SIM_MEM_ON_SIMSTART DISABLE
@@ -275,6 +276,7 @@ typedef struct SimParams
     int flush_sim_mem_on_simstart;
     uint64_t guest_ram_size;
     int tlb_size;
+    int victim_tlb_size;
     int tlb_evict;
     int dram_model_type;
     int burst_length;

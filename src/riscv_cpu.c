@@ -350,13 +350,14 @@ static int get_phys_addr(RISCVCPUState *s,
 }
 
 TLBEntry *
-tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag, EvictPolicy *evict_policy)
+tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag,
+                 EvictPolicy *evict_policy, int type)
 {
     int i;
 
     for (i = 0; i < tlb_size; ++i)
     {
-        if (tlb[i].valid && (tlb[i].vaddr == tag))
+        if (tlb[i].valid && (tlb[i].vaddr == tag) && (tlb[i].type == type))
         {
             evict_policy->use(evict_policy, 0, i);
             return &tlb[i];
@@ -369,7 +370,7 @@ tlb_entry_lookup(TLBEntry *tlb, int tlb_size, target_ulong tag, EvictPolicy *evi
 void
 tlb_entry_insert(TLBEntry *tlb, int tlb_size, target_ulong vaddr,
                  uintptr_t mem_addend, target_ulong guest_paddr,
-                 EvictPolicy *evict_policy)
+                 EvictPolicy *evict_policy, TLBEntry *evicted_entry, int type)
 {
     int fill_index = -1;
 
@@ -392,9 +393,12 @@ tlb_entry_insert(TLBEntry *tlb, int tlb_size, target_ulong vaddr,
         assert(fill_index >= 0 && fill_index < tlb_size);
     }
 
+    *evicted_entry = tlb[fill_index];
+
     tlb[fill_index].vaddr       = vaddr;
     tlb[fill_index].mem_addend  = mem_addend;
     tlb[fill_index].guest_paddr = guest_paddr;
+    tlb[fill_index].type        = type;
     tlb[fill_index].valid       = 1;
     evict_policy->use(evict_policy, 0, fill_index);
 }
@@ -404,6 +408,7 @@ int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
                      target_ulong addr, int size_log2)
 {
     int size, err, al;
+    TLBEntry evicted_tlb_entry;
     target_ulong paddr, offset;
     uint8_t *ptr;
     PhysMemoryRange *pr;
@@ -488,9 +493,18 @@ int target_read_slow(RISCVCPUState *s, mem_uint_t *pval,
             return 0;
         } else if (pr->is_ram) {
             ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
+
             tlb_entry_insert(s->tlb_read, TLB_SIZE, addr & ~PG_MASK,
                              (uintptr_t)ptr - addr, paddr & ~PG_MASK,
-                             s->tlb_read_eviction);
+                             s->tlb_read_eviction, &evicted_tlb_entry, 1);
+
+            if (evicted_tlb_entry.valid){
+                tlb_entry_insert(s->tlb_victim, s->sim_params->victim_tlb_size, evicted_tlb_entry.vaddr,
+                                 evicted_tlb_entry.mem_addend,
+                                 evicted_tlb_entry.guest_paddr,
+                                 s->tlb_victim_eviction, &evicted_tlb_entry, 1);
+            }
+
             s->data_guest_paddr
                 = (paddr & ~PG_MASK) + (addr - (addr & ~PG_MASK));
             switch (size_log2)
@@ -551,6 +565,7 @@ int target_write_slow(RISCVCPUState *s, target_ulong addr,
                       mem_uint_t val, int size_log2)
 {
     int size, i, err;
+    TLBEntry evicted_tlb_entry;
     target_ulong paddr, offset;
     uint8_t *ptr;
     PhysMemoryRange *pr;
@@ -582,7 +597,15 @@ int target_write_slow(RISCVCPUState *s, target_ulong addr,
             ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
             tlb_entry_insert(s->tlb_write, TLB_SIZE, addr & ~PG_MASK,
                              (uintptr_t)ptr - addr, paddr & ~PG_MASK,
-                             s->tlb_write_eviction);
+                             s->tlb_write_eviction, &evicted_tlb_entry, 2);
+
+            if (evicted_tlb_entry.valid){
+                tlb_entry_insert(s->tlb_victim, s->sim_params->victim_tlb_size, evicted_tlb_entry.vaddr,
+                                 evicted_tlb_entry.mem_addend,
+                                 evicted_tlb_entry.guest_paddr,
+                                 s->tlb_victim_eviction, &evicted_tlb_entry, 2);
+            }
+
             s->data_guest_paddr
                 = (paddr & ~PG_MASK) + (addr - (addr & ~PG_MASK));
             switch(size_log2) {
@@ -656,6 +679,7 @@ no_inline __exception int target_read_insn_slow(RISCVCPUState *s,
                                                        target_ulong addr)
 {
     target_ulong paddr;
+    TLBEntry evicted_tlb_entry;
     uint8_t *ptr;
     PhysMemoryRange *pr;
     
@@ -675,7 +699,15 @@ no_inline __exception int target_read_insn_slow(RISCVCPUState *s,
     ptr = pr->phys_mem + (uintptr_t)(paddr - pr->addr);
     tlb_entry_insert(s->tlb_code, TLB_SIZE, addr & ~PG_MASK,
                      (uintptr_t)ptr - addr, paddr & ~PG_MASK,
-                     s->tlb_code_eviction);
+                     s->tlb_code_eviction, &evicted_tlb_entry, 0);
+
+    if (evicted_tlb_entry.valid) {
+        tlb_entry_insert(s->tlb_victim, s->sim_params->victim_tlb_size, evicted_tlb_entry.vaddr,
+                         evicted_tlb_entry.mem_addend,
+                         evicted_tlb_entry.guest_paddr, s->tlb_victim_eviction,
+                         &evicted_tlb_entry, 0);
+    }
+
     s->code_guest_paddr = (paddr & ~PG_MASK) + (addr - (addr & ~PG_MASK));
     *pptr = ptr;
     return 0;
@@ -686,22 +718,36 @@ __exception int target_read_insn_u16(RISCVCPUState *s, uint16_t *pinsn,
                                                    target_ulong addr)
 {
     uint8_t * ptr;
+    int victim_tlb_looked_up = 0;
     TLBEntry *tlb_entry;
 
-    if (s->simcpu->simulation && !s->ins_tlb_lookup_accounted) {
+    if (s->simcpu->simulation) {
         ++s->simcpu->stats[s->priv].code_tlb_lookups;
-        s->ins_tlb_lookup_accounted = 1;
     }
 
     tlb_entry = tlb_entry_lookup(s->tlb_code, TLB_SIZE, (addr & ~PG_MASK),
-                                 s->tlb_code_eviction);
+                                 s->tlb_code_eviction, 0);
+
+    if (tlb_entry == NULL) {
+        victim_tlb_looked_up = 1;
+
+        if (s->simcpu->simulation) {
+            ++s->simcpu->stats[s->priv].victim_tlb_lookups;
+        }
+
+        tlb_entry = tlb_entry_lookup(s->tlb_victim, s->sim_params->victim_tlb_size, (addr & ~PG_MASK),
+                                          s->tlb_victim_eviction, 0);
+    }
 
     if (likely(tlb_entry)) {
         ptr = (uint8_t *)(tlb_entry->mem_addend + (uintptr_t)addr);
 
-        if (s->simcpu->simulation && !s->ins_tlb_hit_accounted) {
-            ++s->simcpu->stats[s->priv].code_tlb_hits;
-            s->ins_tlb_hit_accounted = 1;
+        if (s->simcpu->simulation) {
+            if (victim_tlb_looked_up) {
+                ++s->simcpu->stats[s->priv].victim_tlb_hits;
+            } else {
+                ++s->simcpu->stats[s->priv].code_tlb_hits;
+            }
         }
 
         s->code_guest_paddr
@@ -728,6 +774,16 @@ static void tlb_init(RISCVCPUState *s)
         s->tlb_read[i].valid = 0;
         s->tlb_write[i].valid = 0;
         s->tlb_code[i].valid = 0;
+        s->tlb_read[i].type = -1;
+        s->tlb_write[i].type = -1;
+        s->tlb_code[i].type = -1;
+    }
+
+    for (i = 0; i < s->sim_params->victim_tlb_size; i++) {
+        s->tlb_victim[i].vaddr = -1;
+        s->tlb_victim[i].guest_paddr = -1;
+        s->tlb_victim[i].valid = 0;
+        s->tlb_victim[i].type = -1;
     }
 
     /* Flush branch prediction unit on a tlb flush or context switch */
@@ -740,6 +796,7 @@ static void tlb_init(RISCVCPUState *s)
     s->tlb_code_eviction->reset(s->tlb_code_eviction);
     s->tlb_read_eviction->reset(s->tlb_read_eviction);
     s->tlb_write_eviction->reset(s->tlb_write_eviction);
+    s->tlb_victim_eviction->reset(s->tlb_victim_eviction);
 }
 
 static void tlb_flush_all(RISCVCPUState *s)
@@ -1498,13 +1555,16 @@ static RISCVCPUState *glue(riscv_cpu_init, MAX_XLEN)(PhysMemoryMap *mem_map, con
     s->tlb_code = (TLBEntry*) malloc(sizeof(TLBEntry) * s->sim_params->tlb_size);
     s->tlb_read = (TLBEntry*) malloc(sizeof(TLBEntry) * s->sim_params->tlb_size);
     s->tlb_write = (TLBEntry*) malloc(sizeof(TLBEntry) * s->sim_params->tlb_size);
+    s->tlb_victim = (TLBEntry *)malloc(sizeof(TLBEntry) * s->sim_params->victim_tlb_size);
     assert(s->tlb_code);
     assert(s->tlb_read);
     assert(s->tlb_write);
+    assert(s->tlb_victim);
 
     s->tlb_code_eviction = evict_policy_create(0, s->sim_params->tlb_size, s->sim_params->tlb_evict);
     s->tlb_read_eviction = evict_policy_create(0, s->sim_params->tlb_size, s->sim_params->tlb_evict);
     s->tlb_write_eviction = evict_policy_create(0, s->sim_params->tlb_size, s->sim_params->tlb_evict);
+    s->tlb_victim_eviction = evict_policy_create(0, s->sim_params->victim_tlb_size, s->sim_params->tlb_evict);
 
     s->simcpu = riscv_sim_cpu_init(s->sim_params, s);
     tlb_init(s);
@@ -1517,10 +1577,12 @@ static void glue(riscv_cpu_end, MAX_XLEN)(RISCVCPUState *s)
     free(s->tlb_code);
     free(s->tlb_read);
     free(s->tlb_write);
+    free(s->tlb_victim);
 
     evict_policy_free(&s->tlb_code_eviction);
     evict_policy_free(&s->tlb_read_eviction);
     evict_policy_free(&s->tlb_write_eviction);
+    evict_policy_free(&s->tlb_victim_eviction);
 
     riscv_sim_cpu_free(&s->simcpu);
     free(s);
