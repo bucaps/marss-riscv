@@ -375,7 +375,14 @@ static void no_inline glue(riscv_cpu_interp_x, XLEN)(RISCVCPUState *s,
     
             addr = s->pc;
             code_tlb_entry = tlb_entry_lookup(
-                s->tlb_code, TLB_SIZE, (addr & ~PG_MASK), s->tlb_code_eviction);
+                s->tlb_code, TLB_SIZE, (addr & ~PG_MASK), s->tlb_code_eviction, 0);
+
+            if (code_tlb_entry == NULL) {
+                code_tlb_entry
+                    = tlb_entry_lookup(s->tlb_victim, s->sim_params->victim_tlb_size, (addr & ~PG_MASK),
+                                       s->tlb_victim_eviction, 0);
+            }
+
             if (likely(code_tlb_entry)) {
                 /* TLB match */ 
                 ptr = (uint8_t *)(code_tlb_entry->mem_addend +

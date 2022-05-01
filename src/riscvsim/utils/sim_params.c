@@ -57,6 +57,8 @@ sim_params_log_options(const SimParams *p)
     sim_log_param_to_file(sim_log, "%s: %d", "code_tlb_size", p->tlb_size);
     sim_log_param_to_file(sim_log, "%s: %d", "load_tlb_size", p->tlb_size);
     sim_log_param_to_file(sim_log, "%s: %d", "store_tlb_size", p->tlb_size);
+    sim_log_param_to_file(sim_log, "%s: %d", "victim_tlb_size", p->victim_tlb_size);
+    sim_log_param_to_file(sim_log, "%s: %s", "tlb_evict_policy", p->tlb_evict);
     sim_log_param_to_file(sim_log, "%s: %d MB", "guest_ram_size",
                           p->guest_ram_size);
 
@@ -247,6 +249,7 @@ sim_params_set_defaults(SimParams *p)
     p->cache_write_policy = DEF_CACHE_WRITE_POLICY;
 
     p->tlb_size = DEF_TLB_SIZE;
+    p->victim_tlb_size = DEF_VICTIM_TLB_SIZE;
     p->tlb_evict = DEF_TLB_EVICT_POLICY;
     p->dram_model_type = DEF_MEM_MODEL;
     p->burst_length = DEF_DRAM_BURST_SIZE;
@@ -1324,6 +1327,12 @@ sim_params_parse(SimParams *p, JSONValue cfg)
     if (vm_get_int(obj1, tag_name, &p->tlb_size) < 0)
     {
         log_default_param_int(buf1, tag_name, p->tlb_size);
+    }
+
+    tag_name = "victim_tlb_size";
+    if (vm_get_int(obj1, tag_name, &p->victim_tlb_size) < 0)
+    {
+        log_default_param_int(buf1, tag_name, p->victim_tlb_size);
     }
 
     tag_name = "tlb_evict_policy";

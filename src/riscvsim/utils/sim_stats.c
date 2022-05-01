@@ -140,6 +140,8 @@ sim_stats_print_to_file(const SimStats *s, const char *pathname,
     SIM_STAT_PRINT_TO_FILE(fp, s, "load_tlb_hits", load_tlb_hits);
     SIM_STAT_PRINT_TO_FILE(fp, s, "store_tlb_reads", store_tlb_lookups);
     SIM_STAT_PRINT_TO_FILE(fp, s, "store_tlb_hits", store_tlb_hits);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "victim_tlb_reads", victim_tlb_lookups);
+    SIM_STAT_PRINT_TO_FILE(fp, s, "victim_tlb_hits", victim_tlb_hits);
 
     SIM_STAT_PRINT_TO_FILE(fp, s, "cond_branches_taken", ins_cond_branch_taken);
     SIM_STAT_PRINT_TO_FILE(fp, s, "cond_branches_pred_correct",

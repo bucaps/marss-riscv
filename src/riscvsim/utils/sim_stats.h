@@ -82,6 +82,9 @@ typedef struct SimStats
     uint64_t store_tlb_lookups;
     uint64_t store_tlb_hits;
 
+    uint64_t victim_tlb_lookups;
+    uint64_t victim_tlb_hits;
+
     uint64_t ins_page_walks;
     uint64_t load_page_walks;
     uint64_t store_page_walks;
